@@ -4,7 +4,10 @@
       "Bash(del index.html)",
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git --yes)",
       "Bash(Remove-Item -Force index.html)",
-      "Bash(rm \"c:/Users/amala/xob/index.html\" && cd \"c:/Users/amala/xob\" && npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git --yes 2>&1)"
+      "Bash(rm \"c:/Users/amala/xob/index.html\" && cd \"c:/Users/amala/xob\" && npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git --yes 2>&1)",
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest add card badge input label select dialog sheet table tabs dropdown-menu avatar progress separator tooltip alert -y)",
+      "Bash(npx shadcn@latest add form popover command scroll-area -y)"
     ]
   }
 }
