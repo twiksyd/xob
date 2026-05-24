@@ -83,12 +83,12 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
             <span className="flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
               <span>
-                <span className="text-foreground font-medium">{selected.name}</span>
+                <span className="text-foreground font-semibold text-sm">{selected.name}</span>
                 <span className="text-muted-foreground text-xs ml-2">{selected.games?.name} · {selected.robux_amount.toLocaleString()} R$ · ₱{selected.your_price}</span>
               </span>
             </span>
           ) : (
-            <span className="text-muted-foreground">Choose a gamepass...</span>
+            <span className="text-muted-foreground text-sm">Choose a gamepass...</span>
           )}
         </span>
         <span className="flex items-center gap-1 ml-2 flex-shrink-0">
@@ -171,19 +171,19 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
                       type="button"
                       onClick={() => { onChange(gp.id); setOpen(false); setSearch(''); setFilterGame('all') }}
                       className={cn(
-                        'w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all',
+                        'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all',
                         isSelected
                           ? 'bg-primary/15 border border-primary/40'
                           : 'hover:bg-accent border border-transparent'
                       )}
                     >
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">{gp.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{gp.games?.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{gp.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{gp.games?.name}</p>
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
-                        <p className="text-xs font-bold text-foreground">₱{gp.your_price}</p>
-                        <p className="text-[10px] text-muted-foreground">{gp.robux_amount.toLocaleString()} R$</p>
+                        <p className="text-sm font-bold text-foreground">₱{gp.your_price}</p>
+                        <p className="text-xs text-muted-foreground">{gp.robux_amount.toLocaleString()} R$</p>
                       </div>
                     </button>
                   )
@@ -192,7 +192,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
             )}
           </div>
 
-          <div className="px-3 py-1.5 border-t border-border/40 text-[10px] text-muted-foreground">
+          <div className="px-3 py-1.5 border-t border-border/40 text-xs text-muted-foreground">
             {filtered.length} result{filtered.length !== 1 ? 's' : ''}
             {search || filterGame !== 'all' ? ' (filtered)' : ''}
           </div>

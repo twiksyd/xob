@@ -265,20 +265,20 @@ export default function OrdersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/60 bg-secondary/20">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Order</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Buyer</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Gamepasses</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Account</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Profit</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Pay</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Time</th>
+                  <tr className="border-b border-border/60 bg-secondary/30">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Order</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Buyer</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Gamepasses</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Account</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Price</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Profit</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Pay</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Time</th>
                     <th className="px-4 py-3 w-24" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/20">
+                <tbody className="divide-y divide-border/30">
                   {filtered.map(order => {
                     const nextStatus = STATUS_FLOW[order.status]
                     const items = order.order_items ?? []
@@ -286,63 +286,63 @@ export default function OrdersPage() {
 
                     return (
                       <tr key={order.id} className="hover:bg-accent/20 transition-colors group">
-                        <td className="px-4 py-3">
-                          <span className="text-xs font-mono text-primary/80 font-medium">{order.order_number ?? '—'}</span>
+                        <td className="px-4 py-3.5">
+                          <span className="text-sm font-mono text-primary font-medium">{order.order_number ?? '—'}</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-xs font-medium text-foreground">{order.buyer_name ?? '—'}</p>
+                        <td className="px-4 py-3.5">
+                          <p className="text-sm font-semibold text-foreground">{order.buyer_name ?? '—'}</p>
                           {order.buyer_roblox_username && (
-                            <p className="text-[10px] text-muted-foreground">{order.buyer_roblox_username}</p>
+                            <p className="text-xs text-muted-foreground">{order.buyer_roblox_username}</p>
                           )}
                         </td>
-                        <td className="px-4 py-3 max-w-[200px]">
+                        <td className="px-4 py-3.5 max-w-[200px]">
                           {items.length > 0 ? (
-                            <div className="space-y-0.5">
+                            <div className="space-y-1">
                               {items.slice(0, 2).map((item, i) => (
                                 <div key={i}>
-                                  <p className="text-xs font-medium text-foreground truncate">{item.gamepass_name}</p>
-                                  <p className="text-[10px] text-muted-foreground truncate">{item.game_name}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{item.gamepass_name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{item.game_name}</p>
                                 </div>
                               ))}
                               {items.length > 2 && (
-                                <p className="text-[10px] text-primary">+{items.length - 2} more</p>
+                                <p className="text-xs text-primary font-medium">+{items.length - 2} more</p>
                               )}
                             </div>
                           ) : (
                             <div>
-                              <p className="text-xs font-medium text-foreground truncate">{order.gamepasses?.name ?? '—'}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{order.gamepasses?.games?.name ?? ''}</p>
+                              <p className="text-sm font-semibold text-foreground truncate">{order.gamepasses?.name ?? '—'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{order.gamepasses?.games?.name ?? ''}</p>
                             </div>
                           )}
                           {hasMultiple && (
-                            <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
+                            <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
                               {items.length} items
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-xs text-foreground">{order.roblox_accounts?.username ?? '—'}</p>
+                        <td className="px-4 py-3.5">
+                          <p className="text-sm font-medium text-foreground">{order.roblox_accounts?.username ?? '—'}</p>
                           {order.robux_amount != null && (
-                            <p className="text-[10px] text-muted-foreground tabular-nums">{order.robux_amount.toLocaleString()} R$</p>
+                            <p className="text-xs text-muted-foreground tabular-nums">{order.robux_amount.toLocaleString()} R$</p>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-xs font-semibold text-foreground">
+                        <td className="px-4 py-3.5 text-right">
+                          <span className="text-sm font-bold text-foreground">
                             {order.selling_price ? `₱${order.selling_price}` : '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`text-xs font-semibold ${(order.profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <td className="px-4 py-3.5 text-right">
+                          <span className={`text-sm font-bold ${(order.profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {order.profit != null ? `₱${order.profit.toFixed(2)}` : '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-muted-foreground">{order.payment_method}</span>
+                        <td className="px-4 py-3.5">
+                          <span className="text-sm text-muted-foreground">{order.payment_method}</span>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3.5 text-center">
                           <StatusBadge status={order.status} />
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
                           {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
                         </td>
                         <td className="px-4 py-3">

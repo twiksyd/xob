@@ -199,44 +199,44 @@ export default function InventoryPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50 bg-secondary/20">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Game / Gamepass</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Robux</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Competitor</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Your Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Cost</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Profit</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Suggested</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
+                  <tr className="border-b border-border/60 bg-secondary/30">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Game / Gamepass</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Robux</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Competitor</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Your Price</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Cost</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Profit</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Suggested</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Status</th>
                     <th className="px-4 py-3 w-8" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/20">
+                <tbody className="divide-y divide-border/30">
                   {filtered.map(gp => (
-                    <tr key={gp.id} className="hover:bg-accent/10 transition-colors group">
-                      <td className="px-4 py-3">
-                        <p className="text-xs font-medium text-foreground">{gp.name}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{gp.games?.name ?? '—'}</p>
+                    <tr key={gp.id} className="hover:bg-accent/20 transition-colors group">
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm font-semibold text-foreground">{gp.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{gp.games?.name ?? '—'}</p>
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-foreground font-mono">
+                      <td className="px-4 py-3.5 text-right text-sm text-foreground font-mono font-medium">
                         {gp.robux_amount.toLocaleString()} R$
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
                         {gp.competitor_price ? `₱${gp.competitor_price}` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs font-bold text-foreground">
+                      <td className="px-4 py-3.5 text-right text-sm font-bold text-foreground">
                         ₱{gp.your_price}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
                         ₱{gp.your_cost.toFixed(2)}
                       </td>
                       <td className={cn(
-                        'px-4 py-3 text-right text-xs font-semibold',
+                        'px-4 py-3.5 text-right text-sm font-bold',
                         gp.profit >= 20 ? 'text-emerald-400' : gp.profit >= 5 ? 'text-amber-400' : 'text-red-400'
                       )}>
                         ₱{gp.profit.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
                         {gp.suggested_lower_price ? `₱${gp.suggested_lower_price}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-center">
