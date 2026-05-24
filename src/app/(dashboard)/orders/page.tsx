@@ -131,11 +131,27 @@ export default function OrdersPage() {
     fetchData()
   }
 
-  async function handleStatusChange(order: Order, newStatus: string) {
+  async function handleStatusChange(order: OrderWithDetails, newStatus: string) {
     await supabase.from('orders').update({
       status: newStatus,
       updated_at: new Date().toISOString(),
     }).eq('id', order.id)
+
+    if (newStatus === 'completed' && order.roblox_account_id && order.robux_amount) {
+      const { data: acc } = await supabase
+        .from('roblox_accounts')
+        .select('current_robux')
+        .eq('id', order.roblox_account_id)
+        .single()
+
+      if (acc) {
+        await supabase.from('roblox_accounts').update({
+          current_robux: Math.max(0, acc.current_robux - order.robux_amount),
+          updated_at: new Date().toISOString(),
+        }).eq('id', order.roblox_account_id)
+      }
+    }
+
     fetchData()
   }
 
