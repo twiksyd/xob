@@ -7,18 +7,17 @@ import GamepassModal from '@/components/inventory/GamepassModal'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Gamepass, Game, RobloxAccount } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { computeGamepassFields } from '@/lib/utils/pricing'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select'
+import { Plus, Search, Package, MoreHorizontal, Edit2, Trash2 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, Package, MoreHorizontal, Edit2, Trash2, ShoppingCart } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
+
+const STATUS_FILTERS = ['all', 'Good', 'Okay', 'Bad'] as const
 
 export default function InventoryPage() {
   const [gamepasses, setGamepasses] = useState<GamepassWithGame[]>([])
@@ -52,13 +51,11 @@ export default function InventoryPage() {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     if (editGamepass) {
       await supabase.from('gamepasses').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editGamepass.id)
     } else {
       await supabase.from('gamepasses').insert({ ...data, user_id: user.id })
     }
-
     setSaving(false)
     setModalOpen(false)
     setEditGamepass(null)
@@ -79,62 +76,97 @@ export default function InventoryPage() {
     return matchSearch && matchGame && matchStatus
   }), [gamepasses, search, filterGame, filterStatus])
 
+  const statusCounts = useMemo(() => ({
+    Good: filtered.filter(g => g.status === 'Good').length,
+    Okay: filtered.filter(g => g.status === 'Okay').length,
+    Bad: filtered.filter(g => g.status === 'Bad').length,
+  }), [filtered])
+
   return (
     <div>
       <TopBar title="Gamepass Inventory" subtitle="Manage gamepasses and pricing" />
 
-      <div className="p-6 space-y-5">
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-48">
+      <div className="p-6 space-y-4">
+
+        {/* Top bar: search + add */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search gamepasses or games..."
+              placeholder="Search gamepasses..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-8 bg-input text-sm h-9"
             />
           </div>
-          <Select value={filterGame} onValueChange={(v) => setFilterGame(v ?? 'all')}>
-            <SelectTrigger className="w-40 h-9 bg-input text-sm">
-              <SelectValue placeholder="All games" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All Games</SelectItem>
-              {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v ?? 'all')}>
-            <SelectTrigger className="w-32 h-9 bg-input text-sm">
-              <SelectValue placeholder="All status" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Good">Good</SelectItem>
-              <SelectItem value="Okay">Okay</SelectItem>
-              <SelectItem value="Bad">Bad</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             onClick={() => { setEditGamepass(null); setModalOpen(true) }}
-            className="gap-2 bg-primary text-primary-foreground h-9 text-xs"
+            className="gap-2 bg-primary text-primary-foreground h-9 text-xs shrink-0"
           >
             <Plus className="w-3.5 h-3.5" /> Add Gamepass
           </Button>
         </div>
 
-        {/* Summary stats */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span>{filtered.length} gamepasses</span>
-          <span className="text-emerald-400">
-            {filtered.filter(g => g.status === 'Good').length} Good
-          </span>
-          <span className="text-amber-400">
-            {filtered.filter(g => g.status === 'Okay').length} Okay
-          </span>
-          <span className="text-red-400">
-            {filtered.filter(g => g.status === 'Bad').length} Bad
-          </span>
+        {/* Game filter chips */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilterGame('all')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+              filterGame === 'all'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-secondary/40 text-muted-foreground border-border/50 hover:bg-secondary/70 hover:text-foreground'
+            )}
+          >
+            All Games
+            <span className="ml-1.5 opacity-60">({gamepasses.length})</span>
+          </button>
+          {games.map(game => {
+            const count = gamepasses.filter(gp => gp.game_id === game.id).length
+            const isActive = filterGame === game.id
+            return (
+              <button
+                key={game.id}
+                onClick={() => setFilterGame(isActive ? 'all' : game.id)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-secondary/40 text-muted-foreground border-border/50 hover:bg-secondary/70 hover:text-foreground'
+                )}
+              >
+                {game.name}
+                <span className="ml-1.5 opacity-60">({count})</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Status filter + count row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {STATUS_FILTERS.map(s => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={cn(
+                  'px-3 py-1 rounded-md text-xs font-medium transition-all',
+                  filterStatus === s
+                    ? s === 'Good' ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40'
+                    : s === 'Okay' ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40'
+                    : s === 'Bad' ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/40'
+                    : 'bg-secondary text-foreground ring-1 ring-border'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                )}
+              >
+                {s === 'all' ? 'All Status' : s}
+                {s !== 'all' && (
+                  <span className="ml-1 opacity-60">({statusCounts[s]})</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{filtered.length} gamepasses</p>
         </div>
 
         {/* Table */}
@@ -155,7 +187,7 @@ export default function InventoryPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50 bg-secondary/30">
+                  <tr className="border-b border-border/50 bg-secondary/20">
                     <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Game / Gamepass</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Robux</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Competitor</th>
@@ -164,33 +196,36 @@ export default function InventoryPage() {
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Profit</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Suggested</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3 w-8" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
+                <tbody className="divide-y divide-border/20">
                   {filtered.map(gp => (
-                    <tr key={gp.id} className="hover:bg-accent/20 transition-colors group">
+                    <tr key={gp.id} className="hover:bg-accent/10 transition-colors group">
                       <td className="px-4 py-3">
                         <p className="text-xs font-medium text-foreground">{gp.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{gp.games?.name ?? '—'}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{gp.games?.name ?? '—'}</p>
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-foreground font-mono">
                         {gp.robux_amount.toLocaleString()} R$
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                        ₱{gp.competitor_price ?? '—'}
+                        {gp.competitor_price ? `₱${gp.competitor_price}` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs font-semibold text-foreground">
+                      <td className="px-4 py-3 text-right text-xs font-bold text-foreground">
                         ₱{gp.your_price}
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-muted-foreground">
                         ₱{gp.your_cost.toFixed(2)}
                       </td>
-                      <td className={`px-4 py-3 text-right text-xs font-semibold ${gp.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <td className={cn(
+                        'px-4 py-3 text-right text-xs font-semibold',
+                        gp.profit >= 20 ? 'text-emerald-400' : gp.profit >= 5 ? 'text-amber-400' : 'text-red-400'
+                      )}>
                         ₱{gp.profit.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                        ₱{gp.suggested_lower_price}
+                        {gp.suggested_lower_price ? `₱${gp.suggested_lower_price}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <StatusBadge status={gp.status} />
@@ -198,7 +233,7 @@ export default function InventoryPage() {
                       <td className="px-4 py-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground transition-opacity">
-                              <MoreHorizontal className="w-4 h-4" />
+                            <MoreHorizontal className="w-4 h-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border-border">
                             <DropdownMenuItem
