@@ -17,6 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import GamepassPicker from '@/components/orders/GamepassPicker'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
 
@@ -107,18 +108,12 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
             {/* Gamepass select */}
             <div className="space-y-1.5">
               <Label className="text-xs">Gamepass</Label>
-              <Select value={gamepassId} onValueChange={v => setValue('gamepass_id', v ?? '')}>
-                <SelectTrigger className="bg-input">
-                  <SelectValue placeholder="Select gamepass..." />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border max-h-60">
-                  {gamepasses.map(gp => (
-                    <SelectItem key={gp.id} value={gp.id}>
-                      <span className="text-xs">{gp.games?.name} — {gp.name} ({gp.robux_amount.toLocaleString()} R$ · ₱{gp.your_price})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <GamepassPicker
+                gamepasses={gamepasses}
+                value={gamepassId}
+                onChange={v => setValue('gamepass_id', v)}
+                error={!!errors.gamepass_id}
+              />
               {errors.gamepass_id && <p className="text-xs text-red-400">{errors.gamepass_id.message}</p>}
             </div>
 

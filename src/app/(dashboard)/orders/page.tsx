@@ -10,12 +10,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select'
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, ShoppingCart, MoreHorizontal, Edit2, Trash2, Check, Truck, X } from 'lucide-react'
+import { Plus, Search, ShoppingCart, MoreHorizontal, Edit2, Trash2, Truck, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 type OrderWithDetails = Order & {
@@ -30,11 +27,6 @@ const STATUS_FLOW: Record<string, string> = {
   delivering: 'completed',
 }
 
-const STATUS_ICONS: Record<string, typeof Check> = {
-  paid: Check,
-  delivering: Truck,
-  completed: Check,
-}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
@@ -137,23 +129,38 @@ export default function OrdersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input placeholder="Search orders..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 bg-input h-9 text-sm" />
           </div>
-          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v ?? 'all')}>
-            <SelectTrigger className="w-36 h-9 bg-input text-sm">
-              <SelectValue placeholder="All status" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All Status</SelectItem>
-              {['pending', 'paid', 'delivering', 'completed', 'refunded', 'cancelled'].map(s => (
-                <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button
             onClick={() => { setEditOrder(null); setModalOpen(true) }}
             className="gap-2 bg-primary text-primary-foreground h-9 text-xs"
           >
             <Plus className="w-3.5 h-3.5" /> New Order
           </Button>
+        </div>
+
+        {/* Status filter chips */}
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'pending', 'paid', 'delivering', 'completed', 'refunded', 'cancelled'] as const).map(s => {
+            const count = s === 'all' ? orders.length : orders.filter(o => o.status === s).length
+            const colorMap: Record<string, string> = {
+              all: filterStatus === 'all' ? 'bg-primary/20 text-primary border-primary/50' : 'bg-secondary/40 text-muted-foreground border-border/40 hover:bg-secondary/70 hover:text-foreground',
+              pending: filterStatus === 'pending' ? 'bg-slate-500/20 text-slate-300 border-slate-500/40' : 'text-slate-400/60 border-slate-500/20 hover:bg-slate-500/10 hover:text-slate-300',
+              paid: filterStatus === 'paid' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' : 'text-blue-400/60 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-400',
+              delivering: filterStatus === 'delivering' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'text-amber-400/60 border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-400',
+              completed: filterStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'text-emerald-400/60 border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-400',
+              refunded: filterStatus === 'refunded' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40' : 'text-purple-400/60 border-purple-500/20 hover:bg-purple-500/10 hover:text-purple-400',
+              cancelled: filterStatus === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'text-red-400/60 border-red-500/20 hover:bg-red-500/10 hover:text-red-400',
+            }
+            return (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all capitalize ${colorMap[s]}`}
+              >
+                {s === 'all' ? 'All' : s}
+                <span className="ml-1.5 opacity-60">({count})</span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Table */}
@@ -227,44 +234,54 @@ export default function OrdersPage() {
                           {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
                         </td>
                         <td className="px-4 py-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground transition-opacity">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-popover border-border">
-                              {nextStatus && (
-                                <>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {nextStatus && (
+                              <button
+                                onClick={() => handleStatusChange(order, nextStatus)}
+                                title={`Mark as ${nextStatus}`}
+                                className="w-7 h-7 rounded-lg bg-primary/15 hover:bg-primary/30 text-primary flex items-center justify-center transition-colors"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setEditOrder(order); setModalOpen(true) }}
+                              title="Edit"
+                              className="w-7 h-7 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-popover border-border">
+                                {order.status !== 'refunded' && (
                                   <DropdownMenuItem
-                                    onClick={() => handleStatusChange(order, nextStatus)}
-                                    className="gap-2 text-xs cursor-pointer text-primary"
+                                    onClick={() => handleStatusChange(order, 'refunded')}
+                                    className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400"
                                   >
-                                    <Truck className="w-3.5 h-3.5" /> Mark as {nextStatus}
+                                    <X className="w-3.5 h-3.5" /> Mark Refunded
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-border/50" />
-                                </>
-                              )}
-                              <DropdownMenuItem
-                                onClick={() => { setEditOrder(order); setModalOpen(true) }}
-                                className="gap-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" /> Edit
-                              </DropdownMenuItem>
-                              {order.status !== 'refunded' && (
+                                )}
+                                {order.status !== 'cancelled' && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(order, 'cancelled')}
+                                    className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400"
+                                  >
+                                    <X className="w-3.5 h-3.5" /> Cancel
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator className="bg-border/50" />
                                 <DropdownMenuItem
-                                  onClick={() => handleStatusChange(order, 'refunded')}
-                                  className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400"
+                                  onClick={() => handleDelete(order.id)}
+                                  className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400"
                                 >
-                                  <X className="w-3.5 h-3.5" /> Mark Refunded
+                                  <Trash2 className="w-3.5 h-3.5" /> Delete
                                 </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(order.id)}
-                                className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     )
