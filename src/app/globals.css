@@ -48,100 +48,112 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Premium dark theme — always dark */
+/* ═══════════════════════════════════════════════════════════════
+   CYBERPUNK WHITE — Neon light theme
+═══════════════════════════════════════════════════════════════ */
 :root {
-  /* Softer dark base — not pitch black, easier on the eyes */
-  --background: oklch(0.10 0.016 258);
-  --foreground: oklch(0.95 0.008 255);
+  /* Base — cool near-white */
+  --background: oklch(0.982 0.006 255);
+  --foreground: oklch(0.13 0.030 270);
 
-  /* Card surfaces */
-  --card: oklch(0.135 0.018 262);
-  --card-foreground: oklch(0.95 0.008 255);
-  --popover: oklch(0.135 0.018 262);
-  --popover-foreground: oklch(0.95 0.008 255);
+  /* Cards — pure white surfaces */
+  --card: oklch(1.000 0.000 0);
+  --card-foreground: oklch(0.13 0.030 270);
+  --popover: oklch(0.998 0.004 255);
+  --popover-foreground: oklch(0.13 0.030 270);
 
-  /* Primary — vivid emerald */
-  --primary: oklch(0.74 0.22 150);
-  --primary-foreground: oklch(0.05 0.012 265);
+  /* Primary — Neon Cyan */
+  --primary: oklch(0.60 0.22 200);
+  --primary-foreground: oklch(0.99 0.002 0);
 
-  /* Secondary/muted surfaces */
-  --secondary: oklch(0.185 0.022 262);
-  --secondary-foreground: oklch(0.92 0.006 255);
-  --muted: oklch(0.16 0.018 262);
-  --muted-foreground: oklch(0.68 0.016 262);   /* was 0.55 — much more readable */
+  /* Secondary — light blue-gray panel */
+  --secondary: oklch(0.945 0.014 255);
+  --secondary-foreground: oklch(0.25 0.025 270);
+
+  /* Muted */
+  --muted: oklch(0.960 0.010 255);
+  --muted-foreground: oklch(0.46 0.018 265);
 
   /* Accent hover */
-  --accent: oklch(0.20 0.024 262);
-  --accent-foreground: oklch(0.95 0.008 255);
+  --accent: oklch(0.938 0.018 255);
+  --accent-foreground: oklch(0.20 0.025 270);
 
-  /* Utility */
-  --destructive: oklch(0.62 0.23 25);
-  --border: oklch(0.255 0.022 262);             /* was 0.195 — clearer row dividers */
-  --input: oklch(0.165 0.018 262);
-  --ring: oklch(0.74 0.22 150);
+  /* Destructive */
+  --destructive: oklch(0.58 0.23 25);
+
+  /* Borders — subtle cyan tint */
+  --border: oklch(0.875 0.022 255);
+  --input: oklch(0.962 0.012 255);
+  --ring: oklch(0.60 0.22 200);
 
   /* Charts */
-  --chart-1: oklch(0.74 0.22 150);
-  --chart-2: oklch(0.65 0.20 220);
-  --chart-3: oklch(0.78 0.18 90);
-  --chart-4: oklch(0.62 0.23 25);
-  --chart-5: oklch(0.68 0.22 290);
+  --chart-1: oklch(0.60 0.22 200);   /* cyan   */
+  --chart-2: oklch(0.60 0.28 340);   /* pink   */
+  --chart-3: oklch(0.55 0.22 285);   /* purple */
+  --chart-4: oklch(0.65 0.18 90);    /* amber  */
+  --chart-5: oklch(0.58 0.20 150);   /* green  */
 
-  /* Radius */
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  /* Sidebar — slightly darker than page */
-  --sidebar: oklch(0.07 0.012 258);
-  --sidebar-foreground: oklch(0.72 0.016 262);  /* was 0.60 — more readable */
-  --sidebar-primary: oklch(0.74 0.22 150);
-  --sidebar-primary-foreground: oklch(0.05 0.012 265);
-  --sidebar-accent: oklch(0.13 0.016 262);
-  --sidebar-accent-foreground: oklch(0.92 0.006 255);
-  --sidebar-border: oklch(0.145 0.016 262);
-  --sidebar-ring: oklch(0.74 0.22 150);
+  /* Sidebar — slightly cooler than page */
+  --sidebar: oklch(0.974 0.010 258);
+  --sidebar-foreground: oklch(0.38 0.022 265);
+  --sidebar-primary: oklch(0.60 0.22 200);
+  --sidebar-primary-foreground: oklch(0.99 0.002 0);
+  --sidebar-accent: oklch(0.934 0.020 255);
+  --sidebar-accent-foreground: oklch(0.20 0.025 270);
+  --sidebar-border: oklch(0.878 0.022 255);
+  --sidebar-ring: oklch(0.60 0.22 200);
+
+  /* Neon raw colors for shadows/glows */
+  --neon-cyan: #00d4ff;
+  --neon-pink: #ff0066;
+  --neon-purple: #8b5cf6;
 }
 
+/* Keep dark alias for any stray .dark usages */
 .dark {
-  --background: oklch(0.10 0.016 258);
-  --foreground: oklch(0.95 0.008 255);
-  --card: oklch(0.135 0.018 262);
-  --card-foreground: oklch(0.95 0.008 255);
-  --popover: oklch(0.135 0.018 262);
-  --popover-foreground: oklch(0.95 0.008 255);
-  --primary: oklch(0.74 0.22 150);
-  --primary-foreground: oklch(0.05 0.012 265);
-  --secondary: oklch(0.185 0.022 262);
-  --secondary-foreground: oklch(0.92 0.006 255);
-  --muted: oklch(0.16 0.018 262);
-  --muted-foreground: oklch(0.68 0.016 262);
-  --accent: oklch(0.20 0.024 262);
-  --accent-foreground: oklch(0.95 0.008 255);
-  --destructive: oklch(0.62 0.23 25);
-  --border: oklch(0.255 0.022 262);
-  --input: oklch(0.165 0.018 262);
-  --ring: oklch(0.74 0.22 150);
-  --chart-1: oklch(0.74 0.22 150);
-  --chart-2: oklch(0.65 0.20 220);
-  --chart-3: oklch(0.78 0.18 90);
-  --chart-4: oklch(0.62 0.23 25);
-  --chart-5: oklch(0.68 0.22 290);
-  --sidebar: oklch(0.07 0.012 258);
-  --sidebar-foreground: oklch(0.72 0.016 262);
-  --sidebar-primary: oklch(0.74 0.22 150);
-  --sidebar-primary-foreground: oklch(0.05 0.012 265);
-  --sidebar-accent: oklch(0.13 0.016 262);
-  --sidebar-accent-foreground: oklch(0.92 0.006 255);
-  --sidebar-border: oklch(0.145 0.016 262);
-  --sidebar-ring: oklch(0.74 0.22 150);
+  --background: oklch(0.982 0.006 255);
+  --foreground: oklch(0.13 0.030 270);
+  --card: oklch(1.000 0.000 0);
+  --card-foreground: oklch(0.13 0.030 270);
+  --popover: oklch(0.998 0.004 255);
+  --popover-foreground: oklch(0.13 0.030 270);
+  --primary: oklch(0.60 0.22 200);
+  --primary-foreground: oklch(0.99 0.002 0);
+  --secondary: oklch(0.945 0.014 255);
+  --secondary-foreground: oklch(0.25 0.025 270);
+  --muted: oklch(0.960 0.010 255);
+  --muted-foreground: oklch(0.46 0.018 265);
+  --accent: oklch(0.938 0.018 255);
+  --accent-foreground: oklch(0.20 0.025 270);
+  --destructive: oklch(0.58 0.23 25);
+  --border: oklch(0.875 0.022 255);
+  --input: oklch(0.962 0.012 255);
+  --ring: oklch(0.60 0.22 200);
+  --chart-1: oklch(0.60 0.22 200);
+  --chart-2: oklch(0.60 0.28 340);
+  --chart-3: oklch(0.55 0.22 285);
+  --chart-4: oklch(0.65 0.18 90);
+  --chart-5: oklch(0.58 0.20 150);
+  --sidebar: oklch(0.974 0.010 258);
+  --sidebar-foreground: oklch(0.38 0.022 265);
+  --sidebar-primary: oklch(0.60 0.22 200);
+  --sidebar-primary-foreground: oklch(0.99 0.002 0);
+  --sidebar-accent: oklch(0.934 0.020 255);
+  --sidebar-accent-foreground: oklch(0.20 0.025 270);
+  --sidebar-border: oklch(0.878 0.022 255);
+  --sidebar-ring: oklch(0.60 0.22 200);
+  --neon-cyan: #00d4ff;
+  --neon-pink: #ff0066;
+  --neon-purple: #8b5cf6;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { @apply border-border outline-ring/50; }
   html {
     @apply font-sans;
-    color-scheme: dark;
+    color-scheme: light;
   }
   body {
     @apply bg-background text-foreground;
@@ -155,85 +167,106 @@
 /* ─── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: oklch(0.22 0.022 262); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.30 0.030 262); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.25);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.50); }
 
 /* ─── Glass card ─────────────────────────────────────────────── */
 .glass-card {
-  background: oklch(0.145 0.018 262 / 0.98);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid oklch(0.27 0.024 262 / 0.80);
-  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-radius: 16px;
   box-shadow:
-    0 0 0 1px oklch(0.36 0.040 262 / 0.08) inset,
-    0 1px 0   oklch(0.36 0.040 262 / 0.16) inset,
-    0 8px 40px oklch(0.00 0.000 0 / 0.45),
-    0 2px 8px  oklch(0.00 0.000 0 / 0.25);
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
+    0 4px 32px rgba(0, 0, 0, 0.07),
+    0 1px 4px rgba(0, 0, 0, 0.04),
+    0 0 48px rgba(0, 212, 255, 0.04);
 }
 
 /* ─── Grid background ────────────────────────────────────────── */
 .bg-grid {
   background-image:
-    linear-gradient(oklch(0.22 0.022 262 / 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.22 0.022 262 / 0.12) 1px, transparent 1px);
+    linear-gradient(rgba(0, 212, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.055) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
-/* Radial emerald glow at the top of the page */
+/* Neon ambient glows */
 .bg-grid::before {
   content: '';
   position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 420px;
-  background: radial-gradient(ellipse 90% 60% at 50% 0%, oklch(0.74 0.22 150 / 0.055), transparent);
+  inset: 0;
+  background:
+    radial-gradient(ellipse 65% 45% at 12% 0%,   rgba(0, 212, 255, 0.08),  transparent),
+    radial-gradient(ellipse 55% 45% at 88% 100%,  rgba(255, 0, 102, 0.055), transparent),
+    radial-gradient(ellipse 45% 35% at 50% 50%,   rgba(139, 92, 246, 0.03), transparent);
   pointer-events: none;
   z-index: 0;
 }
 
 /* ─── Gradient text ──────────────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, oklch(0.82 0.18 150), oklch(0.70 0.20 170));
+  background: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 60%, #ff0066 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ─── Sidebar nav active state ───────────────────────────────── */
+/* ─── Sidebar active state ───────────────────────────────────── */
 .nav-active {
-  background: linear-gradient(90deg, oklch(0.74 0.22 150 / 0.16) 0%, oklch(0.74 0.22 150 / 0.04) 70%, transparent 100%);
-  border-left: 2px solid oklch(0.74 0.22 150);
-  color: oklch(0.80 0.18 150);
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.03) 70%, transparent 100%);
+  border-left: 2px solid #00d4ff;
+  color: oklch(0.48 0.22 200);
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
 }
 
-/* ─── Premium button gradient ────────────────────────────────── */
-.btn-primary-gradient {
-  background: linear-gradient(135deg, oklch(0.76 0.22 148) 0%, oklch(0.68 0.20 160) 100%);
-  box-shadow: 0 2px 16px oklch(0.74 0.22 150 / 0.35), 0 1px 0 oklch(0.80 0.20 148 / 0.3) inset;
+/* ─── Neon glow button ───────────────────────────────────────── */
+.btn-neon {
+  background: linear-gradient(135deg, oklch(0.62 0.22 200) 0%, oklch(0.52 0.22 215) 100%);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.40), 0 4px 12px rgba(0, 150, 200, 0.25), 0 1px 0 rgba(255,255,255,0.2) inset;
+  color: white;
+  border: none;
 }
-.btn-primary-gradient:hover {
-  box-shadow: 0 4px 24px oklch(0.74 0.22 150 / 0.50), 0 1px 0 oklch(0.80 0.20 148 / 0.3) inset;
+.btn-neon:hover {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.55), 0 6px 20px rgba(0, 150, 200, 0.30), 0 1px 0 rgba(255,255,255,0.2) inset;
 }
 
 /* ─── Status badge ───────────────────────────────────────────── */
-.badge-good { @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30; }
-.badge-okay { @apply bg-amber-500/15 text-amber-400 border border-amber-500/30; }
-.badge-bad  { @apply bg-red-500/15 text-red-400 border border-red-500/30; }
+.badge-good { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+.badge-okay { @apply bg-amber-50 text-amber-700 border border-amber-200; }
+.badge-bad  { @apply bg-red-50 text-red-600 border border-red-200; }
 
-/* ─── Recharts dark theme ────────────────────────────────────── */
+/* ─── Recharts light theme ───────────────────────────────────── */
 .recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line { stroke: oklch(0.20 0.020 262 / 0.50); }
-.recharts-text { fill: oklch(0.50 0.016 262) !important; font-size: 11px; }
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(0, 212, 255, 0.12);
+}
+.recharts-text { fill: oklch(0.46 0.018 265) !important; font-size: 11px; }
 .recharts-default-tooltip {
-  background: oklch(0.12 0.020 262 / 0.97) !important;
-  border: 1px solid oklch(0.24 0.025 262) !important;
-  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(0, 212, 255, 0.28) !important;
+  border-radius: 12px !important;
   backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px oklch(0.00 0.000 0 / 0.5) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), 0 0 16px rgba(0, 212, 255, 0.08) !important;
+  color: oklch(0.13 0.030 270) !important;
 }
 
 /* ─── Focus ring ─────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid oklch(0.74 0.22 150 / 0.6);
+  outline: 2px solid rgba(0, 212, 255, 0.6);
   outline-offset: 2px;
+}
+
+/* ─── Neon input focus ───────────────────────────────────────── */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+}
+
+/* ─── Table hover glow ───────────────────────────────────────── */
+tbody tr:hover {
+  background: rgba(0, 212, 255, 0.03) !important;
 }

@@ -232,7 +232,7 @@ export default function InventoryPage() {
                       </td>
                       <td className={cn(
                         'px-4 py-3.5 text-right text-sm font-bold',
-                        gp.profit >= 20 ? 'text-emerald-400' : gp.profit >= 5 ? 'text-amber-400' : 'text-red-400'
+                        gp.profit >= 20 ? 'text-emerald-600' : gp.profit >= 5 ? 'text-amber-600' : 'text-red-600'
                       )}>
                         ₱{gp.profit.toFixed(2)}
                       </td>

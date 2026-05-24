@@ -5,35 +5,41 @@ interface StatusBadgeProps {
   className?: string
 }
 
-const config: Record<string, { dot: string; pill: string; label?: string }> = {
+const config: Record<string, { dot: string; pill: string; glow?: string }> = {
   // Gamepass profit status
-  Good:        { dot: 'bg-emerald-400', pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' },
-  Okay:        { dot: 'bg-amber-400',   pill: 'bg-amber-500/15 text-amber-400 border border-amber-500/30' },
-  Bad:         { dot: 'bg-red-400',     pill: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  Good:        { dot: '#10b981', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  Okay:        { dot: '#f59e0b', pill: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  Bad:         { dot: '#ef4444', pill: 'bg-red-50 text-red-600 border border-red-200' },
   // Order status
-  pending:     { dot: 'bg-slate-400',   pill: 'bg-slate-500/15 text-slate-300 border border-slate-500/30' },
-  paid:        { dot: 'bg-blue-400',    pill: 'bg-blue-500/15 text-blue-400 border border-blue-500/30' },
-  delivering:  { dot: 'bg-amber-400',   pill: 'bg-amber-500/15 text-amber-400 border border-amber-500/30' },
-  completed:   { dot: 'bg-emerald-400', pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' },
-  refunded:    { dot: 'bg-purple-400',  pill: 'bg-purple-500/15 text-purple-400 border border-purple-500/30' },
-  cancelled:   { dot: 'bg-red-400',     pill: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  pending:     { dot: '#94a3b8', pill: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  paid:        { dot: '#3b82f6', pill: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  delivering:  { dot: '#f59e0b', pill: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  completed:   { dot: '#00d4ff', pill: 'bg-cyan-50 text-cyan-700 border border-cyan-200', glow: '0 0 8px rgba(0,212,255,0.30)' },
+  refunded:    { dot: '#8b5cf6', pill: 'bg-violet-50 text-violet-700 border border-violet-200' },
+  cancelled:   { dot: '#ff0066', pill: 'bg-pink-50 text-pink-700 border border-pink-200' },
   // Account status
-  active:      { dot: 'bg-emerald-400', pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' },
-  inactive:    { dot: 'bg-slate-400',   pill: 'bg-slate-500/15 text-slate-300 border border-slate-500/30' },
-  banned:      { dot: 'bg-red-400',     pill: 'bg-red-500/15 text-red-400 border border-red-500/30' },
-  low:         { dot: 'bg-amber-400',   pill: 'bg-amber-500/15 text-amber-400 border border-amber-500/30' },
+  active:      { dot: '#10b981', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  inactive:    { dot: '#94a3b8', pill: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  banned:      { dot: '#ef4444', pill: 'bg-red-50 text-red-600 border border-red-200' },
+  low:         { dot: '#f59e0b', pill: 'bg-amber-50 text-amber-700 border border-amber-200' },
   // Transaction type
-  sale:        { dot: 'bg-emerald-400', pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' },
-  topup:       { dot: 'bg-blue-400',    pill: 'bg-blue-500/15 text-blue-400 border border-blue-500/30' },
-  adjustment:  { dot: 'bg-slate-400',   pill: 'bg-slate-500/15 text-slate-300 border border-slate-500/30' },
-  refund:      { dot: 'bg-red-400',     pill: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  sale:        { dot: '#10b981', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  topup:       { dot: '#3b82f6', pill: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  adjustment:  { dot: '#94a3b8', pill: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  refund:      { dot: '#ef4444', pill: 'bg-red-50 text-red-600 border border-red-200' },
 }
 
 export default function StatusBadge({ status, className }: StatusBadgeProps) {
-  const c = config[status] ?? { dot: 'bg-muted-foreground', pill: 'bg-muted text-muted-foreground border border-border/40' }
+  const c = config[status] ?? { dot: '#94a3b8', pill: 'bg-slate-100 text-slate-600 border border-slate-200' }
   return (
-    <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium capitalize', c.pill, className)}>
-      <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', c.dot)} />
+    <span
+      className={cn('inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap', c.pill, className)}
+      style={c.glow ? { boxShadow: c.glow } : undefined}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ background: c.dot, boxShadow: `0 0 5px ${c.dot}80` }}
+      />
       {status}
     </span>
   )

@@ -13,40 +13,52 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
     <header
       className="flex items-center justify-between h-14 px-6 sticky top-0 z-10"
       style={{
-        background: 'oklch(0.07 0.016 258 / 0.90)',
-        backdropFilter: 'blur(16px) saturate(160%)',
-        borderBottom: '1px solid oklch(0.195 0.022 262 / 0.60)',
-        boxShadow: '0 1px 0 oklch(0.22 0.024 262 / 0.10)',
+        background: 'rgba(250, 251, 255, 0.88)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        borderBottom: '1px solid rgba(0, 212, 255, 0.14)',
+        boxShadow: '0 1px 0 rgba(0,212,255,0.06), 0 4px 16px rgba(0,0,0,0.04)',
       }}
     >
-      <div className="flex items-center gap-3">
-        <div>
-          <h1 className="text-base font-bold text-foreground tracking-tight leading-tight">{title}</h1>
-          {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5 leading-none">{subtitle}</p>}
-        </div>
+      <div>
+        <h1 className="text-base font-bold tracking-tight leading-tight" style={{ color: 'oklch(0.13 0.030 270)' }}>
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-[11px] font-medium mt-0.5 leading-none" style={{ color: 'oklch(0.52 0.018 265)' }}>
+            {subtitle}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
         <button
-          className="relative w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          style={{ background: 'oklch(0.13 0.018 262)', border: '1px solid oklch(0.20 0.022 262)' }}
+          className="relative w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+          style={{
+            background: 'white',
+            border: '1px solid rgba(0, 212, 255, 0.20)',
+            color: 'oklch(0.46 0.018 265)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 0 12px rgba(0,212,255,0.06)',
+          }}
         >
           <Bell className="w-3.5 h-3.5" />
           <span
             className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
-            style={{ background: 'oklch(0.74 0.22 150)', boxShadow: '0 0 6px oklch(0.74 0.22 150 / 0.8)' }}
+            style={{ background: '#ff0066', boxShadow: '0 0 6px #ff0066' }}
           />
         </button>
 
         <Avatar
-          className="w-8 h-8 cursor-pointer"
-          style={{ border: '1.5px solid oklch(0.74 0.22 150 / 0.50)', boxShadow: '0 0 10px oklch(0.74 0.22 150 / 0.15)' }}
+          className="w-8 h-8 cursor-pointer hover:scale-105 transition-transform"
+          style={{
+            border: '1.5px solid rgba(0, 212, 255, 0.40)',
+            boxShadow: '0 0 12px rgba(0, 212, 255, 0.20)',
+          }}
         >
           <AvatarFallback
-            className="text-xs font-bold"
+            className="text-xs font-black"
             style={{
-              background: 'linear-gradient(135deg, oklch(0.74 0.22 150 / 0.20), oklch(0.65 0.20 165 / 0.10))',
-              color: 'oklch(0.74 0.22 150)',
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(139,92,246,0.10))',
+              color: 'oklch(0.50 0.22 200)',
             }}
           >
             R

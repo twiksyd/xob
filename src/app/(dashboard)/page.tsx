@@ -111,11 +111,11 @@ export default function DashboardPage() {
       <div className="p-6 space-y-6">
         {/* Low Robux Alert */}
         {lowRobuxAccounts.length > 0 && (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/25">
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200" style={{ boxShadow: '0 0 16px rgba(245,158,11,0.10)' }}>
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-amber-400">Low Robux Alert</p>
-              <p className="text-xs text-amber-400/70 mt-0.5">
+              <p className="text-sm font-semibold text-amber-700">Low Robux Alert</p>
+              <p className="text-xs text-amber-600/80 mt-0.5">
                 {lowRobuxAccounts.map(a => `${a.username} (${(a.current_robux - a.reserved_robux).toLocaleString()} R$ available)`).join(', ')} — consider topping up.
               </p>
             </div>
@@ -237,12 +237,17 @@ export default function DashboardPage() {
                           <span className="text-foreground font-medium">{acc.username}</span>
                           <span className="text-muted-foreground">{acc.current_robux.toLocaleString()} R$</span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,212,255,0.10)', border: '1px solid rgba(0,212,255,0.12)' }}>
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${pct}%`,
-                              background: acc.current_robux < 500 ? '#ef4444' : acc.current_robux < 2000 ? '#f59e0b' : '#22c55e'
+                              background: acc.current_robux < 500
+                                ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                                : acc.current_robux < 2000
+                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                                : 'linear-gradient(90deg, #00d4ff, #10b981)',
+                              boxShadow: acc.current_robux < 500 ? '0 0 8px rgba(239,68,68,0.5)' : acc.current_robux < 2000 ? '0 0 8px rgba(245,158,11,0.4)' : '0 0 8px rgba(0,212,255,0.5)',
                             }}
                           />
                         </div>

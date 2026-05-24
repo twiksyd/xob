@@ -332,7 +332,7 @@ export default function OrdersPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right">
-                          <span className={`text-sm font-bold ${(order.profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <span className={`text-sm font-bold ${(order.profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             {order.profit != null ? `₱${order.profit.toFixed(2)}` : '—'}
                           </span>
                         </td>
