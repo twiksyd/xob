@@ -6,11 +6,10 @@ import TopBar from '@/components/shared/TopBar'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Transaction } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
-import { Search, Receipt, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
+import { Receipt, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -56,7 +55,13 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <TopBar title="Transaction History" subtitle="All Robux movements and sales" />
+      <TopBar
+        title="Transaction History"
+        subtitle="All Robux movements and sales"
+        searchPlaceholder="Search transactions..."
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
 
       <div className="p-6 space-y-5">
         {/* Summary */}
@@ -67,20 +72,16 @@ export default function TransactionsPage() {
           </div>
           <div className="glass-card p-4">
             <p className="text-xs text-muted-foreground">Total Profit Earned</p>
-            <p className="text-xl font-bold text-emerald-400">₱{totals.totalProfit.toFixed(2)}</p>
+            <p className="text-xl font-bold text-emerald-600">₱{totals.totalProfit.toFixed(2)}</p>
           </div>
           <div className="glass-card p-4">
             <p className="text-xs text-muted-foreground">Total Robux Sold</p>
-            <p className="text-xl font-bold text-amber-400">{totals.totalDeducted.toLocaleString()} R$</p>
+            <p className="text-xl font-bold text-amber-600">{totals.totalDeducted.toLocaleString()} R$</p>
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Type filter */}
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 bg-input h-9 text-sm" />
-          </div>
           <Select value={filterType} onValueChange={(v) => setFilterType(v ?? 'all')}>
             <SelectTrigger className="w-36 h-9 bg-input text-sm">
               <SelectValue placeholder="All types" />

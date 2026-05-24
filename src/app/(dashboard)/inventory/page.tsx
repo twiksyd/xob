@@ -7,12 +7,12 @@ import GamepassModal from '@/components/inventory/GamepassModal'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Gamepass, Game, RobloxAccount } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
+import { Plus, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Plus, Search, Package, MoreHorizontal, Edit2, Trash2 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { MoreHorizontal, Edit2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
@@ -84,29 +84,17 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <TopBar title="Gamepass Inventory" subtitle="Manage gamepasses and pricing" />
+      <TopBar
+        title="Gamepass Inventory"
+        subtitle="Manage gamepasses and pricing"
+        searchPlaceholder="Search gamepasses..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        actionLabel="+ Add Gamepass"
+        onActionClick={() => { setEditGamepass(null); setModalOpen(true) }}
+      />
 
       <div className="p-6 space-y-4">
-
-        {/* Top bar: search + add */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search gamepasses..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-8 bg-input text-sm h-9"
-            />
-          </div>
-          <Button
-            onClick={() => { setEditGamepass(null); setModalOpen(true) }}
-            className="gap-2 bg-primary text-primary-foreground h-9 text-xs shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Gamepass
-          </Button>
-        </div>
-
         {/* Game filter chips */}
         <div className="flex flex-wrap gap-2">
           <button
@@ -173,7 +161,7 @@ export default function InventoryPage() {
               >
                 {s === 'all' ? 'All Status' : s}
                 {s !== 'all' && (
-                  <span className="ml-1 opacity-60">({statusCounts[s]})</span>
+                  <span className="ml-1 opacity-60">({statusCounts[s as keyof typeof statusCounts]})</span>
                 )}
               </button>
             ))}

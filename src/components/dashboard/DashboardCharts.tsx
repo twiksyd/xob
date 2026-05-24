@@ -2,7 +2,7 @@
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend
+  BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts'
 
 const TOOLTIP_STYLE = {
@@ -87,6 +87,7 @@ export function OrderStatusChart({ data }: { data: { name: string; value: number
     ...d,
     color: STATUS_COLORS[d.name.toLowerCase()] ?? d.color,
   }))
+  const total = mapped.reduce((s, d) => s + d.value, 0)
 
   return (
     <div className="glass-card p-5">
@@ -97,21 +98,44 @@ export function OrderStatusChart({ data }: { data: { name: string; value: number
       {mapped.length === 0 ? (
         <p className="text-xs text-center py-8" style={{ color: 'oklch(0.52 0.018 265)' }}>No orders yet</p>
       ) : (
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie data={mapped} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-              {mapped.map((entry, i) => (
-                <Cell key={i} fill={entry.color} opacity={0.90} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${v} orders`} />
-            <Legend
-              formatter={(value) => (
-                <span style={{ color: 'oklch(0.46 0.018 265)', fontSize: '11px' }}>{value}</span>
-              )}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <ResponsiveContainer width={130} height={130}>
+              <PieChart>
+                <Pie data={mapped} cx="50%" cy="50%" innerRadius={38} outerRadius={60} paddingAngle={3} dataKey="value">
+                  {mapped.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} opacity={0.90} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${v} orders`} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-2 min-w-0">
+            {mapped.map((entry) => {
+              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0
+              return (
+                <div key={entry.name} className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: entry.color, boxShadow: `0 0 6px ${entry.color}80` }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: 'oklch(0.25 0.025 270)' }}>
+                        {entry.name}
+                      </span>
+                      <span className="text-[11px] font-bold flex-shrink-0" style={{ color: entry.color }}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <p className="text-[10px]" style={{ color: 'oklch(0.52 0.018 265)' }}>{entry.value} orders</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )

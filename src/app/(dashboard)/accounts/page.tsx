@@ -75,7 +75,12 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <TopBar title="Roblox Accounts" subtitle="Manage your seller accounts" />
+      <TopBar
+        title="Roblox Accounts"
+        subtitle="Manage your seller accounts"
+        actionLabel="+ Add Account"
+        onActionClick={() => { setEditAccount(null); setModalOpen(true) }}
+      />
 
       <div className="p-6 space-y-6">
         {/* Summary */}
@@ -109,16 +114,7 @@ export default function AccountsPage() {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">All Accounts ({accounts.length})</h2>
-          <Button
-            onClick={() => { setEditAccount(null); setModalOpen(true) }}
-            className="gap-2 bg-primary text-primary-foreground h-8 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Account
-          </Button>
-        </div>
+        <h2 className="text-sm font-semibold text-foreground">All Accounts ({accounts.length})</h2>
 
         {/* Grid */}
         {loading ? (

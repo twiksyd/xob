@@ -8,11 +8,10 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import { Order, Gamepass, Game, RobloxAccount, LineItem, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, ShoppingCart, MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react'
+import { Plus, ShoppingCart, MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
@@ -195,7 +194,15 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <TopBar title="Orders" subtitle="Manage and track all sales" />
+      <TopBar
+        title="Orders"
+        subtitle="Manage and track all sales"
+        searchPlaceholder="Search orders..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        actionLabel="+ New Order"
+        onActionClick={() => { setEditOrder(null); setModalOpen(true) }}
+      />
 
       <div className="p-6 space-y-5">
         {/* Summary */}
@@ -206,26 +213,12 @@ export default function OrdersPage() {
           </div>
           <div className="glass-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Profit</p>
-            <p className="text-2xl font-bold text-emerald-400 tabular-nums">₱{totals.profit.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-emerald-600 tabular-nums">₱{totals.profit.toFixed(2)}</p>
           </div>
           <div className="glass-card p-4 space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Orders</p>
-            <p className="text-2xl font-bold text-amber-400 tabular-nums">{totals.active}</p>
+            <p className="text-2xl font-bold text-amber-600 tabular-nums">{totals.active}</p>
           </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input placeholder="Search orders..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 bg-input h-9 text-sm" />
-          </div>
-          <Button
-            onClick={() => { setEditOrder(null); setModalOpen(true) }}
-            className="gap-2 bg-primary text-primary-foreground h-9 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Order
-          </Button>
         </div>
 
         {/* Status chips */}

@@ -8,7 +8,10 @@ import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { RevenueChart, TopGamesChart, OrderStatusChart } from '@/components/dashboard/DashboardCharts'
-import { Coins, TrendingUp, ShoppingCart, Package, AlertTriangle, ArrowUpRight } from 'lucide-react'
+import {
+  Coins, TrendingUp, ShoppingCart, Package, AlertTriangle, ArrowUpRight,
+  Plus, Users, BarChart2,
+} from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   completed: '#22c55e',
@@ -44,17 +47,13 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Stats
   const totalRobux = accounts.reduce((s, a) => s + (a.current_robux ?? 0), 0)
   const completedOrders = orders.filter(o => o.status === 'completed')
   const totalProfit = completedOrders.reduce((s, o) => s + (o.profit ?? 0), 0)
   const activeOrders = orders.filter(o => ['pending', 'paid', 'delivering'].includes(o.status)).length
   const lowRobuxAccounts = accounts.filter(a => (a.current_robux - a.reserved_robux) < 500)
-
-  // Recent 5 orders
   const recentOrders = orders.slice(0, 5)
 
-  // 7-day revenue chart
   const revenueData = Array.from({ length: 7 }, (_, i) => {
     const date = subDays(new Date(), 6 - i)
     const dateStr = format(date, 'yyyy-MM-dd')
@@ -68,7 +67,6 @@ export default function DashboardPage() {
     }
   })
 
-  // Top games by completed order count
   const gameCounts: Record<string, number> = {}
   completedOrders.forEach(o => {
     const name = (o.gamepasses as any)?.games?.name ?? 'Unknown'
@@ -79,7 +77,6 @@ export default function DashboardPage() {
     .slice(0, 5)
     .map(([name, sales]) => ({ name, sales }))
 
-  // Order status breakdown
   const statusCounts: Record<string, number> = {}
   orders.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1 })
   const statusData = Object.entries(statusCounts)
@@ -90,8 +87,14 @@ export default function DashboardPage() {
       color: STATUS_COLORS[name] ?? '#6b7280',
     }))
 
-  // Account balances for progress bars
   const maxRobux = Math.max(...accounts.map(a => a.current_robux), 1)
+
+  const quickActions = [
+    { label: 'New Order', icon: ShoppingCart, href: '/orders', color: '#00d4ff', bg: 'rgba(0,212,255,0.10)' },
+    { label: 'Add Gamepass', icon: Package, href: '/inventory', color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
+    { label: 'Add Account', icon: Users, href: '/accounts', color: '#3b82f6', bg: 'rgba(59,130,246,0.10)' },
+    { label: 'Reports', icon: BarChart2, href: '/transactions', color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)' },
+  ]
 
   if (loading) {
     return (
@@ -108,7 +111,7 @@ export default function DashboardPage() {
     <div>
       <TopBar title="Dashboard" subtitle="Welcome back — here's your overview" />
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-5">
         {/* Low Robux Alert */}
         {lowRobuxAccounts.length > 0 && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200" style={{ boxShadow: '0 0 16px rgba(245,158,11,0.10)' }}>
@@ -129,15 +132,15 @@ export default function DashboardPage() {
             value={`${totalRobux.toLocaleString()} R$`}
             subtitle={`Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
             icon={Coins}
-            iconColor="text-amber-400"
+            iconColor="text-amber-500"
             accentColor="oklch(0.78 0.18 90)"
           />
           <StatCard
             title="Total Profit"
             value={`₱${totalProfit.toFixed(2)}`}
-            subtitle={`From ${completedOrders.length} completed orders`}
+            subtitle={`From ${completedOrders.length} completed`}
             icon={TrendingUp}
-            iconColor="text-emerald-400"
+            iconColor="text-emerald-500"
             accentColor="oklch(0.74 0.22 150)"
           />
           <StatCard
@@ -145,7 +148,7 @@ export default function DashboardPage() {
             value={String(activeOrders)}
             subtitle={`${orders.length} total orders`}
             icon={ShoppingCart}
-            iconColor="text-blue-400"
+            iconColor="text-blue-500"
             accentColor="oklch(0.65 0.20 220)"
           />
           <StatCard
@@ -153,12 +156,12 @@ export default function DashboardPage() {
             value={String(gamepassCount)}
             subtitle="In your inventory"
             icon={Package}
-            iconColor="text-purple-400"
+            iconColor="text-purple-500"
             accentColor="oklch(0.68 0.22 290)"
           />
         </div>
 
-        {/* Charts */}
+        {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <RevenueChart data={revenueData} />
@@ -166,9 +169,10 @@ export default function DashboardPage() {
           <OrderStatusChart data={statusData} />
         </div>
 
+        {/* Main 3-column section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Recent Orders */}
-          <div className="lg:col-span-2 glass-card overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Recent Orders</h3>
@@ -185,23 +189,20 @@ export default function DashboardPage() {
             ) : (
               <div className="divide-y divide-border/30">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center gap-4 px-5 py-3 hover:bg-accent/20 transition-colors">
+                  <div key={order.id} className="flex items-center gap-3 px-5 py-3 hover:bg-accent/20 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono text-muted-foreground">{order.order_number ?? '—'}</span>
                         <StatusBadge status={order.status} />
                       </div>
                       <p className="text-sm font-medium text-foreground truncate mt-0.5">{order.buyer_name ?? '—'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(order.gamepasses as any)?.games?.name ?? '—'} · {(order.gamepasses as any)?.name ?? '—'}
+                      <p className="text-xs text-muted-foreground truncate">
+                        {(order.gamepasses as any)?.games?.name ?? '—'}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-semibold text-foreground">
                         {order.selling_price ? `₱${order.selling_price}` : '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {order.robux_amount ? `${order.robux_amount.toLocaleString()} R$` : '—'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
@@ -213,10 +214,42 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Right column */}
+          {/* Center column: Top Games + Quick Actions */}
           <div className="space-y-4">
             <TopGamesChart data={topGamesData} />
 
+            {/* Quick Actions */}
+            <div className="glass-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Quick Actions</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {quickActions.map(({ label, icon: Icon, href, color, bg }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all hover:scale-[1.03]"
+                    style={{
+                      background: bg,
+                      border: `1px solid ${color}25`,
+                      boxShadow: `0 2px 12px ${color}12`,
+                    }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: bg, border: `1px solid ${color}35`, color }}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-center" style={{ color: 'oklch(0.25 0.025 270)' }}>
+                      {label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right column: Account Balances + Activity Feed */}
+          <div className="space-y-4">
             {/* Account balances */}
             <div className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
@@ -251,6 +284,44 @@ export default function DashboardPage() {
                             }}
                           />
                         </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Activity Feed */}
+            <div className="glass-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">Activity Feed</h3>
+                <a href="/orders" className="text-xs text-primary hover:underline flex items-center gap-1">
+                  All <ArrowUpRight className="w-3 h-3" />
+                </a>
+              </div>
+              {orders.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No activity yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {orders.slice(0, 6).map((order) => {
+                    const dotColor = STATUS_COLORS[order.status] ?? '#94a3b8'
+                    return (
+                      <div key={order.id} className="flex items-start gap-2.5">
+                        <span
+                          className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: dotColor, boxShadow: `0 0 6px ${dotColor}80` }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            Order from <span className="font-semibold">{order.buyer_name ?? '—'}</span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {order.status} · {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-foreground flex-shrink-0">
+                          {order.selling_price ? `₱${order.selling_price}` : '—'}
+                        </span>
                       </div>
                     )
                   })}
