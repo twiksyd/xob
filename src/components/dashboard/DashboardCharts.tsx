@@ -5,40 +5,15 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from 'recharts'
 
-const salesData = [
-  { day: 'Mon', revenue: 820, profit: 312 },
-  { day: 'Tue', revenue: 1140, profit: 430 },
-  { day: 'Wed', revenue: 960, profit: 365 },
-  { day: 'Thu', revenue: 1380, profit: 520 },
-  { day: 'Fri', revenue: 1620, profit: 615 },
-  { day: 'Sat', revenue: 2100, profit: 798 },
-  { day: 'Sun', revenue: 1760, profit: 670 },
-]
-
-const gameData = [
-  { name: 'EVADE', sales: 34 },
-  { name: 'Anime Vanguards', sales: 28 },
-  { name: 'Catch & Tame', sales: 21 },
-  { name: 'Drag Simulator', sales: 18 },
-  { name: 'Battlegrounds', sales: 15 },
-]
-
-const statusData = [
-  { name: 'Completed', value: 68, color: '#22c55e' },
-  { name: 'Pending', value: 18, color: '#94a3b8' },
-  { name: 'Delivering', value: 10, color: '#f59e0b' },
-  { name: 'Refunded', value: 4, color: '#ef4444' },
-]
-
 const TOOLTIP_STYLE = {
-  backgroundColor: 'oklch(0.14 0.02 265 / 0.95)',
-  border: '1px solid oklch(0.25 0.025 265)',
+  backgroundColor: 'oklch(0.16 0.025 265 / 0.97)',
+  border: '1px solid oklch(0.30 0.03 265)',
   borderRadius: '8px',
-  color: 'oklch(0.93 0.01 260)',
+  color: 'oklch(0.95 0.01 260)',
   fontSize: '12px',
 }
 
-export function RevenueChart() {
+export function RevenueChart({ data }: { data: { day: string; revenue: number; profit: number }[] }) {
   return (
     <div className="glass-card p-5">
       <div className="mb-4">
@@ -46,7 +21,7 @@ export function RevenueChart() {
         <p className="text-xs text-muted-foreground">Last 7 days</p>
       </div>
       <ResponsiveContainer width="100%" height={200}>
-        <AreaChart data={salesData}>
+        <AreaChart data={data}>
           <defs>
             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
@@ -69,46 +44,52 @@ export function RevenueChart() {
   )
 }
 
-export function TopGamesChart() {
+export function TopGamesChart({ data }: { data: { name: string; sales: number }[] }) {
   return (
     <div className="glass-card p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">Top Games by Sales</h3>
-        <p className="text-xs text-muted-foreground">Total orders</p>
+        <p className="text-xs text-muted-foreground">Completed orders</p>
       </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={gameData} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 11 }} />
-          <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} />
-          <Bar dataKey="sales" fill="#22c55e" radius={[0, 4, 4, 0]} name="Orders" />
-        </BarChart>
-      </ResponsiveContainer>
+      {data.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-8">No completed orders yet</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={data} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+            <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Bar dataKey="sales" fill="#22c55e" radius={[0, 4, 4, 0]} name="Orders" />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   )
 }
 
-export function OrderStatusChart() {
+export function OrderStatusChart({ data }: { data: { name: string; value: number; color: string }[] }) {
   return (
     <div className="glass-card p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">Order Status</h3>
         <p className="text-xs text-muted-foreground">All time</p>
       </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
-          <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-            {statusData.map((entry, i) => (
-              <Cell key={i} fill={entry.color} opacity={0.85} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${v}%`} />
-          <Legend
-            formatter={(value) => <span style={{ color: 'oklch(0.72 0.02 265)', fontSize: '11px' }}>{value}</span>}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      {data.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-8">No orders yet</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+              {data.map((entry, i) => (
+                <Cell key={i} fill={entry.color} opacity={0.85} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${v} orders`} />
+            <Legend formatter={(value) => <span style={{ color: 'oklch(0.72 0.02 265)', fontSize: '11px' }}>{value}</span>} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
     </div>
   )
 }

@@ -1,27 +1,109 @@
+'use client'
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { subDays, format, formatDistanceToNow } from 'date-fns'
 import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { RevenueChart, TopGamesChart, OrderStatusChart } from '@/components/dashboard/DashboardCharts'
-import {
-  Coins, TrendingUp, ShoppingCart, Users,
-  AlertTriangle, Gamepad2, Package, ArrowUpRight
-} from 'lucide-react'
+import { Coins, TrendingUp, ShoppingCart, Package, AlertTriangle, ArrowUpRight } from 'lucide-react'
 
-// Mock data — will be replaced with Supabase queries
-const recentOrders = [
-  { id: 'ORD-0024', buyer: 'JohnDoe123', game: 'EVADE', gamepass: 'VIP Pass', robux: 300, price: 95, status: 'completed', time: '5m ago' },
-  { id: 'ORD-0023', buyer: 'Player456', game: 'Anime Vanguards', gamepass: 'Premium Pass', robux: 149, price: 50, status: 'delivering', time: '18m ago' },
-  { id: 'ORD-0022', buyer: 'GamerXYZ', game: 'Drag Simulator', gamepass: 'Police Pass', robux: 499, price: 165, status: 'paid', time: '42m ago' },
-  { id: 'ORD-0021', buyer: 'ProGamer99', game: 'Catch & Tame', gamepass: 'Shiny Hunter', robux: 359, price: 115, status: 'completed', time: '1h ago' },
-  { id: 'ORD-0020', buyer: 'Roblox_Fan', game: 'Battlegrounds', gamepass: 'VIP Server', robux: 99, price: 35, status: 'pending', time: '2h ago' },
-]
-
-const lowRobuxAccounts = [
-  { username: 'SellerAcc2', current_robux: 340, reserved: 200 },
-  { username: 'SellerAcc4', current_robux: 180, reserved: 0 },
-]
+const STATUS_COLORS: Record<string, string> = {
+  completed: '#22c55e',
+  pending: '#94a3b8',
+  delivering: '#f59e0b',
+  paid: '#3b82f6',
+  refunded: '#ef4444',
+  cancelled: '#6b7280',
+}
 
 export default function DashboardPage() {
+  const [orders, setOrders] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [gamepassCount, setGamepassCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const [ordersRes, accountsRes, gpRes] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('id, order_number, status, selling_price, profit, robux_amount, created_at, buyer_name, gamepasses(name, games(name)), roblox_accounts(username)')
+        .order('created_at', { ascending: false }),
+      supabase.from('roblox_accounts').select('*').order('created_at', { ascending: true }),
+      supabase.from('gamepasses').select('id'),
+    ])
+    if (ordersRes.data) setOrders(ordersRes.data)
+    if (accountsRes.data) setAccounts(accountsRes.data)
+    if (gpRes.data) setGamepassCount(gpRes.data.length)
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Stats
+  const totalRobux = accounts.reduce((s, a) => s + (a.current_robux ?? 0), 0)
+  const completedOrders = orders.filter(o => o.status === 'completed')
+  const totalProfit = completedOrders.reduce((s, o) => s + (o.profit ?? 0), 0)
+  const activeOrders = orders.filter(o => ['pending', 'paid', 'delivering'].includes(o.status)).length
+  const lowRobuxAccounts = accounts.filter(a => (a.current_robux - a.reserved_robux) < 500)
+
+  // Recent 5 orders
+  const recentOrders = orders.slice(0, 5)
+
+  // 7-day revenue chart
+  const revenueData = Array.from({ length: 7 }, (_, i) => {
+    const date = subDays(new Date(), 6 - i)
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const dayOrders = completedOrders.filter(o =>
+      format(new Date(o.created_at), 'yyyy-MM-dd') === dateStr
+    )
+    return {
+      day: format(date, 'EEE'),
+      revenue: dayOrders.reduce((s, o) => s + (o.selling_price ?? 0), 0),
+      profit: dayOrders.reduce((s, o) => s + (o.profit ?? 0), 0),
+    }
+  })
+
+  // Top games by completed order count
+  const gameCounts: Record<string, number> = {}
+  completedOrders.forEach(o => {
+    const name = (o.gamepasses as any)?.games?.name ?? 'Unknown'
+    gameCounts[name] = (gameCounts[name] ?? 0) + 1
+  })
+  const topGamesData = Object.entries(gameCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([name, sales]) => ({ name, sales }))
+
+  // Order status breakdown
+  const statusCounts: Record<string, number> = {}
+  orders.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1 })
+  const statusData = Object.entries(statusCounts)
+    .filter(([, v]) => v > 0)
+    .map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+      color: STATUS_COLORS[name] ?? '#6b7280',
+    }))
+
+  // Account balances for progress bars
+  const maxRobux = Math.max(...accounts.map(a => a.current_robux), 1)
+
+  if (loading) {
+    return (
+      <div>
+        <TopBar title="Dashboard" subtitle="Welcome back — here's your overview" />
+        <div className="p-6 flex items-center justify-center h-64">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <TopBar title="Dashboard" subtitle="Welcome back — here's your overview" />
@@ -34,7 +116,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-amber-400">Low Robux Alert</p>
               <p className="text-xs text-amber-400/70 mt-0.5">
-                {lowRobuxAccounts.map(a => `${a.username} (${a.current_robux.toLocaleString()} R$)`).join(', ')} — consider topping up.
+                {lowRobuxAccounts.map(a => `${a.username} (${(a.current_robux - a.reserved_robux).toLocaleString()} R$ available)`).join(', ')} — consider topping up.
               </p>
             </div>
           </div>
@@ -44,32 +126,29 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Robux"
-            value="42,380 R$"
-            subtitle="Across 6 accounts"
+            value={`${totalRobux.toLocaleString()} R$`}
+            subtitle={`Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
             icon={Coins}
             iconColor="text-amber-400"
-            trend={{ value: '+2,400 this week', positive: true }}
           />
           <StatCard
             title="Total Profit"
-            value="₱8,724"
-            subtitle="This month"
+            value={`₱${totalProfit.toFixed(2)}`}
+            subtitle={`From ${completedOrders.length} completed orders`}
             icon={TrendingUp}
             iconColor="text-emerald-400"
-            trend={{ value: '+₱1,230 vs last month', positive: true }}
           />
           <StatCard
             title="Active Orders"
-            value="12"
-            subtitle="3 need action"
+            value={String(activeOrders)}
+            subtitle={`${orders.length} total orders`}
             icon={ShoppingCart}
             iconColor="text-blue-400"
-            trend={{ value: '5 completed today', positive: true }}
           />
           <StatCard
             title="Gamepasses"
-            value="94"
-            subtitle="Across 13 games"
+            value={String(gamepassCount)}
+            subtitle="In your inventory"
             icon={Package}
             iconColor="text-purple-400"
           />
@@ -78,9 +157,9 @@ export default function DashboardPage() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <RevenueChart />
+            <RevenueChart data={revenueData} />
           </div>
-          <OrderStatusChart />
+          <OrderStatusChart data={statusData} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -89,38 +168,52 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Recent Orders</h3>
-                <p className="text-xs text-muted-foreground">Latest transactions</p>
+                <p className="text-xs text-muted-foreground">Latest {recentOrders.length} orders</p>
               </div>
               <a href="/orders" className="text-xs text-primary hover:underline flex items-center gap-1">
                 View all <ArrowUpRight className="w-3 h-3" />
               </a>
             </div>
-            <div className="divide-y divide-border/30">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center gap-4 px-5 py-3 hover:bg-accent/30 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-muted-foreground">{order.id}</span>
-                      <StatusBadge status={order.status} />
+            {recentOrders.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm text-muted-foreground">No orders yet.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center gap-4 px-5 py-3 hover:bg-accent/20 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-muted-foreground">{order.order_number ?? '—'}</span>
+                        <StatusBadge status={order.status} />
+                      </div>
+                      <p className="text-sm font-medium text-foreground truncate mt-0.5">{order.buyer_name ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(order.gamepasses as any)?.games?.name ?? '—'} · {(order.gamepasses as any)?.name ?? '—'}
+                      </p>
                     </div>
-                    <p className="text-sm font-medium text-foreground truncate mt-0.5">{order.buyer}</p>
-                    <p className="text-xs text-muted-foreground">{order.game} · {order.gamepass}</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {order.selling_price ? `₱${order.selling_price}` : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.robux_amount ? `${order.robux_amount.toLocaleString()} R$` : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-foreground">₱{order.price}</p>
-                    <p className="text-xs text-muted-foreground">{order.robux.toLocaleString()} R$</p>
-                    <p className="text-xs text-muted-foreground">{order.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Top Games + Account Quick View */}
+          {/* Right column */}
           <div className="space-y-4">
-            <TopGamesChart />
+            <TopGamesChart data={topGamesData} />
 
-            {/* Account balances summary */}
+            {/* Account balances */}
             <div className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">Account Balances</h3>
@@ -128,30 +221,32 @@ export default function DashboardPage() {
                   Manage <ArrowUpRight className="w-3 h-3" />
                 </a>
               </div>
-              <div className="space-y-2.5">
-                {[
-                  { name: 'SellerAcc1', robux: 12400, pct: 82 },
-                  { name: 'SellerAcc2', robux: 3340, pct: 22 },
-                  { name: 'SellerAcc3', robux: 18200, pct: 95 },
-                  { name: 'SellerAcc4', robux: 1800, pct: 12 },
-                ].map((acc) => (
-                  <div key={acc.name}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-foreground font-medium">{acc.name}</span>
-                      <span className="text-muted-foreground">{acc.robux.toLocaleString()} R$</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${acc.pct}%`,
-                          background: acc.pct < 20 ? '#ef4444' : acc.pct < 40 ? '#f59e0b' : '#22c55e'
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {accounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No accounts yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {accounts.map((acc) => {
+                    const pct = Math.round((acc.current_robux / maxRobux) * 100)
+                    return (
+                      <div key={acc.id}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-foreground font-medium">{acc.username}</span>
+                          <span className="text-muted-foreground">{acc.current_robux.toLocaleString()} R$</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pct}%`,
+                              background: acc.current_robux < 500 ? '#ef4444' : acc.current_robux < 2000 ? '#f59e0b' : '#22c55e'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
