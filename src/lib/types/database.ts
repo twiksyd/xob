@@ -230,10 +230,35 @@ export type Gamepass = Database['public']['Tables']['gamepasses']['Row']
 export type Order = Database['public']['Tables']['orders']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 
+export type OrderItem = {
+  id: string
+  order_id: string
+  gamepass_id: string | null
+  gamepass_name: string
+  game_name: string | null
+  robux_amount: number
+  selling_price: number
+  cost: number
+  profit: number
+  created_at: string
+}
+
+export type LineItem = {
+  _key: string
+  gamepass_id: string
+  gamepass_name: string
+  game_name: string | null
+  robux_amount: number
+  selling_price: number
+  cost: number
+  profit: number
+}
+
 export type GamepassWithGame = Gamepass & { games: Game | null }
 export type OrderWithDetails = Order & {
   gamepasses: (Gamepass & { games: Game | null }) | null
   roblox_accounts: RobloxAccount | null
+  order_items: OrderItem[]
 }
 export type TransactionWithOrder = Transaction & { orders: Order | null }
 

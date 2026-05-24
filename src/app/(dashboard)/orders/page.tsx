@@ -5,28 +5,22 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import OrderModal from '@/components/orders/OrderModal'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { Order, Gamepass, Game, RobloxAccount } from '@/lib/types/database'
+import { Order, Gamepass, Game, RobloxAccount, LineItem, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, ShoppingCart, MoreHorizontal, Edit2, Trash2, Truck, X } from 'lucide-react'
+import { Plus, Search, ShoppingCart, MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
-type OrderWithDetails = Order & {
-  gamepasses: (Gamepass & { games: Game | null }) | null
-  roblox_accounts: RobloxAccount | null
-}
 type GamepassWithGame = Gamepass & { games: Game | null }
 
 const STATUS_FLOW: Record<string, string> = {
   pending: 'paid',
-  paid: 'delivering',
-  delivering: 'completed',
+  paid: 'completed',
 }
-
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
@@ -35,7 +29,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
-  const [editOrder, setEditOrder] = useState<Order | null>(null)
+  const [editOrder, setEditOrder] = useState<OrderWithDetails | null>(null)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const supabase = createClient()
@@ -44,7 +38,7 @@ export default function OrdersPage() {
     setLoading(true)
     const [ordRes, gpRes, accRes] = await Promise.all([
       supabase.from('orders')
-        .select('*, gamepasses(*, games(*)), roblox_accounts(*)')
+        .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
         .order('created_at', { ascending: false }),
       supabase.from('gamepasses').select('*, games(*)').eq('is_active', true).order('name'),
       supabase.from('roblox_accounts').select('*').eq('status', 'active'),
@@ -57,15 +51,78 @@ export default function OrdersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  async function handleSave(data: any) {
+  async function handleSave(data: any, items: LineItem[]) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setSaving(false); return }
+
+    const totalRobux = items.reduce((s, i) => s + i.robux_amount, 0)
+    const totalPrice = items.reduce((s, i) => s + i.selling_price, 0)
+    const totalCost = items.reduce((s, i) => s + i.cost, 0)
+    const totalProfit = items.reduce((s, i) => s + i.profit, 0)
+    const firstItem = items[0]
 
     if (editOrder) {
-      await supabase.from('orders').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editOrder.id)
+      await supabase.from('orders').update({
+        buyer_name: data.buyer_name,
+        buyer_roblox_username: data.buyer_roblox_username,
+        roblox_account_id: data.roblox_account_id,
+        payment_method: data.payment_method,
+        status: data.status,
+        notes: data.notes,
+        gamepass_id: firstItem?.gamepass_id || null,
+        robux_amount: totalRobux,
+        selling_price: totalPrice,
+        cost: totalCost,
+        profit: totalProfit,
+        updated_at: new Date().toISOString(),
+      }).eq('id', editOrder.id)
+
+      await supabase.from('order_items').delete().eq('order_id', editOrder.id)
+      if (items.length > 0) {
+        await supabase.from('order_items').insert(
+          items.map(item => ({
+            order_id: editOrder.id,
+            gamepass_id: item.gamepass_id || null,
+            gamepass_name: item.gamepass_name,
+            game_name: item.game_name,
+            robux_amount: item.robux_amount,
+            selling_price: item.selling_price,
+            cost: item.cost,
+            profit: item.profit,
+          }))
+        )
+      }
     } else {
-      await supabase.from('orders').insert({ ...data, user_id: user.id })
+      const { data: newOrder } = await supabase.from('orders').insert({
+        user_id: user.id,
+        buyer_name: data.buyer_name,
+        buyer_roblox_username: data.buyer_roblox_username,
+        roblox_account_id: data.roblox_account_id,
+        payment_method: data.payment_method,
+        status: data.status,
+        notes: data.notes,
+        gamepass_id: firstItem?.gamepass_id || null,
+        robux_amount: totalRobux,
+        selling_price: totalPrice,
+        cost: totalCost,
+        profit: totalProfit,
+      }).select().single()
+
+      if (newOrder && items.length > 0) {
+        await supabase.from('order_items').insert(
+          items.map(item => ({
+            order_id: newOrder.id,
+            gamepass_id: item.gamepass_id || null,
+            gamepass_name: item.gamepass_name,
+            game_name: item.game_name,
+            robux_amount: item.robux_amount,
+            selling_price: item.selling_price,
+            cost: item.cost,
+            profit: item.profit,
+          }))
+        )
+      }
     }
 
     setSaving(false)
@@ -89,9 +146,11 @@ export default function OrdersPage() {
   }
 
   const filtered = useMemo(() => orders.filter(o => {
+    const gamepassNames = (o.order_items ?? []).map(i => i.gamepass_name.toLowerCase()).join(' ')
     const matchSearch = (o.buyer_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
                         (o.order_number ?? '').toLowerCase().includes(search.toLowerCase()) ||
-                        (o.gamepasses?.name ?? '').toLowerCase().includes(search.toLowerCase())
+                        (o.gamepasses?.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+                        gamepassNames.includes(search.toLowerCase())
     const matchStatus = filterStatus === 'all' || o.status === filterStatus
     return matchSearch && matchStatus
   }), [orders, search, filterStatus])
@@ -99,8 +158,24 @@ export default function OrdersPage() {
   const totals = useMemo(() => ({
     revenue: orders.filter(o => o.status === 'completed').reduce((s, o) => s + (o.selling_price ?? 0), 0),
     profit: orders.filter(o => o.status === 'completed').reduce((s, o) => s + (o.profit ?? 0), 0),
-    pending: orders.filter(o => ['pending', 'paid', 'delivering'].includes(o.status)).length,
+    active: orders.filter(o => ['pending', 'paid'].includes(o.status)).length,
   }), [orders])
+
+  const statusGroups = useMemo(() => {
+    const counts: Record<string, number> = {}
+    orders.forEach(o => { counts[o.status] = (counts[o.status] ?? 0) + 1 })
+    return counts
+  }, [orders])
+
+  const STATUS_CHIPS = ['all', 'pending', 'paid', 'completed', 'refunded', 'cancelled'] as const
+  const chipColor: Record<string, { active: string; idle: string }> = {
+    all:       { active: 'bg-primary/20 text-primary border-primary/40',          idle: 'text-muted-foreground border-border/40 hover:bg-secondary/50 hover:text-foreground' },
+    pending:   { active: 'bg-slate-500/20 text-slate-300 border-slate-400/40',    idle: 'text-slate-400/60 border-slate-500/20 hover:bg-slate-500/10 hover:text-slate-300' },
+    paid:      { active: 'bg-blue-500/20 text-blue-400 border-blue-400/40',       idle: 'text-blue-400/50 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-400' },
+    completed: { active: 'bg-emerald-500/20 text-emerald-400 border-emerald-400/40', idle: 'text-emerald-400/50 border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-400' },
+    refunded:  { active: 'bg-purple-500/20 text-purple-400 border-purple-400/40', idle: 'text-purple-400/50 border-purple-500/20 hover:bg-purple-500/10 hover:text-purple-400' },
+    cancelled: { active: 'bg-red-500/20 text-red-400 border-red-400/40',          idle: 'text-red-400/50 border-red-500/20 hover:bg-red-500/10 hover:text-red-400' },
+  }
 
   return (
     <div>
@@ -109,17 +184,17 @@ export default function OrdersPage() {
       <div className="p-6 space-y-5">
         {/* Summary */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="glass-card p-4">
-            <p className="text-xs text-muted-foreground">Completed Revenue</p>
-            <p className="text-xl font-bold text-foreground">₱{totals.revenue.toFixed(2)}</p>
+          <div className="glass-card p-4 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Completed Revenue</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">₱{totals.revenue.toFixed(2)}</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-xs text-muted-foreground">Total Profit</p>
-            <p className="text-xl font-bold text-emerald-400">₱{totals.profit.toFixed(2)}</p>
+          <div className="glass-card p-4 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Profit</p>
+            <p className="text-2xl font-bold text-emerald-400 tabular-nums">₱{totals.profit.toFixed(2)}</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-xs text-muted-foreground">Active Orders</p>
-            <p className="text-xl font-bold text-amber-400">{totals.pending}</p>
+          <div className="glass-card p-4 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Orders</p>
+            <p className="text-2xl font-bold text-amber-400 tabular-nums">{totals.active}</p>
           </div>
         </div>
 
@@ -137,24 +212,17 @@ export default function OrdersPage() {
           </Button>
         </div>
 
-        {/* Status filter chips */}
+        {/* Status chips */}
         <div className="flex flex-wrap gap-2">
-          {(['all', 'pending', 'paid', 'delivering', 'completed', 'refunded', 'cancelled'] as const).map(s => {
-            const count = s === 'all' ? orders.length : orders.filter(o => o.status === s).length
-            const colorMap: Record<string, string> = {
-              all: filterStatus === 'all' ? 'bg-primary/20 text-primary border-primary/50' : 'bg-secondary/40 text-muted-foreground border-border/40 hover:bg-secondary/70 hover:text-foreground',
-              pending: filterStatus === 'pending' ? 'bg-slate-500/20 text-slate-300 border-slate-500/40' : 'text-slate-400/60 border-slate-500/20 hover:bg-slate-500/10 hover:text-slate-300',
-              paid: filterStatus === 'paid' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' : 'text-blue-400/60 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-400',
-              delivering: filterStatus === 'delivering' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'text-amber-400/60 border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-400',
-              completed: filterStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'text-emerald-400/60 border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-400',
-              refunded: filterStatus === 'refunded' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40' : 'text-purple-400/60 border-purple-500/20 hover:bg-purple-500/10 hover:text-purple-400',
-              cancelled: filterStatus === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'text-red-400/60 border-red-500/20 hover:bg-red-500/10 hover:text-red-400',
-            }
+          {STATUS_CHIPS.map(s => {
+            const count = s === 'all' ? orders.length : (statusGroups[s] ?? 0)
+            const isActive = filterStatus === s
+            const colors = chipColor[s]
             return (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all capitalize ${colorMap[s]}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all capitalize ${isActive ? colors.active : colors.idle}`}
               >
                 {s === 'all' ? 'All' : s}
                 <span className="ml-1.5 opacity-60">({count})</span>
@@ -181,26 +249,29 @@ export default function OrdersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border/50 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Order</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Buyer</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Gamepass</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Account</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Profit</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Payment</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Time</th>
-                    <th className="px-4 py-3" />
+                  <tr className="border-b border-border/60 bg-secondary/20">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Order</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Buyer</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Gamepasses</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Account</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Price</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Profit</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Pay</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground tracking-wide">Time</th>
+                    <th className="px-4 py-3 w-24" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
+                <tbody className="divide-y divide-border/20">
                   {filtered.map(order => {
                     const nextStatus = STATUS_FLOW[order.status]
+                    const items = order.order_items ?? []
+                    const hasMultiple = items.length > 1
+
                     return (
                       <tr key={order.id} className="hover:bg-accent/20 transition-colors group">
                         <td className="px-4 py-3">
-                          <span className="text-xs font-mono text-muted-foreground">{order.order_number ?? '—'}</span>
+                          <span className="text-xs font-mono text-primary/80 font-medium">{order.order_number ?? '—'}</span>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-xs font-medium text-foreground">{order.buyer_name ?? '—'}</p>
@@ -208,21 +279,46 @@ export default function OrdersPage() {
                             <p className="text-[10px] text-muted-foreground">{order.buyer_roblox_username}</p>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-xs font-medium text-foreground">{order.gamepasses?.name ?? '—'}</p>
-                          <p className="text-[10px] text-muted-foreground">{order.gamepasses?.games?.name ?? ''}</p>
+                        <td className="px-4 py-3 max-w-[200px]">
+                          {items.length > 0 ? (
+                            <div className="space-y-0.5">
+                              {items.slice(0, 2).map((item, i) => (
+                                <div key={i}>
+                                  <p className="text-xs font-medium text-foreground truncate">{item.gamepass_name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{item.game_name}</p>
+                                </div>
+                              ))}
+                              {items.length > 2 && (
+                                <p className="text-[10px] text-primary">+{items.length - 2} more</p>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-xs font-medium text-foreground truncate">{order.gamepasses?.name ?? '—'}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{order.gamepasses?.games?.name ?? ''}</p>
+                            </div>
+                          )}
+                          {hasMultiple && (
+                            <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
+                              {items.length} items
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-xs text-foreground">{order.roblox_accounts?.username ?? '—'}</p>
-                          {order.robux_amount && (
-                            <p className="text-[10px] text-muted-foreground">{order.robux_amount.toLocaleString()} R$</p>
+                          {order.robux_amount != null && (
+                            <p className="text-[10px] text-muted-foreground tabular-nums">{order.robux_amount.toLocaleString()} R$</p>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right text-xs font-semibold text-foreground">
-                          {order.selling_price ? `₱${order.selling_price}` : '—'}
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-xs font-semibold text-foreground">
+                            {order.selling_price ? `₱${order.selling_price}` : '—'}
+                          </span>
                         </td>
-                        <td className={`px-4 py-3 text-right text-xs font-semibold ${(order.profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {order.profit ? `₱${order.profit.toFixed(2)}` : '—'}
+                        <td className="px-4 py-3 text-right">
+                          <span className={`text-xs font-semibold ${(order.profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {order.profit != null ? `₱${order.profit.toFixed(2)}` : '—'}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-xs text-muted-foreground">{order.payment_method}</span>
@@ -241,7 +337,7 @@ export default function OrdersPage() {
                                 title={`Mark as ${nextStatus}`}
                                 className="w-7 h-7 rounded-lg bg-primary/15 hover:bg-primary/30 text-primary flex items-center justify-center transition-colors"
                               >
-                                <Truck className="w-3.5 h-3.5" />
+                                <Check className="w-3.5 h-3.5" />
                               </button>
                             )}
                             <button

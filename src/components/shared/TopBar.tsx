@@ -1,7 +1,6 @@
 'use client'
 
-import { Bell, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Bell } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 interface TopBarProps {
@@ -11,28 +10,47 @@ interface TopBarProps {
 
 export default function TopBar({ title, subtitle }: TopBarProps) {
   return (
-    <header className="flex items-center justify-between h-16 px-6 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-      <div>
-        <h1 className="text-base font-semibold text-foreground">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+    <header
+      className="flex items-center justify-between h-14 px-6 sticky top-0 z-10"
+      style={{
+        background: 'oklch(0.07 0.016 258 / 0.90)',
+        backdropFilter: 'blur(16px) saturate(160%)',
+        borderBottom: '1px solid oklch(0.195 0.022 262 / 0.60)',
+        boxShadow: '0 1px 0 oklch(0.22 0.024 262 / 0.10)',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div>
+          <h1 className="text-base font-bold text-foreground tracking-tight leading-tight">{title}</h1>
+          {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5 leading-none">{subtitle}</p>}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Quick search..."
-            className="pl-8 h-8 w-52 text-xs bg-secondary border-border/50"
+      <div className="flex items-center gap-2">
+        <button
+          className="relative w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          style={{ background: 'oklch(0.13 0.018 262)', border: '1px solid oklch(0.20 0.022 262)' }}
+        >
+          <Bell className="w-3.5 h-3.5" />
+          <span
+            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+            style={{ background: 'oklch(0.74 0.22 150)', boxShadow: '0 0 6px oklch(0.74 0.22 150 / 0.8)' }}
           />
-        </div>
-
-        <button className="relative w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
         </button>
 
-        <Avatar className="w-8 h-8 border border-border/50">
-          <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">R</AvatarFallback>
+        <Avatar
+          className="w-8 h-8 cursor-pointer"
+          style={{ border: '1.5px solid oklch(0.74 0.22 150 / 0.50)', boxShadow: '0 0 10px oklch(0.74 0.22 150 / 0.15)' }}
+        >
+          <AvatarFallback
+            className="text-xs font-bold"
+            style={{
+              background: 'linear-gradient(135deg, oklch(0.74 0.22 150 / 0.20), oklch(0.65 0.20 165 / 0.10))',
+              color: 'oklch(0.74 0.22 150)',
+            }}
+          >
+            R
+          </AvatarFallback>
         </Avatar>
       </div>
     </header>

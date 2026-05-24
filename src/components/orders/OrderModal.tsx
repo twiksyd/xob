@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Order, Gamepass, Game, RobloxAccount } from '@/lib/types/database'
+import { Order, Gamepass, Game, RobloxAccount, OrderItem, LineItem } from '@/lib/types/database'
 import AccountSelector from '@/components/inventory/AccountSelector'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
@@ -18,16 +18,16 @@ import {
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import GamepassPicker from '@/components/orders/GamepassPicker'
+import { Plus, X } from 'lucide-react'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
 
 const schema = z.object({
   buyer_name: z.string().min(1, 'Buyer name required'),
   buyer_roblox_username: z.string().optional(),
-  gamepass_id: z.string().min(1, 'Select a gamepass'),
   roblox_account_id: z.string().min(1, 'Select an account'),
   payment_method: z.enum(['GCash', 'Maya', 'Bank', 'Cash', 'Other']),
-  status: z.enum(['pending', 'paid', 'delivering', 'completed', 'refunded', 'cancelled']),
+  status: z.enum(['pending', 'paid', 'completed', 'refunded', 'cancelled']),
   notes: z.string().optional(),
 })
 
@@ -36,101 +36,195 @@ type FormData = z.infer<typeof schema>
 interface OrderModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: FormData & { robux_amount?: number; selling_price?: number; cost?: number; profit?: number }) => Promise<void>
-  order?: Order | null
+  onSave: (data: FormData, items: LineItem[]) => Promise<void>
+  order?: (Order & { order_items?: OrderItem[] }) | null
   gamepasses: GamepassWithGame[]
   accounts: RobloxAccount[]
   loading?: boolean
 }
 
+function mkItem(): LineItem {
+  return {
+    _key: Math.random().toString(36).slice(2),
+    gamepass_id: '', gamepass_name: '', game_name: null,
+    robux_amount: 0, selling_price: 0, cost: 0, profit: 0,
+  }
+}
+
 export default function OrderModal({ open, onClose, onSave, order, gamepasses, accounts, loading }: OrderModalProps) {
+  const [items, setItems] = useState<LineItem[]>([mkItem()])
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      buyer_name: '', buyer_roblox_username: '', gamepass_id: '', roblox_account_id: '',
+      buyer_name: '', buyer_roblox_username: '', roblox_account_id: '',
       payment_method: 'GCash', status: 'pending', notes: ''
     }
   })
 
-  const gamepassId = watch('gamepass_id')
   const accountId = watch('roblox_account_id')
-
-  const selectedGP = gamepasses.find(g => g.id === gamepassId)
+  const totalRobux = items.reduce((s, i) => s + i.robux_amount, 0)
+  const totalPrice = items.reduce((s, i) => s + i.selling_price, 0)
+  const totalProfit = items.reduce((s, i) => s + i.profit, 0)
+  const validItems = items.filter(i => i.gamepass_id)
 
   useEffect(() => {
     if (order) {
       reset({
         buyer_name: order.buyer_name ?? '',
         buyer_roblox_username: order.buyer_roblox_username ?? '',
-        gamepass_id: order.gamepass_id ?? '',
         roblox_account_id: order.roblox_account_id ?? '',
         payment_method: order.payment_method,
-        status: order.status,
+        status: (order.status === 'delivering' ? 'paid' : order.status) as any,
         notes: order.notes ?? '',
       })
+      if (order.order_items && order.order_items.length > 0) {
+        setItems(order.order_items.map(oi => ({
+          _key: oi.id,
+          gamepass_id: oi.gamepass_id ?? '',
+          gamepass_name: oi.gamepass_name,
+          game_name: oi.game_name,
+          robux_amount: oi.robux_amount,
+          selling_price: oi.selling_price,
+          cost: oi.cost,
+          profit: oi.profit,
+        })))
+      } else {
+        setItems([{
+          _key: 'legacy',
+          gamepass_id: order.gamepass_id ?? '',
+          gamepass_name: '',
+          game_name: null,
+          robux_amount: order.robux_amount ?? 0,
+          selling_price: order.selling_price ?? 0,
+          cost: order.cost ?? 0,
+          profit: order.profit ?? 0,
+        }])
+      }
     } else {
-      reset({ buyer_name: '', buyer_roblox_username: '', gamepass_id: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
+      reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
+      setItems([mkItem()])
     }
   }, [order, reset])
 
+  function updateItem(key: string, gamepass_id: string) {
+    const gp = gamepasses.find(g => g.id === gamepass_id)
+    setItems(prev => prev.map(item => item._key !== key ? item : {
+      ...item,
+      gamepass_id,
+      gamepass_name: gp?.name ?? '',
+      game_name: gp?.games?.name ?? null,
+      robux_amount: gp?.robux_amount ?? 0,
+      selling_price: gp?.your_price ?? 0,
+      cost: gp?.your_cost ?? 0,
+      profit: gp?.profit ?? 0,
+    }))
+  }
+
   async function onSubmit(data: FormData) {
-    const extra = selectedGP ? {
-      robux_amount: selectedGP.robux_amount,
-      selling_price: selectedGP.your_price,
-      cost: selectedGP.your_cost,
-      profit: selectedGP.profit,
-    } : {}
-    await onSave({ ...data, ...extra })
+    if (validItems.length === 0) return
+    await onSave(data, validItems)
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="bg-card border-border max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{order ? 'Edit Order' : 'New Order'}</DialogTitle>
+          <DialogTitle className="text-base font-semibold">{order ? 'Edit Order' : 'New Order'}</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-2">
           <form id="order-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-2">
+
             {/* Buyer info */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Buyer Name / GCash Name</Label>
-                <Input {...register('buyer_name')} placeholder="e.g. John Doe" className="bg-input" />
+                <Input {...register('buyer_name')} placeholder="John Doe" className="bg-input" />
                 {errors.buyer_name && <p className="text-xs text-red-400">{errors.buyer_name.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Roblox Username</Label>
-                <Input {...register('buyer_roblox_username')} placeholder="e.g. JohnDoe123" className="bg-input" />
+                <Input {...register('buyer_roblox_username')} placeholder="JohnDoe123" className="bg-input" />
               </div>
             </div>
 
-            {/* Gamepass select */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Gamepass</Label>
-              <GamepassPicker
-                gamepasses={gamepasses}
-                value={gamepassId}
-                onChange={v => setValue('gamepass_id', v)}
-                error={!!errors.gamepass_id}
-              />
-              {errors.gamepass_id && <p className="text-xs text-red-400">{errors.gamepass_id.message}</p>}
+            {/* Gamepass line items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Gamepasses</Label>
+                {validItems.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {validItems.length} item{validItems.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <div key={item._key} className="group relative">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <GamepassPicker
+                          gamepasses={gamepasses}
+                          value={item.gamepass_id}
+                          onChange={id => updateItem(item._key, id)}
+                        />
+                        {item.gamepass_id && (
+                          <div className="mt-1.5 grid grid-cols-3 gap-1">
+                            <div className="bg-secondary/50 rounded-lg py-1.5 text-center">
+                              <p className="text-[10px] text-muted-foreground">Robux</p>
+                              <p className="text-xs font-bold text-foreground tabular-nums">{item.robux_amount.toLocaleString()} R$</p>
+                            </div>
+                            <div className="bg-secondary/50 rounded-lg py-1.5 text-center">
+                              <p className="text-[10px] text-muted-foreground">Price</p>
+                              <p className="text-xs font-bold text-foreground">₱{item.selling_price}</p>
+                            </div>
+                            <div className="bg-emerald-500/10 rounded-lg py-1.5 text-center">
+                              <p className="text-[10px] text-emerald-400/70">Profit</p>
+                              <p className="text-xs font-bold text-emerald-400">₱{item.profit.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setItems(prev => prev.filter(i => i._key !== item._key))}
+                          className="mt-1 w-7 h-7 flex-shrink-0 rounded-lg bg-secondary hover:bg-red-500/15 text-muted-foreground hover:text-red-400 flex items-center justify-center transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setItems(prev => [...prev, mkItem()])}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add another gamepass
+              </button>
             </div>
 
-            {/* Gamepass summary */}
-            {selectedGP && (
-              <div className="rounded-xl bg-secondary/50 border border-border/50 p-3 grid grid-cols-3 gap-2 text-center">
+            {/* Multi-item totals */}
+            {validItems.length > 1 && (
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Robux</p>
-                  <p className="text-xs font-bold text-foreground">{selectedGP.robux_amount.toLocaleString()} R$</p>
+                  <p className="text-[10px] text-muted-foreground">Total Robux</p>
+                  <p className="text-xs font-bold text-foreground tabular-nums">{totalRobux.toLocaleString()} R$</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Price</p>
-                  <p className="text-xs font-bold text-foreground">₱{selectedGP.your_price}</p>
+                  <p className="text-[10px] text-muted-foreground">Total Price</p>
+                  <p className="text-xs font-bold text-foreground">₱{totalPrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Profit</p>
-                  <p className="text-xs font-bold text-emerald-400">₱{selectedGP.profit.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-400/70">Total Profit</p>
+                  <p className="text-xs font-bold text-emerald-400">₱{totalProfit.toFixed(2)}</p>
                 </div>
               </div>
             )}
@@ -139,7 +233,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
             <div className="space-y-1.5">
               <AccountSelector
                 accounts={accounts}
-                robuxRequired={selectedGP?.robux_amount ?? 0}
+                robuxRequired={totalRobux}
                 selectedId={accountId}
                 onSelect={id => setValue('roblox_account_id', id)}
               />
@@ -167,7 +261,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    {['pending', 'paid', 'delivering', 'completed', 'refunded', 'cancelled'].map(s => (
+                    {['pending', 'paid', 'completed', 'refunded', 'cancelled'].map(s => (
                       <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
                     ))}
                   </SelectContent>
@@ -184,7 +278,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
 
         <DialogFooter className="pt-4 border-t border-border/50">
           <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
-          <Button form="order-form" type="submit" disabled={loading} className="bg-primary text-primary-foreground">
+          <Button form="order-form" type="submit" disabled={loading || validItems.length === 0} className="bg-primary text-primary-foreground">
             {loading ? 'Saving...' : order ? 'Save Changes' : 'Create Order'}
           </Button>
         </DialogFooter>

@@ -130,6 +130,7 @@ export default function DashboardPage() {
             subtitle={`Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
             icon={Coins}
             iconColor="text-amber-400"
+            accentColor="oklch(0.78 0.18 90)"
           />
           <StatCard
             title="Total Profit"
@@ -137,6 +138,7 @@ export default function DashboardPage() {
             subtitle={`From ${completedOrders.length} completed orders`}
             icon={TrendingUp}
             iconColor="text-emerald-400"
+            accentColor="oklch(0.74 0.22 150)"
           />
           <StatCard
             title="Active Orders"
@@ -144,6 +146,7 @@ export default function DashboardPage() {
             subtitle={`${orders.length} total orders`}
             icon={ShoppingCart}
             iconColor="text-blue-400"
+            accentColor="oklch(0.65 0.20 220)"
           />
           <StatCard
             title="Gamepasses"
@@ -151,6 +154,7 @@ export default function DashboardPage() {
             subtitle="In your inventory"
             icon={Package}
             iconColor="text-purple-400"
+            accentColor="oklch(0.68 0.22 290)"
           />
         </div>
 
