@@ -112,10 +112,10 @@ export default function InventoryPage() {
           <button
             onClick={() => setFilterGame('all')}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
               filterGame === 'all'
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-secondary/40 text-muted-foreground border-border/50 hover:bg-secondary/70 hover:text-foreground'
+                ? 'bg-primary/20 text-primary border-primary/50'
+                : 'bg-secondary/40 text-muted-foreground border-border/40 hover:bg-secondary/70 hover:text-foreground'
             )}
           >
             All Games
@@ -123,20 +123,32 @@ export default function InventoryPage() {
           </button>
           {games.map(game => {
             const count = gamepasses.filter(gp => gp.game_id === game.id).length
+            if (count === 0) return null
             const isActive = filterGame === game.id
+            const color = game.color || '#6366f1'
             return (
               <button
                 key={game.id}
                 onClick={() => setFilterGame(isActive ? 'all' : game.id)}
+                style={isActive ? {
+                  backgroundColor: `${color}22`,
+                  borderColor: `${color}70`,
+                  color: color,
+                } : {
+                  borderColor: `${color}30`,
+                  color: `${color}99`,
+                }}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
-                  isActive
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-secondary/40 text-muted-foreground border-border/50 hover:bg-secondary/70 hover:text-foreground'
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
+                  isActive ? '' : 'hover:opacity-100 bg-secondary/30'
                 )}
               >
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
+                  style={{ backgroundColor: color }}
+                />
                 {game.name}
-                <span className="ml-1.5 opacity-60">({count})</span>
+                <span className="ml-1.5 opacity-50">({count})</span>
               </button>
             )
           })}
