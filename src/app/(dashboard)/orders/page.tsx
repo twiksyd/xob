@@ -136,18 +136,34 @@ export default function OrdersPage() {
       updated_at: new Date().toISOString(),
     }).eq('id', order.id)
 
-    if (newStatus === 'completed' && order.roblox_account_id && order.robux_amount) {
-      const { data: acc } = await supabase
-        .from('roblox_accounts')
-        .select('current_robux')
-        .eq('id', order.roblox_account_id)
-        .single()
+    if (newStatus === 'completed') {
+      if (order.roblox_account_id && order.robux_amount) {
+        const { data: acc } = await supabase
+          .from('roblox_accounts')
+          .select('current_robux')
+          .eq('id', order.roblox_account_id)
+          .single()
 
-      if (acc) {
-        await supabase.from('roblox_accounts').update({
-          current_robux: Math.max(0, acc.current_robux - order.robux_amount),
-          updated_at: new Date().toISOString(),
-        }).eq('id', order.roblox_account_id)
+        if (acc) {
+          await supabase.from('roblox_accounts').update({
+            current_robux: Math.max(0, acc.current_robux - order.robux_amount),
+            updated_at: new Date().toISOString(),
+          }).eq('id', order.roblox_account_id)
+        }
+      }
+
+      if (order.selling_price) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from('wallet_transactions').insert({
+            user_id: user.id,
+            type: 'income',
+            amount: order.selling_price,
+            category: 'Sale',
+            description: `Order ${order.order_number ?? ''} — ${order.buyer_name ?? 'Customer'}`,
+            reference_order_id: order.id,
+          })
+        }
       }
     }
 

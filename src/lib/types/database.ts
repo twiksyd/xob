@@ -218,6 +218,28 @@ export type Database = {
         }
         Update: never
       }
+      wallet_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'income' | 'expense' | 'adjustment'
+          amount: number
+          category: string
+          description: string | null
+          reference_order_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'income' | 'expense' | 'adjustment'
+          amount: number
+          category?: string
+          description?: string | null
+          reference_order_id?: string | null
+        }
+        Update: never
+      }
     }
   }
 }
@@ -260,6 +282,7 @@ export type OrderWithDetails = Order & {
   roblox_accounts: RobloxAccount | null
   order_items: OrderItem[]
 }
+export type WalletTransaction = Database['public']['Tables']['wallet_transactions']['Row']
 export type TransactionWithOrder = Transaction & { orders: Order | null }
 
 // UI helper types
