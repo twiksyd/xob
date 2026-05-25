@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, Plus } from 'lucide-react'
 
 interface TopBarProps {
   title: string
@@ -21,10 +21,11 @@ export default function TopBar({
     <header
       className="flex items-center h-[60px] px-6 gap-4 flex-shrink-0 sticky top-0 z-10"
       style={{
-        background: 'rgba(255,255,255,0.82)',
+        background: 'rgba(244,240,255,0.72)',
         backdropFilter: 'blur(20px) saturate(160%)',
-        borderBottom: '1px solid rgba(15,13,42,0.055)',
-        boxShadow: '0 1px 0 rgba(15,13,42,0.03)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        borderBottom: '1px solid rgba(139,92,246,0.12)',
+        boxShadow: '0 1px 0 rgba(139,92,246,0.06)',
       }}
     >
       {/* Left */}
@@ -43,32 +44,32 @@ export default function TopBar({
       <div className="flex-1 flex justify-center">
         {searchPlaceholder && (
           <div
-            className="relative flex items-center w-full max-w-[400px]"
+            className="relative flex items-center w-full max-w-[440px]"
             style={{
-              background: 'white',
-              border: '1px solid rgba(15,13,42,0.08)',
-              borderRadius: '10px',
-              boxShadow: '0 1px 3px rgba(15,13,42,0.04)',
+              background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.20)) border-box',
+              border: '1px solid transparent',
+              borderRadius: '100px',
+              boxShadow: '0 1px 8px rgba(139,92,246,0.06)',
             }}
           >
-            <Search className="absolute left-3 w-3.5 h-3.5 flex-shrink-0 pointer-events-none" style={{ color: 'oklch(0.60 0.010 265)' }} />
+            <Search className="absolute left-4 w-3.5 h-3.5 flex-shrink-0 pointer-events-none" style={{ color: 'oklch(0.55 0.014 265)' }} />
             <input
               type="text"
               placeholder={searchPlaceholder}
               value={searchValue ?? ''}
               onChange={e => onSearchChange?.(e.target.value)}
-              className="flex-1 bg-transparent pl-9 pr-12 py-[7px] text-[13px] outline-none"
+              className="flex-1 bg-transparent pl-10 pr-16 py-[8px] text-[13px] outline-none"
               style={{ color: 'oklch(0.10 0.030 272)' }}
             />
             <kbd
-              className="absolute right-3 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium pointer-events-none"
+              className="absolute right-4 flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold pointer-events-none"
               style={{
-                background: 'rgba(15,13,42,0.04)',
-                border: '1px solid rgba(15,13,42,0.08)',
-                color: 'oklch(0.55 0.010 265)',
+                background: 'rgba(139,92,246,0.07)',
+                border: '1px solid rgba(139,92,246,0.14)',
+                color: 'oklch(0.45 0.12 280)',
               }}
             >
-              ⌘K
+              Ctrl K
             </kbd>
           </div>
         )}
@@ -79,36 +80,43 @@ export default function TopBar({
         {actionLabel && (
           <button
             onClick={onActionClick}
-            className="btn-outline h-[34px] px-4 flex items-center gap-2 cursor-pointer"
+            className="btn-outline h-[34px] px-4 flex items-center gap-1.5 cursor-pointer"
           >
-            {actionLabel}
+            <Plus className="w-3 h-3" />
+            {actionLabel.replace(/^\+\s*/, '')}
           </button>
         )}
 
-        <button
-          className="relative w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-          style={{
-            background: 'white',
-            border: '1px solid rgba(15,13,42,0.08)',
-            color: 'oklch(0.50 0.014 265)',
-          }}
-        >
-          <Bell className="w-3.5 h-3.5" />
+        {/* Bell with count badge */}
+        <div className="relative">
+          <button
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.20)) border-box',
+              border: '1px solid transparent',
+              color: 'oklch(0.45 0.014 265)',
+            }}
+          >
+            <Bell className="w-3.5 h-3.5" />
+          </button>
           <span
-            className="absolute top-[5px] right-[5px] w-1.5 h-1.5 rounded-full"
-            style={{ background: '#e879f9', boxShadow: '0 0 5px rgba(232,121,249,0.6)' }}
-          />
-        </button>
+            className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white"
+            style={{ background: 'linear-gradient(135deg, #e879f9, #a78bfa)', boxShadow: '0 0 8px rgba(232,121,249,0.60)' }}
+          >
+            3
+          </span>
+        </div>
 
+        {/* Avatar */}
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-black cursor-pointer"
           style={{
             background: 'linear-gradient(135deg, oklch(0.10 0.030 272), oklch(0.18 0.025 280))',
             color: 'white',
-            boxShadow: '0 2px 6px rgba(15,13,42,0.20)',
+            boxShadow: '0 2px 8px rgba(15,13,42,0.25)',
           }}
         >
-          R
+          X
         </div>
       </div>
     </header>
