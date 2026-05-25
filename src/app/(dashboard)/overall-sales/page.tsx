@@ -56,10 +56,10 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
     terms.some(t => game.toLowerCase().includes(t.toLowerCase()))
 
   const buckets = [
-    { pool: pool.filter(g => has(g.game, 'drag drive')),       weight: 60 },
-    { pool: pool.filter(g => has(g.game, 'wizard', 'alchemy')),weight: 20 },
-    { pool: pool.filter(g => has(g.game, 'evade')),            weight: 10 },
-    { pool: pool.filter(g => has(g.game, 'anime vanguard')),   weight: 10 },
+    { pool: pool.filter(g => has(g.game, 'drag') || has(g.name, 'drag drive')),              weight: 60 },
+    { pool: pool.filter(g => has(g.game, 'wizard', 'alchemy') || has(g.name, 'wizard')),     weight: 20 },
+    { pool: pool.filter(g => has(g.game, 'evade') || has(g.name, 'evade')),                  weight: 10 },
+    { pool: pool.filter(g => has(g.game, 'anime vanguard') || has(g.name, 'anime vanguard')),weight: 10 },
   ].filter(b => b.pool.length > 0)
 
   // Fall back to full pool only if none of the 4 games are in inventory
@@ -80,7 +80,7 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
 
   function gamePriority(game: string) {
     const g = game.toLowerCase()
-    if (g.includes('drag drive'))     return 0
+    if (g.includes('drag'))           return 0
     if (g.includes('wizard') || g.includes('alchemy')) return 1
     if (g.includes('evade'))          return 2
     if (g.includes('anime vanguard')) return 3
@@ -158,18 +158,17 @@ export default function OverallSalesPage() {
   const [showAccounts, setShowAccounts] = useState(false)
   const supabase = createClient()
 
-  // Fetch real gamepasses from inventory on mount
+  // Fetch real gamepasses from inventory on mount (all, not just active — this is a simulation)
   useEffect(() => {
     supabase
       .from('gamepasses')
       .select('name, your_price, profit, games(name)')
-      .eq('is_active', true)
       .then(({ data }) => {
         if (data && data.length > 0) {
           setPool(
             (data as any[]).map(gp => ({
               name:   gp.name,
-              game:   gp.games?.name ?? 'Unknown',
+              game:   (gp.games as any)?.name ?? '',
               price:  gp.your_price,
               profit: gp.profit,
             }))
