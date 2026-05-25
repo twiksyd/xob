@@ -4,11 +4,11 @@ export const dynamic = 'force-dynamic'
 import { useState, useMemo, useCallback } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { format } from 'date-fns'
-import { RefreshCw, AlertOctagon, TrendingUp, DollarSign, ShoppingBag } from 'lucide-react'
+import { format, isToday, isYesterday } from 'date-fns'
+import { RefreshCw, AlertOctagon, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// ─── Fake data pool ──────────────────────────────────────────────────────────
+// ─── Fake data pools ─────────────────────────────────────────────────────────
 
 const BUYERS = [
   'Miguel Santos', 'Jasmine Cruz', 'Rhea Dela Cruz', 'Paolo Reyes',
@@ -21,22 +21,22 @@ const BUYERS = [
 ]
 
 const GP_POOL = [
-  { name: '2x Speed',        game: 'Blade Ball',         price: 149, cost: 118, robux: 400  },
-  { name: 'VIP Pass',        game: 'Blox Fruits',        price: 299, cost: 192, robux: 800  },
-  { name: 'Auto Farm',       game: 'Anime Defenders',    price: 399, cost: 288, robux: 1200 },
-  { name: 'Infinite Jump',   game: 'Pet Simulator X',    price: 199, cost: 144, robux: 600  },
-  { name: 'Lucky Boost',     game: 'Toilet Tower Def.',  price: 99,  cost: 72,  robux: 300  },
-  { name: 'Double Drop',     game: 'Anime Defenders',    price: 249, cost: 180, robux: 750  },
-  { name: 'Premium Club',    game: 'Blade Ball',         price: 349, cost: 240, robux: 1000 },
-  { name: 'Speed Boost',     game: 'Pet Simulator X',    price: 149, cost: 108, robux: 450  },
-  { name: 'Pro Bundle',      game: 'Blox Fruits',        price: 499, cost: 360, robux: 1500 },
-  { name: 'Night Pass',      game: 'Toilet Tower Def.',  price: 179, cost: 129, robux: 538  },
-  { name: 'Ranking Skip',    game: 'Blade Ball',         price: 219, cost: 158, robux: 657  },
-  { name: 'XP Multiplier',   game: 'Anime Defenders',    price: 329, cost: 237, robux: 987  },
+  { name: '2x Speed',        game: 'Blade Ball',         price: 149, cost: 118 },
+  { name: 'VIP Pass',        game: 'Blox Fruits',        price: 299, cost: 192 },
+  { name: 'Auto Farm',       game: 'Anime Defenders',    price: 399, cost: 288 },
+  { name: 'Infinite Jump',   game: 'Pet Simulator X',    price: 199, cost: 144 },
+  { name: 'Lucky Boost',     game: 'Toilet Tower Def.',  price: 99,  cost: 72  },
+  { name: 'Double Drop',     game: 'Anime Defenders',    price: 249, cost: 180 },
+  { name: 'Premium Club',    game: 'Blade Ball',         price: 349, cost: 240 },
+  { name: 'Speed Boost',     game: 'Pet Simulator X',    price: 149, cost: 108 },
+  { name: 'Pro Bundle',      game: 'Blox Fruits',        price: 499, cost: 360 },
+  { name: 'Night Pass',      game: 'Toilet Tower Def.',  price: 179, cost: 129 },
+  { name: 'Ranking Skip',    game: 'Blade Ball',         price: 219, cost: 158 },
+  { name: 'XP Multiplier',   game: 'Anime Defenders',    price: 329, cost: 237 },
 ]
 
-const ACCTS  = ['XobSeller01', 'XobSeller02', 'XobSeller03', 'XobSeller04']
-const METHODS = ['GCash', 'GCash', 'GCash', 'Maya', 'Bank', 'Cash'] as const
+const ACCTS   = ['XobSeller01', 'XobSeller02', 'XobSeller03', 'XobSeller04']
+const METHODS = ['GCash', 'GCash', 'GCash', 'GCash', 'Maya', 'Bank'] as const
 
 type FakeSale = {
   id: string
@@ -52,7 +52,6 @@ type FakeSale = {
   at: Date
 }
 
-// Linear congruential PRNG — fast & seedable
 function mkRng(seed: number) {
   let s = seed | 0
   return () => {
@@ -67,28 +66,45 @@ function pick<T>(arr: readonly T[], r: () => number): T {
 
 function generateSales(seed: number): FakeSale[] {
   const r = mkRng(seed)
-  const now = Date.now()
+
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterdayStart = todayStart - 86400000
+  const nowMs = now.getTime()
+
   return Array.from({ length: 26 }, (_, i) => {
-    const gp  = pick(GP_POOL, r)
-    const qty = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
-    const roll = r()
+    const gp    = pick(GP_POOL, r)
+    const qty   = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
+    const roll  = r()
     const status: FakeSale['status'] = roll < 0.68
       ? 'completed' : roll < 0.84 ? 'paid' : roll < 0.94 ? 'pending' : 'refunded'
-    const msAgo = Math.floor(r() * 30 * 86400000) + Math.floor(r() * 3600000)
+
+    // 55% today, 45% yesterday; random realistic time within that window
+    const isCurrentDay = r() < 0.55
+    const winStart = isCurrentDay ? todayStart : yesterdayStart
+    const winEnd   = isCurrentDay ? nowMs      : todayStart - 1
+    const at = new Date(winStart + Math.floor(r() * (winEnd - winStart)))
+
     return {
       id: `${seed}-${i}`,
-      buyer: pick(BUYERS, r),
+      buyer:    pick(BUYERS, r),
       gamepass: gp.name,
-      game: gp.game,
+      game:     gp.game,
       qty,
-      account: pick(ACCTS, r),
-      price: gp.price * qty,
-      profit: Math.round((gp.price - gp.cost) * qty * 100) / 100,
-      method: pick(METHODS, r),
+      account:  pick(ACCTS, r),
+      price:    gp.price * qty,
+      profit:   Math.round((gp.price - gp.cost) * qty * 100) / 100,
+      method:   pick(METHODS, r),
       status,
-      at: new Date(now - msAgo),
+      at,
     }
   }).sort((a, b) => b.at.getTime() - a.at.getTime())
+}
+
+function dateLabel(d: Date) {
+  if (isToday(d))     return 'Today'
+  if (isYesterday(d)) return 'Yesterday'
+  return format(d, 'MMM dd')
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -96,10 +112,12 @@ function generateSales(seed: number): FakeSale[] {
 const STATUS_CHIPS = ['all', 'completed', 'paid', 'pending', 'refunded'] as const
 
 export default function OverallSalesPage() {
-  const [seed, setSeed] = useState(() => Date.now())
-  const [refreshing, setRefreshing] = useState(false)
+  const [seed,         setSeed]         = useState(() => Date.now())
+  const [refreshing,   setRefreshing]   = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [search, setSearch] = useState('')
+  const [search,       setSearch]       = useState('')
+  const [showStats,    setShowStats]    = useState(false)
+  const [showAccounts, setShowAccounts] = useState(false)
 
   const sales = useMemo(() => generateSales(seed), [seed])
 
@@ -111,16 +129,20 @@ export default function OverallSalesPage() {
   const filtered = useMemo(() => sales.filter(s => {
     const matchStatus = filterStatus === 'all' || s.status === filterStatus
     const q = search.toLowerCase()
-    const matchSearch = !q || s.buyer.toLowerCase().includes(q) || s.gamepass.toLowerCase().includes(q) || s.game.toLowerCase().includes(q)
+    const matchSearch = !q || s.buyer.toLowerCase().includes(q)
+      || s.gamepass.toLowerCase().includes(q) || s.game.toLowerCase().includes(q)
     return matchStatus && matchSearch
   }), [sales, filterStatus, search])
 
-  const completed = sales.filter(s => s.status === 'completed')
-  const totalRevenue = completed.reduce((s, o) => s + o.price, 0)
-  const totalProfit  = completed.reduce((s, o) => s + o.profit, 0)
-  const statusCounts = sales.reduce<Record<string, number>>((m, s) => {
+  const completed     = sales.filter(s => s.status === 'completed')
+  const totalRevenue  = completed.reduce((s, o) => s + o.price, 0)
+  const totalProfit   = completed.reduce((s, o) => s + o.profit, 0)
+  const statusCounts  = sales.reduce<Record<string, number>>((m, s) => {
     m[s.status] = (m[s.status] ?? 0) + 1; return m
   }, {})
+
+  const blurVal = 'blur(7px)'
+  const blurTransition = 'filter 0.22s ease'
 
   return (
     <div>
@@ -133,77 +155,120 @@ export default function OverallSalesPage() {
       />
 
       <div className="p-5 space-y-4">
-        {/* Sold Out Banner */}
+
+        {/* ── Sold Out Banner ───────────────────────────────────────────── */}
         <div
-          className="rounded-xl px-5 py-3.5 flex items-center justify-between"
+          className="rounded-xl overflow-hidden"
           style={{
-            background: 'rgba(244,63,94,0.04)',
-            border: '1px solid rgba(244,63,94,0.18)',
-            boxShadow: '0 0 24px rgba(244,63,94,0.05), inset 0 1px 0 rgba(244,63,94,0.08)',
+            background: 'linear-gradient(135deg, rgba(244,63,94,0.13) 0%, rgba(244,63,94,0.07) 100%)',
+            border: '1px solid rgba(244,63,94,0.38)',
+            boxShadow: '0 0 36px rgba(244,63,94,0.14), 0 4px 20px rgba(244,63,94,0.08), inset 0 1px 0 rgba(244,63,94,0.18)',
           }}
         >
-          <div className="flex items-center gap-3">
-            <AlertOctagon className="w-4 h-4 flex-shrink-0" style={{ color: '#f43f5e' }} />
-            <div className="flex items-center gap-2.5">
-              <span
-                className="text-[11px] font-black tracking-[0.18em] uppercase"
-                style={{ color: '#f43f5e' }}
-              >
-                Sold Out
-              </span>
-              <span className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                — Current inventory is depleted. Restock required to resume sales.
-              </span>
-            </div>
-          </div>
-          <span
-            className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full flex-shrink-0"
-            style={{ background: 'rgba(244,63,94,0.10)', color: '#f43f5e' }}
-          >
-            Action Required
-          </span>
-        </div>
+          <div className="px-5 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Pulsing dot */}
+              <div className="relative flex-shrink-0 w-3 h-3">
+                <span
+                  className="absolute inset-0 rounded-full animate-ping"
+                  style={{ background: 'rgba(244,63,94,0.55)' }}
+                />
+                <span
+                  className="relative block w-3 h-3 rounded-full"
+                  style={{ background: '#f43f5e', boxShadow: '0 0 10px rgba(244,63,94,0.9), 0 0 24px rgba(244,63,94,0.55)' }}
+                />
+              </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-3.5">
-          {[
-            {
-              label: 'Completed Revenue',
-              value: `₱${totalRevenue.toFixed(2)}`,
-              color: 'oklch(0.10 0.030 272)',
-              accent: '#a78bfa',
-              icon: DollarSign,
-            },
-            {
-              label: 'Total Profit',
-              value: `₱${totalProfit.toFixed(2)}`,
-              color: '#22d3ee',
-              accent: '#22d3ee',
-              icon: TrendingUp,
-            },
-            {
-              label: 'Total Orders',
-              value: String(sales.length),
-              color: '#f59e0b',
-              accent: '#f59e0b',
-              icon: ShoppingBag,
-            },
-          ].map(({ label, value, color, accent, icon: Icon }) => (
-            <div
-              key={label}
-              className="summary-card"
+              <div>
+                <p
+                  className="text-[13px] font-black tracking-[0.20em] uppercase leading-tight"
+                  style={{ color: '#f43f5e', letterSpacing: '0.18em' }}
+                >
+                  Sold Out
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.50 0.010 265)' }}>
+                  Inventory depleted — restock required to resume sales.
+                </p>
+              </div>
+            </div>
+
+            <span
+              className="flex-shrink-0 text-[10px] font-black tracking-[0.14em] uppercase px-3.5 py-1.5 rounded-lg"
               style={{
-                background: `rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, ${accent}42, rgba(34,211,238,0.18)) border-box`,
-                border: '1px solid transparent',
+                background: 'rgba(244,63,94,0.16)',
+                border: '1px solid rgba(244,63,94,0.30)',
+                color: '#f43f5e',
+                boxShadow: '0 0 12px rgba(244,63,94,0.12)',
               }}
             >
-              <p className="label-caps mb-1">{label}</p>
-              <p className="stat-value" style={{ color }}>{value}</p>
-            </div>
-          ))}
+              Action Required
+            </span>
+          </div>
         </div>
 
-        {/* Filter row + refresh */}
+        {/* ── Summary Cards ─────────────────────────────────────────────── */}
+        <div>
+          {/* Eye toggle row */}
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setShowStats(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors"
+              style={{ color: 'oklch(0.55 0.010 265)', background: 'rgba(139,92,246,0.06)' }}
+            >
+              {showStats
+                ? <EyeOff className="w-3 h-3" />
+                : <Eye className="w-3 h-3" />}
+              {showStats ? 'Hide stats' : 'Show stats'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3.5">
+            {[
+              {
+                label: 'Completed Revenue',
+                value: `₱${totalRevenue.toFixed(2)}`,
+                color: 'oklch(0.10 0.030 272)',
+                accent: '#a78bfa',
+              },
+              {
+                label: 'Total Profit',
+                value: `₱${totalProfit.toFixed(2)}`,
+                color: '#22d3ee',
+                accent: '#22d3ee',
+              },
+              {
+                label: 'Total Orders',
+                value: String(sales.length),
+                color: '#f59e0b',
+                accent: '#f59e0b',
+              },
+            ].map(({ label, value, color, accent }) => (
+              <div
+                key={label}
+                className="summary-card"
+                style={{
+                  background: `rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, ${accent}42, rgba(34,211,238,0.18)) border-box`,
+                  border: '1px solid transparent',
+                }}
+              >
+                <p className="label-caps mb-1">{label}</p>
+                <p
+                  className="stat-value"
+                  style={{
+                    color,
+                    filter: showStats ? 'none' : blurVal,
+                    transition: blurTransition,
+                    userSelect: showStats ? 'auto' : 'none',
+                  }}
+                >
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Filter row + Refresh ───────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div className="flex flex-wrap gap-1.5">
             {STATUS_CHIPS.map(s => {
@@ -237,13 +302,13 @@ export default function OverallSalesPage() {
           </button>
         </div>
 
-        {/* Table */}
+        {/* ── Table ─────────────────────────────────────────────────────── */}
         <div className="glass-card overflow-hidden">
-          <div
-            className="overflow-auto"
-            style={{ maxHeight: '560px' }}
-          >
-            <table className="w-full data-table" style={{ opacity: refreshing ? 0.4 : 1, transition: 'opacity 0.2s ease' }}>
+          <div className="overflow-auto" style={{ maxHeight: '62vh' }}>
+            <table
+              className="w-full data-table"
+              style={{ opacity: refreshing ? 0.35 : 1, transition: 'opacity 0.2s ease' }}
+            >
               <thead
                 className="sticky top-0 z-10"
                 style={{
@@ -258,7 +323,21 @@ export default function OverallSalesPage() {
                   <th className="text-left">Buyer</th>
                   <th className="text-left">Gamepass</th>
                   <th className="text-center">Qty</th>
-                  <th className="text-left">Account</th>
+                  <th className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      Account
+                      <button
+                        onClick={() => setShowAccounts(v => !v)}
+                        className="rounded p-0.5 transition-colors"
+                        style={{ color: showAccounts ? '#22d3ee' : 'oklch(0.60 0.010 265)' }}
+                        title={showAccounts ? 'Hide accounts' : 'Reveal accounts'}
+                      >
+                        {showAccounts
+                          ? <EyeOff className="w-3 h-3" />
+                          : <Eye className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  </th>
                   <th className="text-right">Price</th>
                   <th className="text-right">Profit</th>
                   <th className="text-left">Method</th>
@@ -269,8 +348,8 @@ export default function OverallSalesPage() {
                 {filtered.map(sale => (
                   <tr key={sale.id}>
                     <td className="whitespace-nowrap">
-                      <div className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                        {format(sale.at, 'MMM dd, yyyy')}
+                      <div className="text-[11px] font-medium" style={{ color: 'oklch(0.45 0.012 270)' }}>
+                        {dateLabel(sale.at)}
                       </div>
                       <div className="text-[10px]" style={{ color: 'oklch(0.65 0.010 265)' }}>
                         {format(sale.at, 'HH:mm')}
@@ -300,8 +379,18 @@ export default function OverallSalesPage() {
                         {sale.qty}
                       </span>
                     </td>
-                    <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                      {sale.account}
+                    <td>
+                      <span
+                        className="text-[12px] font-medium"
+                        style={{
+                          color: 'oklch(0.55 0.010 265)',
+                          filter: showAccounts ? 'none' : blurVal,
+                          transition: blurTransition,
+                          userSelect: showAccounts ? 'auto' : 'none',
+                        }}
+                      >
+                        {sale.account}
+                      </span>
                     </td>
                     <td className="text-right">
                       <span className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
@@ -332,6 +421,7 @@ export default function OverallSalesPage() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   )
