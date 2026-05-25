@@ -94,49 +94,31 @@ export default function InventoryPage() {
         onActionClick={() => { setEditGamepass(null); setModalOpen(true) }}
       />
 
-      <div className="p-6 space-y-4">
+      <div className="p-5 space-y-4">
         {/* Game filter chips */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setFilterGame('all')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-              filterGame === 'all'
-                ? 'bg-primary/20 text-primary border-primary/50'
-                : 'bg-secondary/40 text-muted-foreground border-border/40 hover:bg-secondary/70 hover:text-foreground'
-            )}
+            className={cn('chip', filterGame === 'all' ? 'chip-active' : '')}
           >
             All Games
-            <span className="ml-1.5 opacity-60">({gamepasses.length})</span>
+            <span className="ml-1 opacity-50">({gamepasses.length})</span>
           </button>
           {games.map(game => {
             const count = gamepasses.filter(gp => gp.game_id === game.id).length
             if (count === 0) return null
             const isActive = filterGame === game.id
-            const color = game.color || '#6366f1'
+            const color = game.color || '#a78bfa'
             return (
               <button
                 key={game.id}
                 onClick={() => setFilterGame(isActive ? 'all' : game.id)}
-                style={isActive ? {
-                  backgroundColor: `${color}22`,
-                  borderColor: `${color}70`,
-                  color: color,
-                } : {
-                  borderColor: `${color}30`,
-                  color: `${color}99`,
-                }}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-                  isActive ? '' : 'hover:opacity-100 bg-secondary/30'
-                )}
+                className="chip"
+                style={isActive ? { background: `${color}12`, borderColor: `${color}35`, color } : { borderColor: `${color}20`, color: `${color}BB` }}
               >
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
-                  style={{ backgroundColor: color }}
-                />
+                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: color }} />
                 {game.name}
-                <span className="ml-1.5 opacity-50">({count})</span>
+                <span className="ml-1 opacity-50">({count})</span>
               </button>
             )
           })}
@@ -144,29 +126,19 @@ export default function InventoryPage() {
 
         {/* Status filter + count row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {STATUS_FILTERS.map(s => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={cn(
-                  'px-3 py-1 rounded-md text-xs font-medium transition-all',
-                  filterStatus === s
-                    ? s === 'Good' ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40'
-                    : s === 'Okay' ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40'
-                    : s === 'Bad' ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/40'
-                    : 'bg-secondary text-foreground ring-1 ring-border'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                )}
+                className={cn('chip', filterStatus === s ? 'chip-active' : '')}
               >
                 {s === 'all' ? 'All Status' : s}
-                {s !== 'all' && (
-                  <span className="ml-1 opacity-60">({statusCounts[s as keyof typeof statusCounts]})</span>
-                )}
+                {s !== 'all' && <span className="ml-1 opacity-50">({statusCounts[s as keyof typeof statusCounts]})</span>}
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">{filtered.length} gamepasses</p>
+          <p className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{filtered.length} gamepasses</p>
         </div>
 
         {/* Table */}
@@ -185,52 +157,51 @@ export default function InventoryPage() {
         ) : (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full data-table">
                 <thead>
-                  <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Game / Gamepass</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Robux</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Competitor</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Your Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Cost</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Profit</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Suggested</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Status</th>
-                    <th className="px-4 py-3 w-8" />
+                  <tr>
+                    <th className="text-left">Game / Gamepass</th>
+                    <th className="text-right">Robux</th>
+                    <th className="text-right">Competitor</th>
+                    <th className="text-right">Your Price</th>
+                    <th className="text-right">Cost</th>
+                    <th className="text-right">Profit</th>
+                    <th className="text-right">Suggested</th>
+                    <th className="text-center">Status</th>
+                    <th className="w-8" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
+                <tbody>
                   {filtered.map(gp => (
-                    <tr key={gp.id} className="hover:bg-accent/20 transition-colors group">
-                      <td className="px-4 py-3.5">
-                        <p className="text-sm font-semibold text-foreground">{gp.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{gp.games?.name ?? '—'}</p>
+                    <tr key={gp.id} className="group">
+                      <td>
+                        <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)' }}>{gp.name}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>{gp.games?.name ?? '—'}</p>
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm text-foreground font-mono font-medium">
-                        {gp.robux_amount.toLocaleString()} R$
+                      <td className="text-right">
+                        <span className="text-[12px] font-mono font-semibold" style={{ color: 'oklch(0.18 0.025 270)' }}>{gp.robux_amount.toLocaleString()} R$</span>
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
+                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
                         {gp.competitor_price ? `₱${gp.competitor_price}` : '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm font-bold text-foreground">
-                        ₱{gp.your_price}
+                      <td className="text-right">
+                        <span className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{gp.your_price}</span>
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
+                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
                         ₱{gp.your_cost.toFixed(2)}
                       </td>
-                      <td className={cn(
-                        'px-4 py-3.5 text-right text-sm font-bold',
-                        gp.profit >= 20 ? 'text-emerald-600' : gp.profit >= 5 ? 'text-amber-600' : 'text-red-600'
+                      <td className={cn('text-right text-[13px] font-bold',
+                        gp.profit >= 20 ? 'text-emerald-600' : gp.profit >= 5 ? 'text-amber-600' : 'text-red-500'
                       )}>
                         ₱{gp.profit.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm text-muted-foreground">
+                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
                         {gp.suggested_lower_price ? `₱${gp.suggested_lower_price}` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="text-center">
                         <StatusBadge status={gp.status} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         <DropdownMenu>
                           <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground transition-opacity">
                             <MoreHorizontal className="w-4 h-4" />

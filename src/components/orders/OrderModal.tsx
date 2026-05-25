@@ -128,7 +128,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-xl max-h-[90vh] flex flex-col">
+      <DialogContent className="glass-elevated max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">{order ? 'Edit Order' : 'New Order'}</DialogTitle>
         </DialogHeader>
@@ -172,17 +172,17 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
                         />
                         {item.gamepass_id && (
                           <div className="mt-1.5 grid grid-cols-3 gap-1">
-                            <div className="bg-secondary/50 rounded-lg py-1.5 text-center">
-                              <p className="text-[10px] text-muted-foreground">Robux</p>
-                              <p className="text-xs font-bold text-foreground tabular-nums">{item.robux_amount.toLocaleString()} R$</p>
+                            <div className="rounded-lg py-1.5 text-center" style={{ background: 'rgba(15,13,42,0.025)' }}>
+                              <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Robux</p>
+                              <p className="text-[11px] font-bold tabular-nums" style={{ color: 'oklch(0.10 0.030 272)' }}>{item.robux_amount.toLocaleString()} R$</p>
                             </div>
-                            <div className="bg-secondary/50 rounded-lg py-1.5 text-center">
-                              <p className="text-[10px] text-muted-foreground">Price</p>
-                              <p className="text-xs font-bold text-foreground">₱{item.selling_price}</p>
+                            <div className="rounded-lg py-1.5 text-center" style={{ background: 'rgba(15,13,42,0.025)' }}>
+                              <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Price</p>
+                              <p className="text-[11px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{item.selling_price}</p>
                             </div>
-                            <div className="bg-emerald-500/10 rounded-lg py-1.5 text-center">
-                              <p className="text-[10px] text-emerald-400/70">Profit</p>
-                              <p className="text-xs font-bold text-emerald-400">₱{item.profit.toFixed(2)}</p>
+                            <div className="rounded-lg py-1.5 text-center" style={{ background: 'rgba(52,211,153,0.08)' }}>
+                              <p className="text-[10px] text-emerald-500/70">Profit</p>
+                              <p className="text-[11px] font-bold text-emerald-600">₱{item.profit.toFixed(2)}</p>
                             </div>
                           </div>
                         )}
@@ -213,18 +213,18 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
 
             {/* Multi-item totals */}
             {validItems.length > 1 && (
-              <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl p-3 grid grid-cols-3 gap-2 text-center" style={{ background: 'rgba(34,211,238,0.04)', border: '1px solid rgba(34,211,238,0.15)' }}>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Total Robux</p>
-                  <p className="text-xs font-bold text-foreground tabular-nums">{totalRobux.toLocaleString()} R$</p>
+                  <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
+                  <p className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.10 0.030 272)' }}>{totalRobux.toLocaleString()} R$</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Total Price</p>
-                  <p className="text-xs font-bold text-foreground">₱{totalPrice.toFixed(2)}</p>
+                  <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Price</p>
+                  <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{totalPrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-emerald-400/70">Total Profit</p>
-                  <p className="text-xs font-bold text-emerald-400">₱{totalProfit.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-500/70">Total Profit</p>
+                  <p className="text-[12px] font-bold text-emerald-600">₱{totalProfit.toFixed(2)}</p>
                 </div>
               </div>
             )}

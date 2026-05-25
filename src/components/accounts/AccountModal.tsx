@@ -64,7 +64,7 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-md">
+      <DialogContent className="glass-elevated max-w-md">
         <DialogHeader>
           <DialogTitle>{account ? 'Edit Account' : 'Add Roblox Account'}</DialogTitle>
         </DialogHeader>

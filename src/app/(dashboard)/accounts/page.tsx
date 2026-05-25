@@ -82,39 +82,22 @@ export default function AccountsPage() {
         onActionClick={() => { setEditAccount(null); setModalOpen(true) }}
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-5 space-y-5">
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="glass-card p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/15 flex items-center justify-center">
-              <Coins className="w-4 h-4 text-amber-400" />
+        <div className="grid grid-cols-3 gap-3.5">
+          {[
+            { label: 'Total Robux',     value: `${totalRobux.toLocaleString()} R$`,       color: '#f59e0b' },
+            { label: 'Available Robux', value: `${availableRobux.toLocaleString()} R$`,   color: '#22d3ee' },
+            { label: 'Active Accounts', value: `${activeAccounts} / ${accounts.length}`,  color: '#a78bfa' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="summary-card">
+              <p className="label-caps mb-1">{label}</p>
+              <p className="stat-value" style={{ color }}>{value}</p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Robux</p>
-              <p className="text-lg font-bold text-foreground">{totalRobux.toLocaleString()} R$</p>
-            </div>
-          </div>
-          <div className="glass-card p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-              <Coins className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Available</p>
-              <p className="text-lg font-bold text-emerald-400">{availableRobux.toLocaleString()} R$</p>
-            </div>
-          </div>
-          <div className="glass-card p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center">
-              <RefreshCw className="w-4 h-4 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Active Accounts</p>
-              <p className="text-lg font-bold text-foreground">{activeAccounts} / {accounts.length}</p>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <h2 className="text-sm font-semibold text-foreground">All Accounts ({accounts.length})</h2>
+        <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>All Accounts ({accounts.length})</p>
 
         {/* Grid */}
         {loading ? (

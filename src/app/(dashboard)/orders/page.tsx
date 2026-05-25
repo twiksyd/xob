@@ -183,15 +183,6 @@ export default function OrdersPage() {
   }, [orders])
 
   const STATUS_CHIPS = ['all', 'pending', 'paid', 'completed', 'refunded', 'cancelled'] as const
-  const chipColor: Record<string, { active: string; idle: string }> = {
-    all:       { active: 'bg-primary/20 text-primary border-primary/40',          idle: 'text-muted-foreground border-border/40 hover:bg-secondary/50 hover:text-foreground' },
-    pending:   { active: 'bg-slate-500/20 text-slate-300 border-slate-400/40',    idle: 'text-slate-400/60 border-slate-500/20 hover:bg-slate-500/10 hover:text-slate-300' },
-    paid:      { active: 'bg-blue-500/20 text-blue-400 border-blue-400/40',       idle: 'text-blue-400/50 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-400' },
-    completed: { active: 'bg-emerald-500/20 text-emerald-400 border-emerald-400/40', idle: 'text-emerald-400/50 border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-400' },
-    refunded:  { active: 'bg-purple-500/20 text-purple-400 border-purple-400/40', idle: 'text-purple-400/50 border-purple-500/20 hover:bg-purple-500/10 hover:text-purple-400' },
-    cancelled: { active: 'bg-red-500/20 text-red-400 border-red-400/40',          idle: 'text-red-400/50 border-red-500/20 hover:bg-red-500/10 hover:text-red-400' },
-  }
-
   return (
     <div>
       <TopBar
@@ -204,37 +195,34 @@ export default function OrdersPage() {
         onActionClick={() => { setEditOrder(null); setModalOpen(true) }}
       />
 
-      <div className="p-6 space-y-5">
+      <div className="p-5 space-y-4">
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="glass-card p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Completed Revenue</p>
-            <p className="text-2xl font-bold text-foreground tabular-nums">₱{totals.revenue.toFixed(2)}</p>
-          </div>
-          <div className="glass-card p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Profit</p>
-            <p className="text-2xl font-bold text-emerald-600 tabular-nums">₱{totals.profit.toFixed(2)}</p>
-          </div>
-          <div className="glass-card p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Orders</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums">{totals.active}</p>
-          </div>
+        <div className="grid grid-cols-3 gap-3.5">
+          {[
+            { label: 'Completed Revenue', value: `₱${totals.revenue.toFixed(2)}`, color: 'oklch(0.10 0.030 272)' },
+            { label: 'Total Profit',      value: `₱${totals.profit.toFixed(2)}`,  color: '#22d3ee' },
+            { label: 'Active Orders',     value: String(totals.active),            color: '#f59e0b' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="summary-card">
+              <p className="label-caps mb-1">{label}</p>
+              <p className="stat-value" style={{ color }}>{value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Status chips */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {STATUS_CHIPS.map(s => {
             const count = s === 'all' ? orders.length : (statusGroups[s] ?? 0)
             const isActive = filterStatus === s
-            const colors = chipColor[s]
             return (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all capitalize ${isActive ? colors.active : colors.idle}`}
+                className={`chip capitalize ${isActive ? 'chip-active' : ''}`}
               >
                 {s === 'all' ? 'All' : s}
-                <span className="ml-1.5 opacity-60">({count})</span>
+                <span className="ml-1 opacity-50">({count})</span>
               </button>
             )
           })}
@@ -242,9 +230,7 @@ export default function OrdersPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="glass-card p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          </div>
+          <div className="glass-card p-8 flex justify-center"><div className="spinner" /></div>
         ) : filtered.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <ShoppingCart className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -256,89 +242,89 @@ export default function OrdersPage() {
         ) : (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full data-table">
                 <thead>
-                  <tr className="border-b border-border/60 bg-secondary/30">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Order</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Buyer</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Gamepasses</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Account</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Profit</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Pay</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wide uppercase">Time</th>
-                    <th className="px-4 py-3 w-24" />
+                  <tr>
+                    <th className="text-left">Order</th>
+                    <th className="text-left">Buyer</th>
+                    <th className="text-left">Gamepasses</th>
+                    <th className="text-left">Account</th>
+                    <th className="text-right">Price</th>
+                    <th className="text-right">Profit</th>
+                    <th className="text-left">Pay</th>
+                    <th className="text-center">Status</th>
+                    <th className="text-left">Time</th>
+                    <th className="w-24" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
+                <tbody>
                   {filtered.map(order => {
                     const nextStatus = STATUS_FLOW[order.status]
                     const items = order.order_items ?? []
                     const hasMultiple = items.length > 1
 
                     return (
-                      <tr key={order.id} className="hover:bg-accent/20 transition-colors group">
-                        <td className="px-4 py-3.5">
-                          <span className="text-sm font-mono text-primary font-medium">{order.order_number ?? '—'}</span>
+                      <tr key={order.id} className="group">
+                        <td>
+                          <span className="text-[12px] font-mono font-semibold" style={{ color: '#22d3ee' }}>{order.order_number ?? '—'}</span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <p className="text-sm font-semibold text-foreground">{order.buyer_name ?? '—'}</p>
+                        <td>
+                          <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)' }}>{order.buyer_name ?? '—'}</p>
                           {order.buyer_roblox_username && (
-                            <p className="text-xs text-muted-foreground">{order.buyer_roblox_username}</p>
+                            <p className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.buyer_roblox_username}</p>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 max-w-[200px]">
+                        <td className="max-w-[200px]">
                           {items.length > 0 ? (
                             <div className="space-y-1">
                               {items.slice(0, 2).map((item, i) => (
                                 <div key={i}>
-                                  <p className="text-sm font-semibold text-foreground truncate">{item.gamepass_name}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{item.game_name}</p>
+                                  <p className="text-[13px] font-semibold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>{item.gamepass_name}</p>
+                                  <p className="text-[11px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>{item.game_name}</p>
                                 </div>
                               ))}
                               {items.length > 2 && (
-                                <p className="text-xs text-primary font-medium">+{items.length - 2} more</p>
+                                <p className="text-[11px] font-medium" style={{ color: '#22d3ee' }}>+{items.length - 2} more</p>
                               )}
                             </div>
                           ) : (
                             <div>
-                              <p className="text-sm font-semibold text-foreground truncate">{order.gamepasses?.name ?? '—'}</p>
-                              <p className="text-xs text-muted-foreground truncate">{order.gamepasses?.games?.name ?? ''}</p>
+                              <p className="text-[13px] font-semibold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>{order.gamepasses?.name ?? '—'}</p>
+                              <p className="text-[11px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.gamepasses?.games?.name ?? ''}</p>
                             </div>
                           )}
                           {hasMultiple && (
-                            <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                            <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'rgba(34,211,238,0.08)', color: '#22d3ee' }}>
                               {items.length} items
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5">
-                          <p className="text-sm font-medium text-foreground">{order.roblox_accounts?.username ?? '—'}</p>
+                        <td>
+                          <p className="text-[13px] font-medium" style={{ color: 'oklch(0.10 0.030 272)' }}>{order.roblox_accounts?.username ?? '—'}</p>
                           {order.robux_amount != null && (
-                            <p className="text-xs text-muted-foreground tabular-nums">{order.robux_amount.toLocaleString()} R$</p>
+                            <p className="text-[11px] tabular-nums" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.robux_amount.toLocaleString()} R$</p>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <span className="text-sm font-bold text-foreground">
+                        <td className="text-right">
+                          <span className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
                             {order.selling_price ? `₱${order.selling_price}` : '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <span className={`text-sm font-bold ${(order.profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <td className="text-right">
+                          <span className={`text-[13px] font-bold ${(order.profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {order.profit != null ? `₱${order.profit.toFixed(2)}` : '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <span className="text-sm text-muted-foreground">{order.payment_method}</span>
+                        <td>
+                          <span className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.payment_method}</span>
                         </td>
-                        <td className="px-4 py-3.5 text-center">
+                        <td className="text-center">
                           <StatusBadge status={order.status} />
                         </td>
-                        <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                        <td className="whitespace-nowrap text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
                           {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
                         </td>
-                        <td className="px-4 py-3">
+                        <td>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {nextStatus && (
                               <button

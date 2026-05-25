@@ -45,116 +45,117 @@
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CYBERPUNK WHITE — Neon light theme
+   WHITE NEON CYBERPUNK — Restrained, premium design system
 ═══════════════════════════════════════════════════════════════ */
 :root {
-  /* Base — cool near-white */
-  --background: oklch(0.982 0.006 255);
-  --foreground: oklch(0.13 0.030 270);
+  /* ── Base surfaces ────────────────────────────── */
+  --background:        oklch(0.974 0.007 256);   /* cool off-white */
+  --foreground:        oklch(0.10  0.030 272);   /* deep navy-black */
 
-  /* Cards — pure white surfaces */
-  --card: oklch(1.000 0.000 0);
-  --card-foreground: oklch(0.13 0.030 270);
-  --popover: oklch(0.998 0.004 255);
-  --popover-foreground: oklch(0.13 0.030 270);
+  /* ── Cards & overlays ────────────────────────── */
+  --card:              oklch(1.000 0.000 0);
+  --card-foreground:   oklch(0.10  0.030 272);
+  --popover:           oklch(0.999 0.002 255);
+  --popover-foreground:oklch(0.10  0.030 272);
 
-  /* Primary — Neon Cyan */
-  --primary: oklch(0.60 0.22 200);
-  --primary-foreground: oklch(0.99 0.002 0);
+  /* ── Brand — pastel cyan ─────────────────────── */
+  --primary:           oklch(0.70  0.15  200);   /* sky-ish cyan */
+  --primary-foreground:oklch(0.99  0.002 0);
 
-  /* Secondary — light blue-gray panel */
-  --secondary: oklch(0.945 0.014 255);
-  --secondary-foreground: oklch(0.25 0.025 270);
+  /* ── Secondary panels ────────────────────────── */
+  --secondary:         oklch(0.956 0.010 256);
+  --secondary-foreground:oklch(0.28 0.022 265);
 
-  /* Muted */
-  --muted: oklch(0.960 0.010 255);
-  --muted-foreground: oklch(0.46 0.018 265);
+  /* ── Muted backgrounds & text ────────────────── */
+  --muted:             oklch(0.962 0.009 256);
+  --muted-foreground:  oklch(0.50  0.014 265);
 
-  /* Accent hover */
-  --accent: oklch(0.938 0.018 255);
-  --accent-foreground: oklch(0.20 0.025 270);
+  /* ── Hover accent ────────────────────────────── */
+  --accent:            oklch(0.952 0.012 256);
+  --accent-foreground: oklch(0.18  0.022 265);
 
-  /* Destructive */
-  --destructive: oklch(0.58 0.23 25);
+  /* ── Danger ──────────────────────────────────── */
+  --destructive:       oklch(0.58  0.22  25);
 
-  /* Borders — subtle cyan tint */
-  --border: oklch(0.875 0.022 255);
-  --input: oklch(0.962 0.012 255);
-  --ring: oklch(0.60 0.22 200);
+  /* ── Borders & inputs ────────────────────────── */
+  --border:            oklch(0.908 0.014 255);
+  --input:             oklch(0.962 0.009 255);
+  --ring:              oklch(0.70  0.15  200);
 
-  /* Charts */
-  --chart-1: oklch(0.60 0.22 200);   /* cyan   */
-  --chart-2: oklch(0.60 0.28 340);   /* pink   */
-  --chart-3: oklch(0.55 0.22 285);   /* purple */
-  --chart-4: oklch(0.65 0.18 90);    /* amber  */
-  --chart-5: oklch(0.58 0.20 150);   /* green  */
+  /* ── Charts ──────────────────────────────────── */
+  --chart-1:           oklch(0.70  0.15  200);   /* cyan  */
+  --chart-2:           oklch(0.65  0.21  330);   /* pink  */
+  --chart-3:           oklch(0.60  0.18  290);   /* purple*/
+  --chart-4:           oklch(0.68  0.15  90);    /* amber */
+  --chart-5:           oklch(0.63  0.19  150);   /* green */
 
   --radius: 0.75rem;
 
-  /* Sidebar — slightly cooler than page */
-  --sidebar: oklch(0.974 0.010 258);
-  --sidebar-foreground: oklch(0.38 0.022 265);
-  --sidebar-primary: oklch(0.60 0.22 200);
-  --sidebar-primary-foreground: oklch(0.99 0.002 0);
-  --sidebar-accent: oklch(0.934 0.020 255);
-  --sidebar-accent-foreground: oklch(0.20 0.025 270);
-  --sidebar-border: oklch(0.878 0.022 255);
-  --sidebar-ring: oklch(0.60 0.22 200);
+  /* ── Sidebar ─────────────────────────────────── */
+  --sidebar:                    oklch(1.000 0.000 0);
+  --sidebar-foreground:         oklch(0.10  0.030 272);
+  --sidebar-primary:            oklch(0.70  0.15  200);
+  --sidebar-primary-foreground: oklch(0.99  0.002 0);
+  --sidebar-accent:             oklch(0.956 0.010 256);
+  --sidebar-accent-foreground:  oklch(0.18  0.022 270);
+  --sidebar-border:             oklch(0.918 0.012 255);
+  --sidebar-ring:               oklch(0.70  0.15  200);
 
-  /* Neon raw colors for shadows/glows */
-  --neon-cyan: #00d4ff;
-  --neon-pink: #ff0066;
-  --neon-purple: #8b5cf6;
+  /* ── Raw neon hex (for box-shadow glows only) ── */
+  --neon-cyan:   #22d3ee;   /* sky-400   */
+  --neon-pink:   #e879f9;   /* fuchsia-400 */
+  --neon-purple: #a78bfa;   /* violet-400 */
+  --neon-green:  #34d399;   /* emerald-400 */
+  --neon-amber:  #fbbf24;   /* amber-400  */
 }
 
-/* Keep dark alias for any stray .dark usages */
+/* Mirror dark → keep light always */
 .dark {
-  --background: oklch(0.982 0.006 255);
-  --foreground: oklch(0.13 0.030 270);
-  --card: oklch(1.000 0.000 0);
-  --card-foreground: oklch(0.13 0.030 270);
-  --popover: oklch(0.998 0.004 255);
-  --popover-foreground: oklch(0.13 0.030 270);
-  --primary: oklch(0.60 0.22 200);
-  --primary-foreground: oklch(0.99 0.002 0);
-  --secondary: oklch(0.945 0.014 255);
-  --secondary-foreground: oklch(0.25 0.025 270);
-  --muted: oklch(0.960 0.010 255);
-  --muted-foreground: oklch(0.46 0.018 265);
-  --accent: oklch(0.938 0.018 255);
-  --accent-foreground: oklch(0.20 0.025 270);
-  --destructive: oklch(0.58 0.23 25);
-  --border: oklch(0.875 0.022 255);
-  --input: oklch(0.962 0.012 255);
-  --ring: oklch(0.60 0.22 200);
-  --chart-1: oklch(0.60 0.22 200);
-  --chart-2: oklch(0.60 0.28 340);
-  --chart-3: oklch(0.55 0.22 285);
-  --chart-4: oklch(0.65 0.18 90);
-  --chart-5: oklch(0.58 0.20 150);
-  --sidebar: oklch(0.974 0.010 258);
-  --sidebar-foreground: oklch(0.38 0.022 265);
-  --sidebar-primary: oklch(0.60 0.22 200);
-  --sidebar-primary-foreground: oklch(0.99 0.002 0);
-  --sidebar-accent: oklch(0.934 0.020 255);
-  --sidebar-accent-foreground: oklch(0.20 0.025 270);
-  --sidebar-border: oklch(0.878 0.022 255);
-  --sidebar-ring: oklch(0.60 0.22 200);
-  --neon-cyan: #00d4ff;
-  --neon-pink: #ff0066;
-  --neon-purple: #8b5cf6;
+  --background:        oklch(0.974 0.007 256);
+  --foreground:        oklch(0.10  0.030 272);
+  --card:              oklch(1.000 0.000 0);
+  --card-foreground:   oklch(0.10  0.030 272);
+  --popover:           oklch(0.999 0.002 255);
+  --popover-foreground:oklch(0.10  0.030 272);
+  --primary:           oklch(0.70  0.15  200);
+  --primary-foreground:oklch(0.99  0.002 0);
+  --secondary:         oklch(0.956 0.010 256);
+  --secondary-foreground:oklch(0.28 0.022 265);
+  --muted:             oklch(0.962 0.009 256);
+  --muted-foreground:  oklch(0.50  0.014 265);
+  --accent:            oklch(0.952 0.012 256);
+  --accent-foreground: oklch(0.18  0.022 265);
+  --destructive:       oklch(0.58  0.22  25);
+  --border:            oklch(0.908 0.014 255);
+  --input:             oklch(0.962 0.009 255);
+  --ring:              oklch(0.70  0.15  200);
+  --chart-1: oklch(0.70 0.15 200);
+  --chart-2: oklch(0.65 0.21 330);
+  --chart-3: oklch(0.60 0.18 290);
+  --chart-4: oklch(0.68 0.15 90);
+  --chart-5: oklch(0.63 0.19 150);
+  --sidebar:                    oklch(1.000 0.000 0);
+  --sidebar-foreground:         oklch(0.10  0.030 272);
+  --sidebar-primary:            oklch(0.70  0.15  200);
+  --sidebar-primary-foreground: oklch(0.99  0.002 0);
+  --sidebar-accent:             oklch(0.956 0.010 256);
+  --sidebar-accent-foreground:  oklch(0.18  0.022 270);
+  --sidebar-border:             oklch(0.918 0.012 255);
+  --sidebar-ring:               oklch(0.70  0.15  200);
+  --neon-cyan:   #22d3ee;
+  --neon-pink:   #e879f9;
+  --neon-purple: #a78bfa;
+  --neon-green:  #34d399;
+  --neon-amber:  #fbbf24;
 }
 
+/* ─── Base ──────────────────────────────────────────────────── */
 @layer base {
   * { @apply border-border outline-ring/50; }
-  html {
-    @apply font-sans;
-    color-scheme: light;
-  }
+  html { @apply font-sans; color-scheme: light; }
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
@@ -165,108 +166,230 @@
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.25);
-  border-radius: 4px;
+  background: rgba(15, 13, 42, 0.12);
+  border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.50); }
+::-webkit-scrollbar-thumb:hover { background: rgba(15, 13, 42, 0.22); }
 
-/* ─── Glass card ─────────────────────────────────────────────── */
-.glass-card {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(0, 212, 255, 0.18);
-  border-radius: 16px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
-    0 4px 32px rgba(0, 0, 0, 0.07),
-    0 1px 4px rgba(0, 0, 0, 0.04),
-    0 0 48px rgba(0, 212, 255, 0.04);
+/* ─── Ambient page background ───────────────────────────────── */
+.bg-ambient {
+  background-image: radial-gradient(circle, rgba(139, 92, 246, 0.018) 1px, transparent 1px);
+  background-size: 28px 28px;
+  position: relative;
 }
-
-/* ─── Grid background ────────────────────────────────────────── */
-.bg-grid {
-  background-image:
-    linear-gradient(rgba(0, 212, 255, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.055) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-
-/* Neon ambient glows */
-.bg-grid::before {
+.bg-ambient::before {
   content: '';
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 65% 45% at 12% 0%,   rgba(0, 212, 255, 0.08),  transparent),
-    radial-gradient(ellipse 55% 45% at 88% 100%,  rgba(255, 0, 102, 0.055), transparent),
-    radial-gradient(ellipse 45% 35% at 50% 50%,   rgba(139, 92, 246, 0.03), transparent);
+    radial-gradient(ellipse 55% 40% at 10% 0%,   rgba(34, 211, 238, 0.040), transparent),
+    radial-gradient(ellipse 45% 35% at 90% 100%,  rgba(232,121, 249, 0.025), transparent),
+    radial-gradient(ellipse 40% 30% at 50%  50%,  rgba(167,139, 250, 0.015), transparent);
   pointer-events: none;
   z-index: 0;
 }
 
-/* ─── Gradient text ──────────────────────────────────────────── */
+/* ─── Glass card — premium white panel ──────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(15, 13, 42, 0.055);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.85) inset,
+    0 1px 2px rgba(15, 13, 42, 0.04),
+    0 4px 16px rgba(15, 13, 42, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.glass-card:hover {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
+    0 1px 3px rgba(15, 13, 42, 0.05),
+    0 6px 24px rgba(15, 13, 42, 0.06);
+}
+
+/* Elevated card (modals, dropdowns) */
+.glass-elevated {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(15, 13, 42, 0.07);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+    0 8px 32px rgba(15, 13, 42, 0.10),
+    0 2px 8px rgba(15, 13, 42, 0.06);
+}
+
+/* ─── Stat metric value ─────────────────────────────────────── */
+.stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: oklch(0.10 0.030 272);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Section label ─────────────────────────────────────────── */
+.label-caps {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: oklch(0.50 0.014 265);
+}
+
+/* ─── Sidebar nav active ────────────────────────────────────── */
+.nav-active {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.02) 60%, transparent);
+  border-left: 2px solid #22d3ee;
+  padding-left: calc(0.75rem - 2px);
+}
+
+/* ─── Premium action button ─────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, oklch(0.72 0.15 200), oklch(0.60 0.18 215));
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 3px rgba(15,13,42,0.12), 0 0 0 1px rgba(255,255,255,0.15) inset;
+  transition: all 0.15s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34,211,238,0.25), 0 1px 3px rgba(15,13,42,0.12), 0 0 0 1px rgba(255,255,255,0.15) inset;
+}
+
+/* Outlined ghost action */
+.btn-outline {
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #22d3ee, #a78bfa) border-box;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  color: oklch(0.35 0.18 220);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+}
+.btn-outline:hover {
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.10);
+}
+
+/* ─── Filter chips ──────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(15, 13, 42, 0.08);
+  background: white;
+  color: oklch(0.50 0.014 265);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.chip:hover {
+  background: rgba(15, 13, 42, 0.025);
+  border-color: rgba(15, 13, 42, 0.12);
+  color: oklch(0.18 0.025 265);
+}
+.chip-active {
+  background: rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.30);
+  color: oklch(0.38 0.18 200);
+}
+
+/* ─── Data table ────────────────────────────────────────────── */
+.data-table thead tr {
+  background: rgba(15, 13, 42, 0.018);
+  border-bottom: 1px solid rgba(15, 13, 42, 0.06);
+}
+.data-table thead th {
+  padding: 10px 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: oklch(0.50 0.014 265);
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid rgba(15, 13, 42, 0.04);
+  transition: background 0.12s ease;
+}
+.data-table tbody tr:hover {
+  background: rgba(34, 211, 238, 0.025);
+}
+.data-table tbody td {
+  padding: 12px 16px;
+}
+
+/* ─── Mini summary card ─────────────────────────────────────── */
+.summary-card {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(15,13,42,0.055);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(15,13,42,0.03);
+}
+
+/* ─── Focus ring ────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.5);
+  outline-offset: 2px;
+}
+
+/* ─── Input focus glow ──────────────────────────────────────── */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+/* ─── Recharts — restrained palette ────────────────────────── */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(15, 13, 42, 0.05);
+}
+.recharts-text { fill: oklch(0.50 0.014 265) !important; font-size: 11px; }
+.recharts-default-tooltip {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(15, 13, 42, 0.07) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(15, 13, 42, 0.10) !important;
+  color: oklch(0.10 0.030 272) !important;
+  font-size: 12px !important;
+}
+
+/* ─── Loading spinner ───────────────────────────────────────── */
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(34, 211, 238, 0.20);
+  border-top-color: #22d3ee;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Holographic gradient text ─────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 60%, #ff0066 100%);
+  background: linear-gradient(135deg, #22d3ee 0%, #a78bfa 55%, #e879f9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ─── Sidebar active state ───────────────────────────────────── */
-.nav-active {
-  background: linear-gradient(90deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.03) 70%, transparent 100%);
-  border-left: 2px solid #00d4ff;
-  color: oklch(0.48 0.22 200);
-  text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
-}
-
-/* ─── Neon glow button ───────────────────────────────────────── */
-.btn-neon {
-  background: linear-gradient(135deg, oklch(0.62 0.22 200) 0%, oklch(0.52 0.22 215) 100%);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.40), 0 4px 12px rgba(0, 150, 200, 0.25), 0 1px 0 rgba(255,255,255,0.2) inset;
-  color: white;
-  border: none;
-}
-.btn-neon:hover {
-  box-shadow: 0 0 30px rgba(0, 212, 255, 0.55), 0 6px 20px rgba(0, 150, 200, 0.30), 0 1px 0 rgba(255,255,255,0.2) inset;
-}
-
-/* ─── Status badge ───────────────────────────────────────────── */
-.badge-good { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
-.badge-okay { @apply bg-amber-50 text-amber-700 border border-amber-200; }
-.badge-bad  { @apply bg-red-50 text-red-600 border border-red-200; }
-
-/* ─── Recharts light theme ───────────────────────────────────── */
-.recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line {
-  stroke: rgba(0, 212, 255, 0.12);
-}
-.recharts-text { fill: oklch(0.46 0.018 265) !important; font-size: 11px; }
-.recharts-default-tooltip {
-  background: rgba(255, 255, 255, 0.97) !important;
-  border: 1px solid rgba(0, 212, 255, 0.28) !important;
-  border-radius: 12px !important;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), 0 0 16px rgba(0, 212, 255, 0.08) !important;
-  color: oklch(0.13 0.030 270) !important;
-}
-
-/* ─── Focus ring ─────────────────────────────────────────────── */
-:focus-visible {
-  outline: 2px solid rgba(0, 212, 255, 0.6);
-  outline-offset: 2px;
-}
-
-/* ─── Neon input focus ───────────────────────────────────────── */
-input:focus, textarea:focus, select:focus {
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
-}
-
-/* ─── Table hover glow ───────────────────────────────────────── */
-tbody tr:hover {
-  background: rgba(0, 212, 255, 0.03) !important;
-}
+/* ─── Neon glow utilities ───────────────────────────────────── */
+.glow-cyan   { box-shadow: 0 0 16px rgba(34, 211, 238, 0.25); }
+.glow-pink   { box-shadow: 0 0 16px rgba(232,121, 249, 0.25); }
+.glow-purple { box-shadow: 0 0 16px rgba(167,139, 250, 0.25); }

@@ -78,7 +78,7 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-card border-border max-w-lg">
+      <DialogContent className="glass-elevated max-w-lg">
         <DialogHeader>
           <DialogTitle>{gamepass ? 'Edit Gamepass' : 'Add Gamepass'}</DialogTitle>
         </DialogHeader>
@@ -127,25 +127,25 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
           </div>
 
           {/* Live preview */}
-          <div className="rounded-xl bg-secondary/50 p-4 space-y-2 border border-border/50">
-            <p className="text-xs font-semibold text-foreground">Live Calculation Preview</p>
+          <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(15,13,42,0.020)', border: '1px solid rgba(15,13,42,0.06)' }}>
+            <p className="label-caps">Live Calculation Preview</p>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div>
-                <p className="text-[10px] text-muted-foreground">Your Cost</p>
-                <p className="text-sm font-bold text-foreground">₱{computed.your_cost.toFixed(2)}</p>
+              <div className="rounded-lg py-2" style={{ background: 'rgba(255,255,255,0.70)' }}>
+                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Your Cost</p>
+                <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{computed.your_cost.toFixed(2)}</p>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground">Profit</p>
-                <p className={`text-sm font-bold ${computed.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <div className="rounded-lg py-2" style={{ background: computed.profit >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(244,63,94,0.08)' }}>
+                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Profit</p>
+                <p className={`text-[13px] font-bold ${computed.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   ₱{computed.profit.toFixed(2)}
                 </p>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground">Status</p>
+              <div className="rounded-lg py-2 flex flex-col items-center justify-center" style={{ background: 'rgba(255,255,255,0.70)' }}>
+                <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Status</p>
                 <StatusBadge status={computed.status} />
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
               Suggested lower price: ₱{computed.suggested_lower_price.toFixed(0)}
             </p>
           </div>
