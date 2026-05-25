@@ -23,7 +23,7 @@ import { Plus, X } from 'lucide-react'
 type GamepassWithGame = Gamepass & { games: Game | null }
 
 const schema = z.object({
-  buyer_name: z.string().min(1, 'Buyer name required'),
+  buyer_name: z.string().optional(),
   buyer_roblox_username: z.string().optional(),
   roblox_account_id: z.string().min(1, 'Select an account'),
   payment_method: z.enum(['GCash', 'Maya', 'Bank', 'Cash', 'Other']),
@@ -139,9 +139,11 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
             {/* Buyer info */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Buyer Name / GCash Name</Label>
+                <Label className="text-xs flex items-center gap-1.5">
+                  Buyer Name / GCash Name
+                  <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}>optional</span>
+                </Label>
                 <Input {...register('buyer_name')} placeholder="John Doe" className="bg-input" />
-                {errors.buyer_name && <p className="text-xs text-red-400">{errors.buyer_name.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Roblox Username</Label>

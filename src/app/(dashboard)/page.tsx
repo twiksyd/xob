@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<any[]>([])
   const [gamepassCount, setGamepassCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [displayProfit, setDisplayProfit] = useState(0)
   const supabase = createClient()
 
   const fetchData = useCallback(async () => {
@@ -37,6 +38,23 @@ export default function DashboardPage() {
   }, [supabase])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  useEffect(() => {
+    const profit = orders
+      .filter(o => o.status === 'completed')
+      .reduce((s: number, o: any) => s + (o.profit ?? 0), 0)
+    if (!profit) { setDisplayProfit(0); return }
+    const start = Date.now()
+    const duration = 1400
+    const tick = () => {
+      const p = Math.min((Date.now() - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setDisplayProfit(profit * eased)
+      if (p < 1) requestAnimationFrame(tick)
+      else setDisplayProfit(profit)
+    }
+    requestAnimationFrame(tick)
+  }, [orders])
 
   const completedOrders = orders.filter(o => o.status === 'completed')
   const totalRobux = accounts.reduce((s, a) => s + (a.current_robux ?? 0), 0)
@@ -163,16 +181,36 @@ export default function DashboardPage() {
               <div className="col-span-2 space-y-3.5">
                 <TopGamesChart data={topGamesData} />
                 {/* Quick Actions */}
-                <div className="glass-card p-4">
+                <div
+                  className="glass-card p-4"
+                  style={{ boxShadow: '0 4px 24px rgba(139,92,246,0.08), 0 1px 4px rgba(15,13,42,0.04)' }}
+                >
                   <p className="text-[13px] font-bold mb-3" style={{ color: 'oklch(0.10 0.030 272)' }}>Quick Actions</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {quickActions.map(({ label, sub, icon: Icon, href, color }) => (
-                      <a key={label} href={href} className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all hover:scale-[1.02]" style={{ background: `${color}08`, border: `1px solid ${color}18` }}>
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}14`, color }}>
-                          <Icon className="w-3.5 h-3.5" />
+                      <a
+                        key={label}
+                        href={href}
+                        className="quick-action-card gap-2 p-3.5 rounded-xl"
+                        style={{
+                          background: `rgba(255,255,255,0.65) padding-box, linear-gradient(135deg, ${color}38, ${color}18) border-box`,
+                          border: '1px solid transparent',
+                          boxShadow: `0 1px 6px ${color}14`,
+                        }}
+                      >
+                        <div
+                          className="qa-icon w-9 h-9 rounded-xl flex items-center justify-center"
+                          style={{
+                            background: `linear-gradient(135deg, ${color}22, ${color}0e)`,
+                            border: `1px solid ${color}32`,
+                            boxShadow: `0 0 14px ${color}24`,
+                            color,
+                          }}
+                        >
+                          <Icon className="w-4 h-4" style={{ filter: `drop-shadow(0 0 4px ${color}80)` }} />
                         </div>
                         <div className="text-center">
-                          <p className="text-[11px] font-bold leading-tight" style={{ color: 'oklch(0.15 0.025 270)' }}>{label}</p>
+                          <p className="text-[11px] font-bold leading-tight" style={{ color: 'oklch(0.13 0.028 270)' }}>{label}</p>
                           <p className="text-[10px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>{sub}</p>
                         </div>
                       </a>
@@ -211,6 +249,35 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Profit Counter */}
+            <div
+              className="glass-card p-4"
+              style={{ boxShadow: '0 2px 16px rgba(52,211,153,0.08)' }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="label-caps">Total Profit</p>
+                <TrendingUp
+                  className="w-3.5 h-3.5"
+                  style={{ color: '#34d399', filter: 'drop-shadow(0 0 5px rgba(52,211,153,0.55))' }}
+                />
+              </div>
+              <p className="profit-counter-value">₱{displayProfit.toFixed(2)}</p>
+              <p className="text-[11px] mt-1" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                {completedOrders.length} completed order{completedOrders.length !== 1 ? 's' : ''}
+              </p>
+              <div className="mt-3 h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(52,211,153,0.12)' }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: totalProfit > 0 ? '100%' : '0%',
+                    background: 'linear-gradient(90deg, #34d399, #22d3ee)',
+                    boxShadow: '0 0 8px rgba(52,211,153,0.40)',
+                    transition: 'width 1.4s cubic-bezier(0.16,1,0.3,1)',
+                  }}
+                />
+              </div>
             </div>
 
             {/* Low Robux Alert */}

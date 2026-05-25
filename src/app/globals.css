@@ -334,10 +334,13 @@
 }
 .data-table tbody tr {
   border-bottom: 1px solid rgba(15, 13, 42, 0.04);
-  transition: background 0.12s ease;
+  transition: background 0.14s ease;
+}
+.data-table tbody tr:nth-child(even) {
+  background: rgba(139, 92, 246, 0.018);
 }
 .data-table tbody tr:hover {
-  background: rgba(34, 211, 238, 0.025);
+  background: rgba(34, 211, 238, 0.042) !important;
 }
 .data-table tbody td {
   padding: 12px 16px;
@@ -403,3 +406,33 @@ input:focus, textarea:focus, select:focus {
 .glow-cyan   { box-shadow: 0 0 16px rgba(34, 211, 238, 0.25); }
 .glow-pink   { box-shadow: 0 0 16px rgba(232,121, 249, 0.25); }
 .glow-purple { box-shadow: 0 0 16px rgba(167,139, 250, 0.25); }
+
+/* ─── Quick action cards ────────────────────────────────────── */
+.quick-action-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.quick-action-card:hover {
+  transform: translateY(-2px) scale(1.022);
+}
+.quick-action-card .qa-icon {
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.quick-action-card:hover .qa-icon {
+  transform: scale(1.08);
+}
+
+/* ─── Profit counter card ───────────────────────────────────── */
+.profit-counter-value {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #34d399;
+  text-shadow: 0 0 24px rgba(52,211,153,0.35);
+  font-variant-numeric: tabular-nums;
+}

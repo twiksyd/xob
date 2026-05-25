@@ -114,9 +114,22 @@ export default function InventoryPage() {
                 key={game.id}
                 onClick={() => setFilterGame(isActive ? 'all' : game.id)}
                 className="chip"
-                style={isActive ? { background: `${color}12`, borderColor: `${color}35`, color } : { borderColor: `${color}20`, color: `${color}BB` }}
+                style={isActive ? {
+                  background: `rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, ${color}55, ${color}28) border-box`,
+                  border: '1px solid transparent',
+                  color,
+                  boxShadow: `0 0 14px ${color}28`,
+                  transform: 'translateY(-1px)',
+                } : {
+                  borderColor: `${color}22`,
+                  color: `${color}BB`,
+                  transition: 'all 0.18s ease',
+                }}
               >
-                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: color }} />
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
+                  style={{ backgroundColor: color, boxShadow: isActive ? `0 0 5px ${color}90` : 'none' }}
+                />
                 {game.name}
                 <span className="ml-1 opacity-50">({count})</span>
               </button>

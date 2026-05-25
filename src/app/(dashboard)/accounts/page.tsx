@@ -3,12 +3,13 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import TopBar from '@/components/shared/TopBar'
+import StatCard from '@/components/shared/StatCard'
 import AccountCard from '@/components/accounts/AccountCard'
 import AccountModal from '@/components/accounts/AccountModal'
 import { RobloxAccount } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Plus, RefreshCw, Coins } from 'lucide-react'
+import { Plus, Coins, Wallet, Users } from 'lucide-react'
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<RobloxAccount[]>([])
@@ -85,16 +86,24 @@ export default function AccountsPage() {
       <div className="p-5 space-y-5">
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3.5">
-          {[
-            { label: 'Total Robux',     value: `${totalRobux.toLocaleString()} R$`,       color: '#f59e0b' },
-            { label: 'Available Robux', value: `${availableRobux.toLocaleString()} R$`,   color: '#22d3ee' },
-            { label: 'Active Accounts', value: `${activeAccounts} / ${accounts.length}`,  color: '#a78bfa' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="summary-card">
-              <p className="label-caps mb-1">{label}</p>
-              <p className="stat-value" style={{ color }}>{value}</p>
-            </div>
-          ))}
+          <StatCard
+            title="Total Robux"
+            value={`${totalRobux.toLocaleString()} R$`}
+            subtitle={`Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
+            icon={Coins} iconColor="#f59e0b" accentColor="#f59e0b"
+          />
+          <StatCard
+            title="Available Robux"
+            value={`${availableRobux.toLocaleString()} R$`}
+            subtitle="Ready to fulfill orders"
+            icon={Wallet} iconColor="#22d3ee" accentColor="#22d3ee"
+          />
+          <StatCard
+            title="Active Accounts"
+            value={`${activeAccounts} / ${accounts.length}`}
+            subtitle="Currently active"
+            icon={Users} iconColor="#a78bfa" accentColor="#a78bfa"
+          />
         </div>
 
         <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>All Accounts ({accounts.length})</p>
