@@ -39,25 +39,14 @@ const ACCTS   = ['XobSeller01', 'XobSeller02', 'XobSeller03', 'XobSeller04']
 const METHODS = ['GCash', 'GCash', 'GCash', 'GCash', 'Maya', 'Bank'] as const
 
 type FakeSale = {
-  id: string
-  buyer: string
-  gamepass: string
-  game: string
-  qty: number
-  account: string
-  price: number
-  profit: number
-  method: string
-  status: 'completed' | 'paid' | 'pending' | 'refunded'
-  at: Date
+  id: string; buyer: string; gamepass: string; game: string
+  qty: number; account: string; price: number; profit: number
+  method: string; status: 'completed' | 'paid' | 'pending' | 'refunded'; at: Date
 }
 
 function mkRng(seed: number) {
   let s = seed | 0
-  return () => {
-    s = Math.imul(s, 1664525) + 1013904223 | 0
-    return (s >>> 0) / 4294967296
-  }
+  return () => { s = Math.imul(s, 1664525) + 1013904223 | 0; return (s >>> 0) / 4294967296 }
 }
 
 function pick<T>(arr: readonly T[], r: () => number): T {
@@ -66,37 +55,28 @@ function pick<T>(arr: readonly T[], r: () => number): T {
 
 function generateSales(seed: number): FakeSale[] {
   const r = mkRng(seed)
-
   const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const todayStart    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const yesterdayStart = todayStart - 86400000
   const nowMs = now.getTime()
 
   return Array.from({ length: 26 }, (_, i) => {
-    const gp    = pick(GP_POOL, r)
-    const qty   = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
-    const roll  = r()
-    const status: FakeSale['status'] = roll < 0.68
-      ? 'completed' : roll < 0.84 ? 'paid' : roll < 0.94 ? 'pending' : 'refunded'
-
-    // 55% today, 45% yesterday; random realistic time within that window
+    const gp  = pick(GP_POOL, r)
+    const qty = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
+    const roll = r()
+    const status: FakeSale['status'] = roll < 0.68 ? 'completed'
+      : roll < 0.84 ? 'paid' : roll < 0.94 ? 'pending' : 'refunded'
     const isCurrentDay = r() < 0.55
     const winStart = isCurrentDay ? todayStart : yesterdayStart
     const winEnd   = isCurrentDay ? nowMs      : todayStart - 1
-    const at = new Date(winStart + Math.floor(r() * (winEnd - winStart)))
-
     return {
       id: `${seed}-${i}`,
-      buyer:    pick(BUYERS, r),
-      gamepass: gp.name,
-      game:     gp.game,
-      qty,
-      account:  pick(ACCTS, r),
-      price:    gp.price * qty,
-      profit:   Math.round((gp.price - gp.cost) * qty * 100) / 100,
-      method:   pick(METHODS, r),
-      status,
-      at,
+      buyer: pick(BUYERS, r), gamepass: gp.name, game: gp.game, qty,
+      account: pick(ACCTS, r),
+      price:  gp.price * qty,
+      profit: Math.round((gp.price - gp.cost) * qty * 100) / 100,
+      method: pick(METHODS, r), status,
+      at: new Date(winStart + Math.floor(r() * (winEnd - winStart))),
     }
   }).sort((a, b) => b.at.getTime() - a.at.getTime())
 }
@@ -107,16 +87,45 @@ function dateLabel(d: Date) {
   return format(d, 'MMM dd')
 }
 
+// Render revenue with the last 2 integer digits CSS-blurred when amount ≥ 1000
+function RevenueValue({ amount, color }: { amount: number; color: string }) {
+  const intPart = Math.floor(amount)
+  const dec = `.${amount.toFixed(2).split('.')[1]}`
+
+  if (intPart >= 1000) {
+    const intStr = intPart.toLocaleString()
+    let digits = 0
+    let splitAt = intStr.length
+    for (let i = intStr.length - 1; i >= 0; i--) {
+      if (/\d/.test(intStr[i])) {
+        digits++
+        if (digits === 2) { splitAt = i; break }
+      }
+    }
+    return (
+      <p className="stat-value" style={{ color }}>
+        ₱{intStr.slice(0, splitAt)}
+        <span style={{ filter: 'blur(5px)', userSelect: 'none', display: 'inline-block' }}>
+          {intStr.slice(splitAt)}
+        </span>
+        {dec}
+      </p>
+    )
+  }
+  return <p className="stat-value" style={{ color }}>₱{amount.toFixed(2)}</p>
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const STATUS_CHIPS = ['all', 'completed', 'paid', 'pending', 'refunded'] as const
+const BLUR = 'blur(7px)'
+const BLUR_T = 'filter 0.22s ease'
 
 export default function OverallSalesPage() {
   const [seed,         setSeed]         = useState(() => Date.now())
   const [refreshing,   setRefreshing]   = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [search,       setSearch]       = useState('')
-  const [showStats,    setShowStats]    = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
 
   const sales = useMemo(() => generateSales(seed), [seed])
@@ -134,18 +143,15 @@ export default function OverallSalesPage() {
     return matchStatus && matchSearch
   }), [sales, filterStatus, search])
 
-  const completed     = sales.filter(s => s.status === 'completed')
-  const totalRevenue  = completed.reduce((s, o) => s + o.price, 0)
-  const totalProfit   = completed.reduce((s, o) => s + o.profit, 0)
-  const statusCounts  = sales.reduce<Record<string, number>>((m, s) => {
-    m[s.status] = (m[s.status] ?? 0) + 1; return m
-  }, {})
-
-  const blurVal = 'blur(7px)'
-  const blurTransition = 'filter 0.22s ease'
+  const completed    = sales.filter(s => s.status === 'completed')
+  const totalRevenue = completed.reduce((s, o) => s + o.price, 0)
+  const totalProfit  = completed.reduce((s, o) => s + o.profit, 0)
+  const statusCounts = sales.reduce<Record<string, number>>(
+    (m, s) => { m[s.status] = (m[s.status] ?? 0) + 1; return m }, {}
+  )
 
   return (
-    <div>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 60px)' }}>
       <TopBar
         title="Overall Sales"
         subtitle="Simulated marketplace activity feed"
@@ -154,36 +160,25 @@ export default function OverallSalesPage() {
         onSearchChange={setSearch}
       />
 
-      <div className="p-5 space-y-4">
+      <div className="flex flex-col flex-1 min-h-0 p-5 gap-4">
 
-        {/* ── Sold Out Banner ───────────────────────────────────────────── */}
+        {/* ── Sold Out Banner ──────────────────────────────────────────── */}
         <div
-          className="rounded-xl overflow-hidden"
+          className="rounded-xl overflow-hidden flex-shrink-0"
           style={{
             background: 'linear-gradient(135deg, rgba(244,63,94,0.13) 0%, rgba(244,63,94,0.07) 100%)',
             border: '1px solid rgba(244,63,94,0.38)',
             boxShadow: '0 0 36px rgba(244,63,94,0.14), 0 4px 20px rgba(244,63,94,0.08), inset 0 1px 0 rgba(244,63,94,0.18)',
           }}
         >
-          <div className="px-5 py-4 flex items-center justify-between gap-4">
+          <div className="px-5 py-3.5 flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              {/* Pulsing dot */}
               <div className="relative flex-shrink-0 w-3 h-3">
-                <span
-                  className="absolute inset-0 rounded-full animate-ping"
-                  style={{ background: 'rgba(244,63,94,0.55)' }}
-                />
-                <span
-                  className="relative block w-3 h-3 rounded-full"
-                  style={{ background: '#f43f5e', boxShadow: '0 0 10px rgba(244,63,94,0.9), 0 0 24px rgba(244,63,94,0.55)' }}
-                />
+                <span className="absolute inset-0 rounded-full animate-ping" style={{ background: 'rgba(244,63,94,0.55)' }} />
+                <span className="relative block w-3 h-3 rounded-full" style={{ background: '#f43f5e', boxShadow: '0 0 10px rgba(244,63,94,0.9), 0 0 24px rgba(244,63,94,0.55)' }} />
               </div>
-
               <div>
-                <p
-                  className="text-[13px] font-black tracking-[0.20em] uppercase leading-tight"
-                  style={{ color: '#f43f5e', letterSpacing: '0.18em' }}
-                >
+                <p className="text-[13px] font-black uppercase leading-tight" style={{ color: '#f43f5e', letterSpacing: '0.18em' }}>
                   Sold Out
                 </p>
                 <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.50 0.010 265)' }}>
@@ -191,15 +186,9 @@ export default function OverallSalesPage() {
                 </p>
               </div>
             </div>
-
             <span
               className="flex-shrink-0 text-[10px] font-black tracking-[0.14em] uppercase px-3.5 py-1.5 rounded-lg"
-              style={{
-                background: 'rgba(244,63,94,0.16)',
-                border: '1px solid rgba(244,63,94,0.30)',
-                color: '#f43f5e',
-                boxShadow: '0 0 12px rgba(244,63,94,0.12)',
-              }}
+              style={{ background: 'rgba(244,63,94,0.16)', border: '1px solid rgba(244,63,94,0.30)', color: '#f43f5e', boxShadow: '0 0 12px rgba(244,63,94,0.12)' }}
             >
               Action Required
             </span>
@@ -207,69 +196,48 @@ export default function OverallSalesPage() {
         </div>
 
         {/* ── Summary Cards ─────────────────────────────────────────────── */}
-        <div>
-          {/* Eye toggle row */}
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={() => setShowStats(v => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors"
-              style={{ color: 'oklch(0.55 0.010 265)', background: 'rgba(139,92,246,0.06)' }}
-            >
-              {showStats
-                ? <EyeOff className="w-3 h-3" />
-                : <Eye className="w-3 h-3" />}
-              {showStats ? 'Hide stats' : 'Show stats'}
-            </button>
+        <div className="grid grid-cols-3 gap-3.5 flex-shrink-0">
+          {/* Completed Revenue — always visible, last 2 digits blurred if ≥1000 */}
+          <div
+            className="summary-card"
+            style={{
+              background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box',
+              border: '1px solid transparent',
+            }}
+          >
+            <p className="label-caps mb-1">Completed Revenue</p>
+            <RevenueValue amount={totalRevenue} color="oklch(0.10 0.030 272)" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3.5">
-            {[
-              {
-                label: 'Completed Revenue',
-                value: `₱${totalRevenue.toFixed(2)}`,
-                color: 'oklch(0.10 0.030 272)',
-                accent: '#a78bfa',
-              },
-              {
-                label: 'Total Profit',
-                value: `₱${totalProfit.toFixed(2)}`,
-                color: '#22d3ee',
-                accent: '#22d3ee',
-              },
-              {
-                label: 'Total Orders',
-                value: String(sales.length),
-                color: '#f59e0b',
-                accent: '#f59e0b',
-              },
-            ].map(({ label, value, color, accent }) => (
-              <div
-                key={label}
-                className="summary-card"
-                style={{
-                  background: `rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, ${accent}42, rgba(34,211,238,0.18)) border-box`,
-                  border: '1px solid transparent',
-                }}
-              >
-                <p className="label-caps mb-1">{label}</p>
-                <p
-                  className="stat-value"
-                  style={{
-                    color,
-                    filter: showStats ? 'none' : blurVal,
-                    transition: blurTransition,
-                    userSelect: showStats ? 'auto' : 'none',
-                  }}
-                >
-                  {value}
-                </p>
-              </div>
-            ))}
+          {/* Total Profit — always blurred */}
+          <div
+            className="summary-card"
+            style={{
+              background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box',
+              border: '1px solid transparent',
+            }}
+          >
+            <p className="label-caps mb-1">Total Profit</p>
+            <p className="stat-value" style={{ color: '#22d3ee', filter: BLUR, userSelect: 'none' }}>
+              ₱{totalProfit.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Total Orders — always visible */}
+          <div
+            className="summary-card"
+            style={{
+              background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box',
+              border: '1px solid transparent',
+            }}
+          >
+            <p className="label-caps mb-1">Total Orders</p>
+            <p className="stat-value" style={{ color: '#f59e0b' }}>{sales.length}</p>
           </div>
         </div>
 
-        {/* ── Filter row + Refresh ───────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
+        {/* ── Filter row + Refresh ──────────────────────────────────────── */}
+        <div className="flex items-center justify-between flex-shrink-0">
           <div className="flex flex-wrap gap-1.5">
             {STATUS_CHIPS.map(s => {
               const count = s === 'all' ? sales.length : (statusCounts[s] ?? 0)
@@ -285,15 +253,13 @@ export default function OverallSalesPage() {
               )
             })}
           </div>
-
           <button
             onClick={refresh}
             disabled={refreshing}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all disabled:opacity-50"
             style={{
               background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(34,211,238,0.28), rgba(167,139,250,0.20)) border-box',
-              border: '1px solid transparent',
-              color: '#22d3ee',
+              border: '1px solid transparent', color: '#22d3ee',
               boxShadow: '0 2px 8px rgba(34,211,238,0.08)',
             }}
           >
@@ -302,9 +268,9 @@ export default function OverallSalesPage() {
           </button>
         </div>
 
-        {/* ── Table ─────────────────────────────────────────────────────── */}
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-auto" style={{ maxHeight: '62vh' }}>
+        {/* ── Table — fills remaining vertical space ────────────────────── */}
+        <div className="glass-card overflow-hidden flex flex-col flex-1 min-h-0">
+          <div className="overflow-auto flex-1 min-h-0">
             <table
               className="w-full data-table"
               style={{ opacity: refreshing ? 0.35 : 1, transition: 'opacity 0.2s ease' }}
@@ -332,9 +298,7 @@ export default function OverallSalesPage() {
                         style={{ color: showAccounts ? '#22d3ee' : 'oklch(0.60 0.010 265)' }}
                         title={showAccounts ? 'Hide accounts' : 'Reveal accounts'}
                       >
-                        {showAccounts
-                          ? <EyeOff className="w-3 h-3" />
-                          : <Eye className="w-3 h-3" />}
+                        {showAccounts ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                       </button>
                     </div>
                   </th>
@@ -356,7 +320,11 @@ export default function OverallSalesPage() {
                       </div>
                     </td>
                     <td>
-                      <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                      {/* Buyer — always blurred */}
+                      <p
+                        className="text-[13px] font-semibold"
+                        style={{ color: 'oklch(0.10 0.030 272)', filter: BLUR, transition: BLUR_T, userSelect: 'none' }}
+                      >
                         {sale.buyer}
                       </p>
                     </td>
@@ -380,14 +348,10 @@ export default function OverallSalesPage() {
                       </span>
                     </td>
                     <td>
+                      {/* Account — Eye toggle */}
                       <span
                         className="text-[12px] font-medium"
-                        style={{
-                          color: 'oklch(0.55 0.010 265)',
-                          filter: showAccounts ? 'none' : blurVal,
-                          transition: blurTransition,
-                          userSelect: showAccounts ? 'auto' : 'none',
-                        }}
+                        style={{ color: 'oklch(0.55 0.010 265)', filter: showAccounts ? 'none' : BLUR, transition: BLUR_T, userSelect: showAccounts ? 'auto' : 'none' }}
                       >
                         {sale.account}
                       </span>
@@ -397,11 +361,14 @@ export default function OverallSalesPage() {
                         ₱{sale.price}
                       </span>
                     </td>
-                    <td className={cn(
-                      'text-right text-[13px] font-bold',
-                      sale.status === 'refunded' ? 'text-red-400' : 'text-emerald-600'
-                    )}>
-                      {sale.status === 'refunded' ? '-' : '+'}₱{sale.profit.toFixed(2)}
+                    <td className="text-right">
+                      {/* Profit — always blurred */}
+                      <span
+                        className={cn('text-[13px] font-bold', sale.status === 'refunded' ? 'text-red-400' : 'text-emerald-600')}
+                        style={{ filter: BLUR, transition: BLUR_T, userSelect: 'none', display: 'inline-block' }}
+                      >
+                        {sale.status === 'refunded' ? '-' : '+'}₱{sale.profit.toFixed(2)}
+                      </span>
                     </td>
                     <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
                       {sale.method}
@@ -413,13 +380,13 @@ export default function OverallSalesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
 
-          {filtered.length === 0 && (
-            <div className="p-10 text-center">
-              <p className="text-sm text-muted-foreground">No results match your filter.</p>
-            </div>
-          )}
+            {filtered.length === 0 && (
+              <div className="p-10 text-center">
+                <p className="text-sm text-muted-foreground">No results match your filter.</p>
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
