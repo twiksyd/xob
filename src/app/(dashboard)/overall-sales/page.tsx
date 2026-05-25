@@ -78,6 +78,15 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
   const nowMs          = now.getTime()
   const count          = 18 + Math.floor(r() * 17)   // 18–34 per refresh
 
+  function gamePriority(game: string) {
+    const g = game.toLowerCase()
+    if (g.includes('drag drive'))     return 0
+    if (g.includes('wizard') || g.includes('alchemy')) return 1
+    if (g.includes('evade'))          return 2
+    if (g.includes('anime vanguard')) return 3
+    return 4
+  }
+
   return Array.from({ length: count }, (_, i) => {
     const gp  = pickGP()
     const qty = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
@@ -100,7 +109,9 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
       status,
       at: new Date(winStart + Math.floor(r() * (winEnd - winStart))),
     }
-  }).sort((a, b) => b.at.getTime() - a.at.getTime())
+  }).sort((a, b) =>
+    gamePriority(a.game) - gamePriority(b.game) || b.at.getTime() - a.at.getTime()
+  )
 }
 
 function dateLabel(d: Date) {
@@ -192,7 +203,7 @@ export default function OverallSalesPage() {
   )
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 60px)' }}>
+    <div className="flex flex-col" style={{ height: '100vh' }}>
       <TopBar
         title="Overall Sales"
         subtitle="Simulated marketplace activity feed"
