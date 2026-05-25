@@ -20,19 +20,36 @@ const BUYERS = [
   'Janine Rivera', 'Chad Williams', 'Alex Chen', 'Sam Park',
 ]
 
-const GP_POOL = [
-  { name: '2x Speed',        game: 'Blade Ball',         price: 149, cost: 118 },
-  { name: 'VIP Pass',        game: 'Blox Fruits',        price: 299, cost: 192 },
-  { name: 'Auto Farm',       game: 'Anime Defenders',    price: 399, cost: 288 },
-  { name: 'Infinite Jump',   game: 'Pet Simulator X',    price: 199, cost: 144 },
-  { name: 'Lucky Boost',     game: 'Toilet Tower Def.',  price: 99,  cost: 72  },
-  { name: 'Double Drop',     game: 'Anime Defenders',    price: 249, cost: 180 },
-  { name: 'Premium Club',    game: 'Blade Ball',         price: 349, cost: 240 },
-  { name: 'Speed Boost',     game: 'Pet Simulator X',    price: 149, cost: 108 },
-  { name: 'Pro Bundle',      game: 'Blox Fruits',        price: 499, cost: 360 },
-  { name: 'Night Pass',      game: 'Toilet Tower Def.',  price: 179, cost: 129 },
-  { name: 'Ranking Skip',    game: 'Blade Ball',         price: 219, cost: 158 },
-  { name: 'XP Multiplier',   game: 'Anime Defenders',    price: 329, cost: 237 },
+// Featured games (~70% of picks)
+const FEATURED_GP = [
+  { name: 'VIP Race Pass',     game: 'Drag Drive Simulator', price: 249, cost: 180 },
+  { name: 'Nitro Boost',       game: 'Drag Drive Simulator', price: 199, cost: 144 },
+  { name: 'Turbo Bundle',      game: 'Drag Drive Simulator', price: 349, cost: 252 },
+  { name: 'Elite Racer',       game: 'Drag Drive Simulator', price: 449, cost: 324 },
+  { name: 'Pro Drift Pack',    game: 'Drag Drive Simulator', price: 299, cost: 216 },
+  { name: 'Mana Boost',        game: 'Wizard Alchemy',       price: 179, cost: 129 },
+  { name: 'Potion Master',     game: 'Wizard Alchemy',       price: 299, cost: 216 },
+  { name: 'Arcane Bundle',     game: 'Wizard Alchemy',       price: 399, cost: 288 },
+  { name: 'Alchemist Pass',    game: 'Wizard Alchemy',       price: 249, cost: 180 },
+  { name: 'Speed Dash',        game: 'Evade',                price: 149, cost: 108 },
+  { name: 'Ghost Mode',        game: 'Evade',                price: 249, cost: 180 },
+  { name: 'Survivor Pack',     game: 'Evade',                price: 199, cost: 144 },
+  { name: 'Evade Pro',         game: 'Evade',                price: 299, cost: 216 },
+  { name: 'Elite Summon',      game: 'Anime Vanguards',      price: 299, cost: 216 },
+  { name: 'Tower Bundle',      game: 'Anime Vanguards',      price: 449, cost: 324 },
+  { name: 'Premium Pass',      game: 'Anime Vanguards',      price: 349, cost: 252 },
+  { name: 'Vanguard VIP',      game: 'Anime Vanguards',      price: 199, cost: 144 },
+]
+
+// Other games mixed in (~30% of picks)
+const OTHER_GP = [
+  { name: '2x Speed',          game: 'Blade Ball',           price: 149, cost: 118 },
+  { name: 'Premium Club',      game: 'Blade Ball',           price: 349, cost: 240 },
+  { name: 'VIP Pass',          game: 'Blox Fruits',          price: 299, cost: 192 },
+  { name: 'Pro Bundle',        game: 'Blox Fruits',          price: 499, cost: 360 },
+  { name: 'Auto Farm',         game: 'Anime Defenders',      price: 399, cost: 288 },
+  { name: 'Infinite Jump',     game: 'Pet Simulator X',      price: 199, cost: 144 },
+  { name: 'Lucky Boost',       game: 'Toilet Tower Def.',    price: 99,  cost: 72  },
 ]
 
 const ACCTS   = ['XobSeller01', 'XobSeller02', 'XobSeller03', 'XobSeller04']
@@ -60,8 +77,12 @@ function generateSales(seed: number): FakeSale[] {
   const yesterdayStart = todayStart - 86400000
   const nowMs = now.getTime()
 
-  return Array.from({ length: 26 }, (_, i) => {
-    const gp  = pick(GP_POOL, r)
+  // Randomized order count per seed: 18–34
+  const count = 18 + Math.floor(r() * 17)
+
+  return Array.from({ length: count }, (_, i) => {
+    // 70% featured games, 30% others
+    const gp = r() < 0.70 ? pick(FEATURED_GP, r) : pick(OTHER_GP, r)
     const qty = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
     const roll = r()
     const status: FakeSale['status'] = roll < 0.68 ? 'completed'
