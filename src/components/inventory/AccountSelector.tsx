@@ -36,6 +36,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
       {ranked.length === 0 && (
         <p className="text-xs text-muted-foreground">No active accounts found.</p>
       )}
+      <div className="max-h-[220px] overflow-y-auto space-y-2 pr-0.5">
       {ranked.map((acc) => {
         const isSelected = selectedId === acc.id
         const isBest = best?.id === acc.id
@@ -84,6 +85,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
           </button>
         )
       })}
+      </div>
     </div>
   )
 }

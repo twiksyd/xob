@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
 import AccountCard from '@/components/accounts/AccountCard'
@@ -70,6 +70,11 @@ export default function AccountsPage() {
     setModalOpen(true)
   }
 
+  const sortedAccounts = useMemo(
+    () => [...accounts].sort((a, b) => b.current_robux - a.current_robux),
+    [accounts]
+  )
+
   const totalRobux = accounts.reduce((s, a) => s + a.current_robux, 0)
   const availableRobux = accounts.reduce((s, a) => s + (a.current_robux - a.reserved_robux), 0)
   const activeAccounts = accounts.filter(a => a.status === 'active').length
@@ -125,7 +130,7 @@ export default function AccountsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map(account => (
+            {sortedAccounts.map(account => (
               <AccountCard key={account.id} account={account} onEdit={handleEdit} onDelete={handleDelete} />
             ))}
           </div>

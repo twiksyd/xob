@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard, Users, Package, ShoppingCart, Receipt, LogOut, Box, Wallet,
+  LayoutDashboard, Users, Package, ShoppingCart, Receipt, LogOut, Box, Wallet, TrendingUp,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -15,7 +15,8 @@ const navItems = [
   { href: '/inventory',    label: 'Inventory',    icon: Package         },
   { href: '/orders',       label: 'Orders',       icon: ShoppingCart    },
   { href: '/transactions', label: 'Transactions', icon: Receipt         },
-  { href: '/wallet',       label: 'Wallet',       icon: Wallet          },
+  { href: '/wallet',         label: 'Wallet',         icon: Wallet     },
+  { href: '/overall-sales', label: 'Overall Sales',  icon: TrendingUp },
 ]
 
 export default function Sidebar() {
