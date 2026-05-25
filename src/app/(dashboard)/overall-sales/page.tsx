@@ -45,11 +45,32 @@ function pick<T>(arr: readonly T[], r: () => number): T {
   return arr[Math.floor(r() * arr.length)]
 }
 
-// ─── Generator — uses real inventory pool ─────────────────────────────────────
+// ─── Generator — weighted by game, only the 4 priority games ─────────────────
 
 function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
   if (pool.length === 0) return []
   const r = mkRng(seed)
+
+  // Match helper — case-insensitive substring
+  const has = (game: string, ...terms: string[]) =>
+    terms.some(t => game.toLowerCase().includes(t.toLowerCase()))
+
+  const buckets = [
+    { pool: pool.filter(g => has(g.game, 'drag drive')),       weight: 60 },
+    { pool: pool.filter(g => has(g.game, 'wizard', 'alchemy')),weight: 20 },
+    { pool: pool.filter(g => has(g.game, 'evade')),            weight: 10 },
+    { pool: pool.filter(g => has(g.game, 'anime vanguard')),   weight: 10 },
+  ].filter(b => b.pool.length > 0)
+
+  // Fall back to full pool only if none of the 4 games are in inventory
+  const active      = buckets.length > 0 ? buckets : [{ pool, weight: 1 }]
+  const totalWeight = active.reduce((s, b) => s + b.weight, 0)
+
+  function pickGP(): PoolGP {
+    let roll = r() * totalWeight
+    for (const b of active) { roll -= b.weight; if (roll <= 0) return pick(b.pool, r) }
+    return pick(active[active.length - 1].pool, r)
+  }
 
   const now            = new Date()
   const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -58,7 +79,7 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
   const count          = 18 + Math.floor(r() * 17)   // 18–34 per refresh
 
   return Array.from({ length: count }, (_, i) => {
-    const gp  = pick(pool, r)
+    const gp  = pickGP()
     const qty = r() < 0.78 ? 1 : r() < 0.55 ? 2 : 3
     const roll = r()
     const status: FakeSale['status'] = roll < 0.68 ? 'completed'
