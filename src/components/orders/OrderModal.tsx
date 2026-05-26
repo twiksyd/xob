@@ -136,20 +136,22 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
         <ScrollArea className="flex-1 min-h-0 pr-2">
           <form id="order-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-2">
 
-            {/* Buyer info */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  Buyer Name / GCash Name
-                  <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}>optional</span>
-                </Label>
-                <Input {...register('buyer_name')} placeholder="John Doe" className="bg-input" />
+            {/* Buyer info — edit only */}
+            {order && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    Buyer Name / GCash Name
+                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}>optional</span>
+                  </Label>
+                  <Input {...register('buyer_name')} placeholder="John Doe" className="bg-input" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Roblox Username</Label>
+                  <Input {...register('buyer_roblox_username')} placeholder="JohnDoe123" className="bg-input" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Roblox Username</Label>
-                <Input {...register('buyer_roblox_username')} placeholder="JohnDoe123" className="bg-input" />
-              </div>
-            </div>
+            )}
 
             {/* Gamepass line items */}
             <div className="space-y-2">
@@ -271,10 +273,12 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Notes</Label>
-              <Textarea {...register('notes')} placeholder="Optional notes..." className="bg-input resize-none h-16" />
-            </div>
+            {order && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Notes</Label>
+                <Textarea {...register('notes')} placeholder="Optional notes..." className="bg-input resize-none h-16" />
+              </div>
+            )}
           </form>
         </ScrollArea>
 

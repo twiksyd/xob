@@ -174,6 +174,59 @@
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(15, 13, 42, 0.22); }
 
+/* ─── Ambient orb keyframes ─────────────────────────────────── */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33%       { transform: translate(55px, 45px) scale(1.07); }
+  66%       { transform: translate(-28px, 68px) scale(0.97); }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  40%       { transform: translate(-62px, -52px) scale(1.09); }
+  75%       { transform: translate(38px, -28px) scale(0.95); }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  50%       { transform: translate(70px, 55px) scale(1.11); }
+}
+
+/* ─── Ambient orb containers ────────────────────────────────── */
+.ambient-orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+}
+.ambient-orb-1 {
+  width: 720px;
+  height: 720px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.09) 0%, transparent 65%);
+  top: -260px;
+  left: -210px;
+  animation: orb-drift-1 28s ease-in-out infinite;
+}
+.ambient-orb-2 {
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, rgba(232, 121, 249, 0.07) 0%, transparent 65%);
+  bottom: -210px;
+  right: -160px;
+  animation: orb-drift-2 34s ease-in-out infinite;
+}
+.ambient-orb-3 {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.055) 0%, transparent 65%);
+  top: 38%;
+  left: 35%;
+  animation: orb-drift-3 22s ease-in-out infinite;
+}
+
 /* ─── Ambient page background ───────────────────────────────── */
 .bg-ambient {
   background-image: radial-gradient(circle, rgba(139, 92, 246, 0.030) 1px, transparent 1px);
@@ -204,12 +257,13 @@
   box-shadow:
     0 2px 12px rgba(139, 92, 246, 0.06),
     0 4px 24px rgba(15, 13, 42, 0.04);
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
 }
 .glass-card:hover {
+  transform: translateY(-1px);
   box-shadow:
-    0 0 24px rgba(139, 92, 246, 0.10),
-    0 4px 24px rgba(15, 13, 42, 0.06);
+    0 0 28px rgba(139, 92, 246, 0.11),
+    0 6px 32px rgba(15, 13, 42, 0.07);
 }
 
 /* Elevated card (modals, dropdowns) */
@@ -332,10 +386,6 @@
   color: oklch(0.50 0.014 265);
   white-space: nowrap;
 }
-.data-table tbody tr {
-  border-bottom: 1px solid rgba(15, 13, 42, 0.04);
-  transition: background 0.14s ease;
-}
 .data-table tbody tr:nth-child(even) {
   background: rgba(139, 92, 246, 0.018);
 }
@@ -346,6 +396,20 @@
   padding: 15px 16px;
 }
 
+/* ─── Glow breathe keyframe ─────────────────────────────────── */
+@keyframes summary-glow-breathe {
+  0%, 100% { box-shadow: 0 2px 12px rgba(139, 92, 246, 0.05); }
+  50%       { box-shadow: 0 4px 22px rgba(139, 92, 246, 0.11), 0 0 1px rgba(139, 92, 246, 0.08); }
+}
+
+/* ─── Stat card hover lift ──────────────────────────────────── */
+.stat-card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
 /* ─── Mini summary card ─────────────────────────────────────── */
 .summary-card {
   background:
@@ -354,7 +418,53 @@
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 16px 18px;
-  box-shadow: 0 2px 12px rgba(139,92,246,0.05);
+  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.05);
+  animation: summary-glow-breathe 7s ease-in-out infinite;
+  transition: transform 0.20s ease;
+}
+.summary-card:hover {
+  transform: translateY(-1px);
+}
+
+/* ─── Metric view toggle ────────────────────────────────────── */
+.metric-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(15, 13, 42, 0.04);
+  border: 1px solid rgba(15, 13, 42, 0.06);
+}
+.metric-toggle-btn {
+  position: relative;
+  padding: 5px 14px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  z-index: 1;
+}
+.metric-toggle-btn-active {
+  color: oklch(0.10 0.030 272);
+}
+.metric-toggle-btn-inactive {
+  color: oklch(0.55 0.010 265);
+}
+.metric-toggle-btn-inactive:hover {
+  color: oklch(0.25 0.025 270);
+}
+.metric-toggle-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: white;
+  box-shadow: 0 1px 4px rgba(15, 13, 42, 0.09);
+  z-index: -1;
 }
 
 /* ─── Focus ring ────────────────────────────────────────────── */
@@ -365,7 +475,8 @@
 
 /* ─── Input focus glow ──────────────────────────────────────── */
 input:focus, textarea:focus, select:focus {
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+  transition: box-shadow 0.18s ease;
 }
 
 /* ─── Recharts — restrained palette ────────────────────────── */
@@ -436,3 +547,33 @@ input:focus, textarea:focus, select:focus {
   text-shadow: 0 0 24px rgba(52,211,153,0.35);
   font-variant-numeric: tabular-nums;
 }
+
+/* ─── Button press interaction ──────────────────────────────── */
+.btn-primary:active {
+  transform: translateY(0px) scale(0.975);
+  transition: all 0.08s ease;
+}
+.btn-outline:active {
+  transform: scale(0.975);
+  transition: all 0.08s ease;
+}
+
+/* ─── Data table row stagger fade-in ────────────────────────── */
+@keyframes row-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.data-table tbody tr {
+  border-bottom: 1px solid rgba(15, 13, 42, 0.04);
+  transition: background 0.16s ease;
+  animation: row-fade-in 0.24s ease both;
+}
+.data-table tbody tr:nth-child(1)  { animation-delay: 0.02s; }
+.data-table tbody tr:nth-child(2)  { animation-delay: 0.04s; }
+.data-table tbody tr:nth-child(3)  { animation-delay: 0.06s; }
+.data-table tbody tr:nth-child(4)  { animation-delay: 0.08s; }
+.data-table tbody tr:nth-child(5)  { animation-delay: 0.10s; }
+.data-table tbody tr:nth-child(6)  { animation-delay: 0.12s; }
+.data-table tbody tr:nth-child(7)  { animation-delay: 0.14s; }
+.data-table tbody tr:nth-child(8)  { animation-delay: 0.16s; }
+.data-table tbody tr:nth-child(n+9) { animation-delay: 0.18s; }

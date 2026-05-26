@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import GamepassModal from '@/components/inventory/GamepassModal'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -30,7 +30,8 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [filterGame, setFilterGame] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -50,7 +51,7 @@ export default function InventoryPage() {
   async function handleSave(data: any) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setSaving(false); return }
     if (editGamepass) {
       await supabase.from('gamepasses').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editGamepass.id)
     } else {

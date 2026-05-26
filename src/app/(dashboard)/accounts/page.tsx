@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
 import AccountCard from '@/components/accounts/AccountCard'
@@ -17,7 +17,8 @@ export default function AccountsPage() {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editAccount, setEditAccount] = useState<RobloxAccount | null>(null)
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true)
@@ -37,7 +38,7 @@ export default function AccountsPage() {
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setSaving(false); return }
 
     const payload = {
       username: data.username,

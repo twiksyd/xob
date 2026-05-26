@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import OrderModal from '@/components/orders/OrderModal'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -12,7 +12,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Plus, ShoppingCart, MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
+import { motion } from 'framer-motion'
+import { springToggle } from '@/lib/motion'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
 
@@ -21,8 +23,12 @@ const STATUS_FLOW: Record<string, string> = {
   paid: 'completed',
 }
 
+const PAGE_SIZE = 100
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [gamepasses, setGamepasses] = useState<GamepassWithGame[]>([])
   const [accounts, setAccounts] = useState<RobloxAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,19 +37,26 @@ export default function OrdersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editOrder, setEditOrder] = useState<OrderWithDetails | null>(null)
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [filterStatus, setFilterStatus] = useState('all')
-  const supabase = createClient()
+  const [metricView, setMetricView] = useState<'today' | 'overall'>('overall')
+  const supabase = useMemo(() => createClient(), [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     const [ordRes, gpRes, accRes] = await Promise.all([
       supabase.from('orders')
         .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
-        .order('created_at', { ascending: false }),
-      supabase.from('gamepasses').select('*, games(*)').eq('is_active', true).order('name'),
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1),
+      supabase.from('gamepasses').select('*, games(*)').order('is_active', { ascending: false }).order('name'),
       supabase.from('roblox_accounts').select('*').eq('status', 'active'),
     ])
-    if (ordRes.data) setOrders(ordRes.data as OrderWithDetails[])
+    if (ordRes.data) {
+      const hasMoreData = ordRes.data.length > PAGE_SIZE
+      setOrders(ordRes.data.slice(0, PAGE_SIZE) as OrderWithDetails[])
+      setHasMore(hasMoreData)
+    }
     if (gpRes.data) setGamepasses(gpRes.data as GamepassWithGame[])
     if (accRes.data) setAccounts(accRes.data)
     setLoading(false)
@@ -51,8 +64,28 @@ export default function OrdersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ── Financial helpers ────────────────────────────────────────────────────────
-  // Deduct Robux from an account (floors at 0 to prevent negatives)
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore) return
+    setLoadingMore(true)
+    const cursor = orders[orders.length - 1]?.created_at
+    if (!cursor) { setLoadingMore(false); return }
+
+    const { data } = await supabase
+      .from('orders')
+      .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
+      .order('created_at', { ascending: false })
+      .lt('created_at', cursor)
+      .limit(PAGE_SIZE + 1)
+
+    if (data) {
+      const hasMoreData = data.length > PAGE_SIZE
+      setOrders(prev => [...prev, ...(data.slice(0, PAGE_SIZE) as OrderWithDetails[])])
+      setHasMore(hasMoreData)
+    }
+    setLoadingMore(false)
+  }, [supabase, hasMore, loadingMore, orders])
+
+  // ── Financial helpers (edit path only — status transitions use RPCs) ─────────
   async function deductRobux(accountId: string, amount: number) {
     const { data: acc } = await supabase
       .from('roblox_accounts').select('current_robux').eq('id', accountId).single()
@@ -63,7 +96,6 @@ export default function OrdersPage() {
     }).eq('id', accountId)
   }
 
-  // Restore Robux to an account (used on refund/cancellation of completed order)
   async function restoreRobux(accountId: string, amount: number) {
     const { data: acc } = await supabase
       .from('roblox_accounts').select('current_robux').eq('id', accountId).single()
@@ -74,7 +106,6 @@ export default function OrdersPage() {
     }).eq('id', accountId)
   }
 
-  // Credit wallet with sale income (positive amount = inflow)
   async function creditWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null) {
     if (amount <= 0) return
     await supabase.from('wallet_transactions').insert({
@@ -85,7 +116,6 @@ export default function OrdersPage() {
     })
   }
 
-  // Reverse wallet income (negative amount = outflow, reduces balance)
   async function reverseWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null, reason: 'Refund' | 'Cancellation') {
     if (amount <= 0) return
     await supabase.from('wallet_transactions').insert({
@@ -109,6 +139,7 @@ export default function OrdersPage() {
     const firstItem   = items[0]
 
     if (editOrder) {
+      // ── Edit existing order ──────────────────────────────────────────────────
       const prevStatus = editOrder.status
       const newStatus  = data.status
 
@@ -143,32 +174,55 @@ export default function OrdersPage() {
         )
       }
 
-      // H2 / C3: Sync financial state based on status transition
+      // Financial effects for edit-path status transitions.
+      // Note: status changes from buttons go through transition_order RPC (atomic).
+      // The edit path updates order data + status in one DB call above, so the RPC
+      // can't be used here (it would see the already-updated status as a no-op).
+      // These helpers remain client-side for the edit path only.
       if (prevStatus !== 'completed' && newStatus === 'completed') {
-        // Becoming completed via edit — deduct Robux + credit wallet
         if (data.roblox_account_id && totalRobux > 0) await deductRobux(data.roblox_account_id, totalRobux)
         await creditWallet(user.id, editOrder.id, totalPrice, editOrder.order_number ?? null, data.buyer_name || null)
       } else if (prevStatus === 'completed' && newStatus !== 'completed') {
-        // Leaving completed via edit — restore Robux + reverse wallet
         if (editOrder.roblox_account_id && editOrder.robux_amount) {
           await restoreRobux(editOrder.roblox_account_id, editOrder.robux_amount)
         }
         const reason = newStatus === 'refunded' ? 'Refund' : 'Cancellation'
         await reverseWallet(user.id, editOrder.id, editOrder.selling_price ?? 0, editOrder.order_number ?? null, editOrder.buyer_name ?? null, reason)
-      } else if (prevStatus === 'completed' && newStatus === 'completed' && totalPrice !== (editOrder.selling_price ?? 0)) {
-        // Staying completed but price changed — replace the original Sale entry
-        await supabase.from('wallet_transactions')
-          .delete().eq('reference_order_id', editOrder.id).eq('type', 'income').eq('category', 'Sale')
-        await creditWallet(user.id, editOrder.id, totalPrice, editOrder.order_number ?? null, data.buyer_name || null)
+      } else if (prevStatus === 'completed' && newStatus === 'completed') {
+        const accountChanged = data.roblox_account_id !== editOrder.roblox_account_id
+        const robuxChanged   = totalRobux !== (editOrder.robux_amount ?? 0)
+        const priceChanged   = totalPrice !== (editOrder.selling_price ?? 0)
+
+        if (accountChanged) {
+          if (editOrder.roblox_account_id && editOrder.robux_amount) {
+            await restoreRobux(editOrder.roblox_account_id, editOrder.robux_amount)
+          }
+          if (data.roblox_account_id && totalRobux > 0) {
+            await deductRobux(data.roblox_account_id, totalRobux)
+          }
+        } else if (robuxChanged && data.roblox_account_id) {
+          const diff = totalRobux - (editOrder.robux_amount ?? 0)
+          if (diff > 0) await deductRobux(data.roblox_account_id, diff)
+          else if (diff < 0) await restoreRobux(data.roblox_account_id, -diff)
+        }
+
+        if (priceChanged) {
+          await supabase.from('wallet_transactions')
+            .delete().eq('reference_order_id', editOrder.id).eq('type', 'income').eq('category', 'Sale')
+          await creditWallet(user.id, editOrder.id, totalPrice, editOrder.order_number ?? null, data.buyer_name || null)
+        }
       }
     } else {
+      // ── Create new order ─────────────────────────────────────────────────────
+      // Always insert as 'pending' so the transition_order RPC can apply financial
+      // effects atomically for any target status (including completed).
       const { data: newOrder } = await supabase.from('orders').insert({
         user_id: user.id,
         buyer_name: data.buyer_name,
         buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id,
         payment_method: data.payment_method,
-        status: data.status,
+        status: 'pending',
         notes: data.notes,
         gamepass_id: firstItem?.gamepass_id || null,
         robux_amount: totalRobux,
@@ -192,10 +246,13 @@ export default function OrdersPage() {
         )
       }
 
-      // C3: Order created directly as completed — apply financial effects immediately
-      if (data.status === 'completed' && newOrder) {
-        if (data.roblox_account_id && totalRobux > 0) await deductRobux(data.roblox_account_id, totalRobux)
-        await creditWallet(user.id, newOrder.id, totalPrice, newOrder.order_number ?? null, data.buyer_name || null)
+      // Transition to the user's chosen status atomically (handles financial effects)
+      if (newOrder && data.status !== 'pending') {
+        const { error } = await supabase.rpc('transition_order', {
+          p_order_id: newOrder.id,
+          p_new_status: data.status,
+        })
+        if (error) alert(`Order created but status transition failed: ${error.message}`)
       }
     }
 
@@ -205,74 +262,70 @@ export default function OrdersPage() {
     fetchData()
   }
 
+  // ── Status change from action buttons — fully atomic via RPC ─────────────────
   async function handleStatusChange(order: OrderWithDetails, newStatus: string) {
-    const prevStatus = order.status
-
-    // Guard: no-op, and prevent concurrent/double-click on the same order
-    if (prevStatus === newStatus) return
+    if (order.status === newStatus) return
     if (statusChanging === order.id) return
     setStatusChanging(order.id)
 
-    await supabase.from('orders').update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    }).eq('id', order.id)
+    const { error } = await supabase.rpc('transition_order', {
+      p_order_id: order.id,
+      p_new_status: newStatus,
+    })
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setStatusChanging(null); fetchData(); return }
-
-    // Completing an order — deduct Robux + credit wallet once
-    if (newStatus === 'completed' && prevStatus !== 'completed') {
-      if (order.roblox_account_id && order.robux_amount) {
-        await deductRobux(order.roblox_account_id, order.robux_amount)
-      }
-      await creditWallet(user.id, order.id, order.selling_price ?? 0, order.order_number ?? null, order.buyer_name ?? null)
-    }
-
-    // Refunding or cancelling a previously completed order — restore Robux + reverse wallet
-    if (prevStatus === 'completed' && (newStatus === 'refunded' || newStatus === 'cancelled')) {
-      if (order.roblox_account_id && order.robux_amount) {
-        await restoreRobux(order.roblox_account_id, order.robux_amount)
-      }
-      const reason = newStatus === 'refunded' ? 'Refund' : 'Cancellation'
-      await reverseWallet(user.id, order.id, order.selling_price ?? 0, order.order_number ?? null, order.buyer_name ?? null, reason)
-    }
+    if (error) alert(`Could not update order status: ${error.message}`)
 
     setStatusChanging(null)
     fetchData()
   }
 
+  // ── Delete — fully atomic via RPC ────────────────────────────────────────────
   async function handleDelete(order: OrderWithDetails) {
     if (!confirm('Delete this order?')) return
 
-    // Reverse financial effects before deletion so wallet + Robux stay consistent
-    if (order.status === 'completed') {
-      if (order.roblox_account_id && order.robux_amount) {
-        await restoreRobux(order.roblox_account_id, order.robux_amount)
-      }
-      // Delete all wallet entries for this order (income + any reversals) before the FK nullifies
-      await supabase.from('wallet_transactions').delete().eq('reference_order_id', order.id)
-    }
+    const { error } = await supabase.rpc('delete_order', { p_order_id: order.id })
+    if (error) alert(`Could not delete order: ${error.message}`)
 
-    await supabase.from('orders').delete().eq('id', order.id)
     fetchData()
   }
 
-  const filtered = useMemo(() => orders.filter(o => {
-    const gamepassNames = (o.order_items ?? []).map(i => i.gamepass_name.toLowerCase()).join(' ')
-    const matchSearch = (o.buyer_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-                        (o.order_number ?? '').toLowerCase().includes(search.toLowerCase()) ||
-                        (o.gamepasses?.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-                        gamepassNames.includes(search.toLowerCase())
-    const matchStatus = filterStatus === 'all' || o.status === filterStatus
-    return matchSearch && matchStatus
-  }), [orders, search, filterStatus])
+  const filtered = useMemo(() => {
+    const q = deferredSearch.toLowerCase()
+    return orders.filter(o => {
+      const gamepassNames = (o.order_items ?? []).map(i => i.gamepass_name.toLowerCase()).join(' ')
+      const matchSearch = !q ||
+        (o.buyer_name ?? '').toLowerCase().includes(q) ||
+        (o.order_number ?? '').toLowerCase().includes(q) ||
+        (o.gamepasses?.name ?? '').toLowerCase().includes(q) ||
+        gamepassNames.includes(q)
+      const matchStatus = filterStatus === 'all' || o.status === filterStatus
+      return matchSearch && matchStatus
+    })
+  }, [orders, deferredSearch, filterStatus])
 
-  const totals = useMemo(() => ({
-    revenue: orders.filter(o => o.status === 'completed').reduce((s, o) => s + (o.selling_price ?? 0), 0),
-    profit: orders.filter(o => o.status === 'completed').reduce((s, o) => s + (o.profit ?? 0), 0),
-    active: orders.filter(o => ['pending', 'paid'].includes(o.status)).length,
-  }), [orders])
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+
+  const totals = useMemo(() => {
+    const completed = orders.filter(o => o.status === 'completed')
+    const active = orders.filter(o => ['pending', 'paid'].includes(o.status)).length
+    if (metricView === 'today') {
+      const todayCompleted = completed.filter(o => format(new Date(o.created_at), 'yyyy-MM-dd') === todayStr)
+      return {
+        revenue: todayCompleted.reduce((s, o) => s + (o.selling_price ?? 0), 0),
+        profit: todayCompleted.reduce((s, o) => s + (o.profit ?? 0), 0),
+        active,
+        revenueLabel: "Today's Revenue",
+        profitLabel: "Today's Profit",
+      }
+    }
+    return {
+      revenue: completed.reduce((s, o) => s + (o.selling_price ?? 0), 0),
+      profit: completed.reduce((s, o) => s + (o.profit ?? 0), 0),
+      active,
+      revenueLabel: 'Completed Revenue',
+      profitLabel: 'Total Profit',
+    }
+  }, [orders, metricView, todayStr])
 
   const statusGroups = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -294,11 +347,30 @@ export default function OrdersPage() {
       />
 
       <div className="p-5 space-y-4">
+        {/* Summary header + toggle */}
+        <div className="flex items-center justify-between">
+          <span className="label-caps">Summary</span>
+          <div className="metric-toggle">
+            {(['today', 'overall'] as const).map(view => (
+              <button
+                key={view}
+                onClick={() => setMetricView(view)}
+                className={`metric-toggle-btn ${metricView === view ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive'}`}
+              >
+                {metricView === view && (
+                  <motion.div layoutId="orders-toggle-bg" className="metric-toggle-bg" transition={springToggle} />
+                )}
+                <span className="relative z-10 capitalize">{view}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3.5">
           {[
-            { label: 'Completed Revenue', value: `₱${totals.revenue.toFixed(2)}`, color: 'oklch(0.10 0.030 272)' },
-            { label: 'Total Profit',      value: `₱${totals.profit.toFixed(2)}`,  color: '#22d3ee' },
+            { label: totals.revenueLabel, value: `₱${totals.revenue.toFixed(2)}`, color: 'oklch(0.10 0.030 272)' },
+            { label: totals.profitLabel,  value: `₱${totals.profit.toFixed(2)}`,  color: '#22d3ee' },
             { label: 'Active Orders',     value: String(totals.active),            color: '#f59e0b' },
           ].map(({ label, value, color }) => (
             <div key={label} className="summary-card">
@@ -488,6 +560,22 @@ export default function OrdersPage() {
                     )
                   })}
                 </tbody>
+                {hasMore && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={10} className="text-center py-4">
+                        <button
+                          onClick={loadMore}
+                          disabled={loadingMore}
+                          className="text-xs font-medium transition-opacity disabled:opacity-40"
+                          style={{ color: '#22d3ee' }}
+                        >
+                          {loadingMore ? 'Loading…' : `Load more orders`}
+                        </button>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>

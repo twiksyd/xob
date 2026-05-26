@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Transaction } from '@/lib/types/database'
@@ -22,7 +22,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchData = useCallback(async () => {
     setLoading(true)

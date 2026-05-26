@@ -81,10 +81,13 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
         <span className="flex-1 min-w-0">
           {selected ? (
             <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-              <span>
+              <CheckCircle2 className={cn('w-3.5 h-3.5 flex-shrink-0', selected.is_active === false ? 'text-amber-400' : 'text-primary')} />
+              <span className="flex items-center gap-1.5 min-w-0">
                 <span className="text-foreground font-semibold text-sm">{selected.name}</span>
-                <span className="text-muted-foreground text-xs ml-2">{selected.games?.name} · {selected.robux_amount.toLocaleString()} R$ · ₱{selected.your_price}</span>
+                {selected.is_active === false && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">inactive</span>
+                )}
+                <span className="text-muted-foreground text-xs">{selected.games?.name} · {selected.robux_amount.toLocaleString()} R$ · ₱{selected.your_price}</span>
               </span>
             </span>
           ) : (
@@ -174,11 +177,18 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
                         'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all',
                         isSelected
                           ? 'bg-primary/15 border border-primary/40'
+                          : gp.is_active === false
+                          ? 'hover:bg-amber-500/5 border border-transparent opacity-60'
                           : 'hover:bg-accent border border-transparent'
                       )}
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{gp.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-foreground truncate">{gp.name}</p>
+                          {gp.is_active === false && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">inactive</span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground truncate">{gp.games?.name}</p>
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">

@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
 import { WalletTransaction } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -39,7 +39,8 @@ export default function WalletPage() {
   const [formAmount, setFormAmount] = useState('')
   const [formCategory, setFormCategory] = useState('')
   const [formDesc, setFormDesc] = useState('')
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -47,6 +48,7 @@ export default function WalletPage() {
       .from('wallet_transactions')
       .select('*')
       .order('created_at', { ascending: false })
+      .limit(500)
     if (data) setTransactions(data as WalletTransaction[])
     setLoading(false)
   }, [supabase])

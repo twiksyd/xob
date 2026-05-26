@@ -1,13 +1,15 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { subDays, format, formatDistanceToNow } from 'date-fns'
 import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { RevenueChart, TopGamesChart, OrderStatusChart } from '@/components/dashboard/DashboardCharts'
+import { motion } from 'framer-motion'
+import { springToggle } from '@/lib/motion'
 import {
   Coins, TrendingUp, ShoppingCart, Package, AlertTriangle, ArrowUpRight,
   Users, BarChart2, CheckCircle2,
@@ -19,7 +21,9 @@ export default function DashboardPage() {
   const [gamepassCount, setGamepassCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [displayProfit, setDisplayProfit] = useState(0)
-  const supabase = createClient()
+  const [metricView, setMetricView] = useState<'today' | 'overall'>('overall')
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -61,6 +65,29 @@ export default function DashboardPage() {
   const totalProfit = completedOrders.reduce((s, o) => s + (o.profit ?? 0), 0)
   const activeOrders = orders.filter(o => ['pending', 'paid'].includes(o.status)).length
   const lowRobuxAccounts = accounts.filter(a => (a.current_robux - (a.reserved_robux ?? 0)) < 500)
+
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const todayOrders = useMemo(() =>
+    orders.filter(o => format(new Date(o.created_at), 'yyyy-MM-dd') === todayStr),
+    [orders, todayStr])
+  const todayCompleted = useMemo(() => todayOrders.filter(o => o.status === 'completed'), [todayOrders])
+
+  const viewMetrics = useMemo(() => {
+    if (metricView === 'today') {
+      return {
+        profit: todayCompleted.reduce((s, o) => s + (o.profit ?? 0), 0),
+        active: todayOrders.filter(o => ['pending', 'paid'].includes(o.status)).length,
+        profitSub: `${todayCompleted.length} completed today`,
+        activeSub: `${todayOrders.length} orders today`,
+      }
+    }
+    return {
+      profit: totalProfit,
+      active: activeOrders,
+      profitSub: `${completedOrders.length} completed orders`,
+      activeSub: `${orders.length} total orders`,
+    }
+  }, [metricView, todayCompleted, todayOrders, totalProfit, activeOrders, completedOrders, orders])
 
   const revenueData = Array.from({ length: 7 }, (_, i) => {
     const date = subDays(new Date(), 6 - i)
@@ -121,11 +148,30 @@ export default function DashboardPage() {
           {/* ── Main ─────────────────────────────── */}
           <div className="flex-1 min-w-0 space-y-4">
 
+            {/* Stats header + toggle */}
+            <div className="flex items-center justify-between mb-1">
+              <span className="label-caps">Overview</span>
+              <div className="metric-toggle">
+                {(['today', 'overall'] as const).map(view => (
+                  <button
+                    key={view}
+                    onClick={() => setMetricView(view)}
+                    className={`metric-toggle-btn ${metricView === view ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive'}`}
+                  >
+                    {metricView === view && (
+                      <motion.div layoutId="dash-toggle-bg" className="metric-toggle-bg" transition={springToggle} />
+                    )}
+                    <span className="relative z-10 capitalize">{view}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3.5">
-              <StatCard title="Total Robux"   value={`${totalRobux.toLocaleString()} R$`} subtitle={`Across ${accounts.length} accounts`}                icon={Coins}       iconColor="#22d3ee" accentColor="#22d3ee" />
-              <StatCard title="Total Profit"  value={`₱${totalProfit.toFixed(2)}`}         subtitle={`${completedOrders.length} completed orders`}    icon={TrendingUp}  iconColor="#e879f9" accentColor="#e879f9" />
-              <StatCard title="Active Orders" value={String(activeOrders)}                  subtitle={`${orders.length} total orders`}                  icon={ShoppingCart}iconColor="#38bdf8" accentColor="#38bdf8" />
+              <StatCard title="Total Robux"   value={`${totalRobux.toLocaleString()} R$`}                subtitle={`Across ${accounts.length} accounts`}                icon={Coins}       iconColor="#22d3ee" accentColor="#22d3ee" />
+              <StatCard title={metricView === 'today' ? "Today's Profit" : "Total Profit"}  value={`₱${viewMetrics.profit.toFixed(2)}`}  subtitle={viewMetrics.profitSub}    icon={TrendingUp}  iconColor="#e879f9" accentColor="#e879f9" animKey={metricView} />
+              <StatCard title={metricView === 'today' ? "Today's Orders" : "Active Orders"} value={String(viewMetrics.active)}            subtitle={viewMetrics.activeSub}    icon={ShoppingCart}iconColor="#38bdf8" accentColor="#38bdf8" animKey={metricView} />
               <StatCard title="Gamepasses"    value={String(gamepassCount)}                 subtitle="In your inventory"                                icon={Package}     iconColor="#a78bfa" accentColor="#a78bfa" />
             </div>
 
