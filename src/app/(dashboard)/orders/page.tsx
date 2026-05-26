@@ -27,6 +27,7 @@ export default function OrdersPage() {
   const [accounts, setAccounts] = useState<RobloxAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [statusChanging, setStatusChanging] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editOrder, setEditOrder] = useState<OrderWithDetails | null>(null)
   const [search, setSearch] = useState('')
@@ -207,8 +208,10 @@ export default function OrdersPage() {
   async function handleStatusChange(order: OrderWithDetails, newStatus: string) {
     const prevStatus = order.status
 
-    // Guard: no-op and prevent double-processing
-    if (prevStatus === newStatus) { fetchData(); return }
+    // Guard: no-op, and prevent concurrent/double-click on the same order
+    if (prevStatus === newStatus) return
+    if (statusChanging === order.id) return
+    setStatusChanging(order.id)
 
     await supabase.from('orders').update({
       status: newStatus,
@@ -216,7 +219,7 @@ export default function OrdersPage() {
     }).eq('id', order.id)
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { fetchData(); return }
+    if (!user) { setStatusChanging(null); fetchData(); return }
 
     // Completing an order — deduct Robux + credit wallet once
     if (newStatus === 'completed' && prevStatus !== 'completed') {
@@ -235,12 +238,23 @@ export default function OrdersPage() {
       await reverseWallet(user.id, order.id, order.selling_price ?? 0, order.order_number ?? null, order.buyer_name ?? null, reason)
     }
 
+    setStatusChanging(null)
     fetchData()
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(order: OrderWithDetails) {
     if (!confirm('Delete this order?')) return
-    await supabase.from('orders').delete().eq('id', id)
+
+    // Reverse financial effects before deletion so wallet + Robux stay consistent
+    if (order.status === 'completed') {
+      if (order.roblox_account_id && order.robux_amount) {
+        await restoreRobux(order.roblox_account_id, order.robux_amount)
+      }
+      // Delete all wallet entries for this order (income + any reversals) before the FK nullifies
+      await supabase.from('wallet_transactions').delete().eq('reference_order_id', order.id)
+    }
+
+    await supabase.from('orders').delete().eq('id', order.id)
     fetchData()
   }
 
@@ -409,25 +423,35 @@ export default function OrdersPage() {
                           {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
                         </td>
                         <td>
+                          {(() => {
+                            const isBusy = statusChanging === order.id
+                            return (
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {nextStatus && (
                               <button
                                 onClick={() => handleStatusChange(order, nextStatus)}
+                                disabled={isBusy}
                                 title={`Mark as ${nextStatus}`}
-                                className="w-7 h-7 rounded-lg bg-primary/15 hover:bg-primary/30 text-primary flex items-center justify-center transition-colors"
+                                className="w-7 h-7 rounded-lg bg-primary/15 hover:bg-primary/30 text-primary flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                <Check className="w-3.5 h-3.5" />
+                                {isBusy
+                                  ? <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+                                  : <Check className="w-3.5 h-3.5" />}
                               </button>
                             )}
                             <button
-                              onClick={() => { setEditOrder(order); setModalOpen(true) }}
+                              onClick={() => { if (!isBusy) { setEditOrder(order); setModalOpen(true) } }}
+                              disabled={isBusy}
                               title="Edit"
-                              className="w-7 h-7 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                              className="w-7 h-7 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <DropdownMenu>
-                              <DropdownMenuTrigger className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                              <DropdownMenuTrigger
+                                disabled={isBusy}
+                                className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
                                 <MoreHorizontal className="w-4 h-4" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-popover border-border">
@@ -449,7 +473,7 @@ export default function OrdersPage() {
                                 )}
                                 <DropdownMenuSeparator className="bg-border/50" />
                                 <DropdownMenuItem
-                                  onClick={() => handleDelete(order.id)}
+                                  onClick={() => handleDelete(order)}
                                   className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -457,6 +481,8 @@ export default function OrdersPage() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
+                            )
+                          })()}
                         </td>
                       </tr>
                     )
