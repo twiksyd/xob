@@ -128,12 +128,12 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-elevated max-w-xl max-h-[90vh] flex flex-col">
+      <DialogContent className="glass-elevated max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">{order ? 'Edit Order' : 'New Order'}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-2">
+        <ScrollArea className="flex-1 min-h-0 pr-2">
           <form id="order-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-2">
 
             {/* Buyer info */}
@@ -278,7 +278,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
           </form>
         </ScrollArea>
 
-        <DialogFooter className="pt-4 border-t border-border/50">
+        <DialogFooter className="mx-0 mb-0 flex-shrink-0 rounded-none border-t border-border/50 bg-transparent pt-3 pb-0 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
           <Button form="order-form" type="submit" disabled={loading || validItems.length === 0} className="bg-primary text-primary-foreground">
             {loading ? 'Saving...' : order ? 'Save Changes' : 'Create Order'}

@@ -50,24 +50,73 @@ export default function OrdersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // ── Financial helpers ────────────────────────────────────────────────────────
+  // Deduct Robux from an account (floors at 0 to prevent negatives)
+  async function deductRobux(accountId: string, amount: number) {
+    const { data: acc } = await supabase
+      .from('roblox_accounts').select('current_robux').eq('id', accountId).single()
+    if (!acc) return
+    await supabase.from('roblox_accounts').update({
+      current_robux: Math.max(0, acc.current_robux - amount),
+      updated_at: new Date().toISOString(),
+    }).eq('id', accountId)
+  }
+
+  // Restore Robux to an account (used on refund/cancellation of completed order)
+  async function restoreRobux(accountId: string, amount: number) {
+    const { data: acc } = await supabase
+      .from('roblox_accounts').select('current_robux').eq('id', accountId).single()
+    if (!acc) return
+    await supabase.from('roblox_accounts').update({
+      current_robux: acc.current_robux + amount,
+      updated_at: new Date().toISOString(),
+    }).eq('id', accountId)
+  }
+
+  // Credit wallet with sale income (positive amount = inflow)
+  async function creditWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null) {
+    if (amount <= 0) return
+    await supabase.from('wallet_transactions').insert({
+      user_id: userId, type: 'income', amount,
+      category: 'Sale',
+      description: `Order ${orderNum ?? ''} — ${buyer ?? 'Customer'}`,
+      reference_order_id: orderId,
+    })
+  }
+
+  // Reverse wallet income (negative amount = outflow, reduces balance)
+  async function reverseWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null, reason: 'Refund' | 'Cancellation') {
+    if (amount <= 0) return
+    await supabase.from('wallet_transactions').insert({
+      user_id: userId, type: 'expense', amount: -amount,
+      category: reason === 'Refund' ? 'Refund Issued' : 'Cancellation',
+      description: `${reason}: Order ${orderNum ?? ''} — ${buyer ?? 'Customer'}`,
+      reference_order_id: orderId,
+    })
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   async function handleSave(data: any, items: LineItem[]) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    const totalRobux = items.reduce((s, i) => s + i.robux_amount, 0)
-    const totalPrice = items.reduce((s, i) => s + i.selling_price, 0)
-    const totalCost = items.reduce((s, i) => s + i.cost, 0)
+    const totalRobux  = items.reduce((s, i) => s + i.robux_amount, 0)
+    const totalPrice  = items.reduce((s, i) => s + i.selling_price, 0)
+    const totalCost   = items.reduce((s, i) => s + i.cost, 0)
     const totalProfit = items.reduce((s, i) => s + i.profit, 0)
-    const firstItem = items[0]
+    const firstItem   = items[0]
 
     if (editOrder) {
+      const prevStatus = editOrder.status
+      const newStatus  = data.status
+
       await supabase.from('orders').update({
         buyer_name: data.buyer_name,
         buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id,
         payment_method: data.payment_method,
-        status: data.status,
+        status: newStatus,
         notes: data.notes,
         gamepass_id: firstItem?.gamepass_id || null,
         robux_amount: totalRobux,
@@ -91,6 +140,25 @@ export default function OrdersPage() {
             profit: item.profit,
           }))
         )
+      }
+
+      // H2 / C3: Sync financial state based on status transition
+      if (prevStatus !== 'completed' && newStatus === 'completed') {
+        // Becoming completed via edit — deduct Robux + credit wallet
+        if (data.roblox_account_id && totalRobux > 0) await deductRobux(data.roblox_account_id, totalRobux)
+        await creditWallet(user.id, editOrder.id, totalPrice, editOrder.order_number ?? null, data.buyer_name || null)
+      } else if (prevStatus === 'completed' && newStatus !== 'completed') {
+        // Leaving completed via edit — restore Robux + reverse wallet
+        if (editOrder.roblox_account_id && editOrder.robux_amount) {
+          await restoreRobux(editOrder.roblox_account_id, editOrder.robux_amount)
+        }
+        const reason = newStatus === 'refunded' ? 'Refund' : 'Cancellation'
+        await reverseWallet(user.id, editOrder.id, editOrder.selling_price ?? 0, editOrder.order_number ?? null, editOrder.buyer_name ?? null, reason)
+      } else if (prevStatus === 'completed' && newStatus === 'completed' && totalPrice !== (editOrder.selling_price ?? 0)) {
+        // Staying completed but price changed — replace the original Sale entry
+        await supabase.from('wallet_transactions')
+          .delete().eq('reference_order_id', editOrder.id).eq('type', 'income').eq('category', 'Sale')
+        await creditWallet(user.id, editOrder.id, totalPrice, editOrder.order_number ?? null, data.buyer_name || null)
       }
     } else {
       const { data: newOrder } = await supabase.from('orders').insert({
@@ -122,6 +190,12 @@ export default function OrdersPage() {
           }))
         )
       }
+
+      // C3: Order created directly as completed — apply financial effects immediately
+      if (data.status === 'completed' && newOrder) {
+        if (data.roblox_account_id && totalRobux > 0) await deductRobux(data.roblox_account_id, totalRobux)
+        await creditWallet(user.id, newOrder.id, totalPrice, newOrder.order_number ?? null, data.buyer_name || null)
+      }
     }
 
     setSaving(false)
@@ -131,40 +205,34 @@ export default function OrdersPage() {
   }
 
   async function handleStatusChange(order: OrderWithDetails, newStatus: string) {
+    const prevStatus = order.status
+
+    // Guard: no-op and prevent double-processing
+    if (prevStatus === newStatus) { fetchData(); return }
+
     await supabase.from('orders').update({
       status: newStatus,
       updated_at: new Date().toISOString(),
     }).eq('id', order.id)
 
-    if (newStatus === 'completed') {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { fetchData(); return }
+
+    // Completing an order — deduct Robux + credit wallet once
+    if (newStatus === 'completed' && prevStatus !== 'completed') {
       if (order.roblox_account_id && order.robux_amount) {
-        const { data: acc } = await supabase
-          .from('roblox_accounts')
-          .select('current_robux')
-          .eq('id', order.roblox_account_id)
-          .single()
-
-        if (acc) {
-          await supabase.from('roblox_accounts').update({
-            current_robux: Math.max(0, acc.current_robux - order.robux_amount),
-            updated_at: new Date().toISOString(),
-          }).eq('id', order.roblox_account_id)
-        }
+        await deductRobux(order.roblox_account_id, order.robux_amount)
       }
+      await creditWallet(user.id, order.id, order.selling_price ?? 0, order.order_number ?? null, order.buyer_name ?? null)
+    }
 
-      if (order.selling_price) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase.from('wallet_transactions').insert({
-            user_id: user.id,
-            type: 'income',
-            amount: order.selling_price,
-            category: 'Sale',
-            description: `Order ${order.order_number ?? ''} — ${order.buyer_name ?? 'Customer'}`,
-            reference_order_id: order.id,
-          })
-        }
+    // Refunding or cancelling a previously completed order — restore Robux + reverse wallet
+    if (prevStatus === 'completed' && (newStatus === 'refunded' || newStatus === 'cancelled')) {
+      if (order.roblox_account_id && order.robux_amount) {
+        await restoreRobux(order.roblox_account_id, order.robux_amount)
       }
+      const reason = newStatus === 'refunded' ? 'Refund' : 'Cancellation'
+      await reverseWallet(user.id, order.id, order.selling_price ?? 0, order.order_number ?? null, order.buyer_name ?? null, reason)
     }
 
     fetchData()
