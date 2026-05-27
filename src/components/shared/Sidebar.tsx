@@ -34,17 +34,22 @@ export default function Sidebar() {
     <aside
       className="relative flex flex-col h-screen w-[220px] flex-shrink-0 z-10"
       style={{
-        background: 'linear-gradient(180deg, rgba(10,7,32,0.95) 0%, rgba(16,10,48,0.93) 100%)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        borderRight: '1px solid rgba(139,92,246,0.20)',
-        boxShadow: '4px 0 40px rgba(8,6,28,0.25), inset -1px 0 0 rgba(139,92,246,0.08)',
+        background: 'linear-gradient(180deg, rgba(8,5,28,0.97) 0%, rgba(13,8,42,0.96) 60%, rgba(10,6,34,0.96) 100%)',
+        backdropFilter: 'blur(32px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+        borderRight: '1px solid rgba(139,92,246,0.16)',
+        boxShadow: '6px 0 48px rgba(6,4,20,0.32), inset -1px 0 0 rgba(255,255,255,0.04)',
       }}
     >
-      {/* Subtle top ambient glow inside sidebar */}
+      {/* Top ambient glow */}
       <div
-        className="absolute top-0 left-0 right-0 h-40 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(139,92,246,0.18), transparent)' }}
+        className="absolute top-0 left-0 right-0 h-48 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse 90% 70% at 50% -15%, rgba(139,92,246,0.22), transparent)' }}
+      />
+      {/* Bottom ambient glow — warm counter-point */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-36 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 115%, rgba(232,121,249,0.10), transparent)' }}
       />
 
       {/* Logo */}
@@ -56,7 +61,7 @@ export default function Sidebar() {
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
             background: 'linear-gradient(135deg, #22d3ee 0%, #a78bfa 55%, #e879f9 100%)',
-            boxShadow: '0 0 20px rgba(34,211,238,0.45), 0 0 40px rgba(167,139,250,0.20)',
+            boxShadow: '0 0 16px rgba(34,211,238,0.35), 0 0 32px rgba(167,139,250,0.14), inset 0 1px 0 rgba(255,255,255,0.25)',
           }}
         >
           <Box className="w-[18px] h-[18px] text-white" />

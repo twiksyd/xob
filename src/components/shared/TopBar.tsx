@@ -21,11 +21,11 @@ export default function TopBar({
     <header
       className="flex items-center h-[60px] px-6 gap-4 flex-shrink-0 sticky top-0 z-10"
       style={{
-        background: 'rgba(244,240,255,0.72)',
-        backdropFilter: 'blur(20px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-        borderBottom: '1px solid rgba(139,92,246,0.12)',
-        boxShadow: '0 1px 0 rgba(139,92,246,0.06)',
+        background: 'rgba(240,236,255,0.80)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        borderBottom: '1px solid rgba(139,92,246,0.10)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.60) inset, 0 1px 16px rgba(139,92,246,0.06)',
       }}
     >
       {/* Left */}
@@ -46,10 +46,10 @@ export default function TopBar({
           <div
             className="relative flex items-center w-full max-w-[440px]"
             style={{
-              background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.20)) border-box',
+              background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, rgba(139,92,246,0.18), rgba(34,211,238,0.14)) border-box',
               border: '1px solid transparent',
               borderRadius: '100px',
-              boxShadow: '0 1px 8px rgba(139,92,246,0.06)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 1px 6px rgba(139,92,246,0.07), 0 2px 12px rgba(15,13,42,0.04)',
             }}
           >
             <Search className="absolute left-4 w-3.5 h-3.5 flex-shrink-0 pointer-events-none" style={{ color: 'oklch(0.55 0.014 265)' }} />
