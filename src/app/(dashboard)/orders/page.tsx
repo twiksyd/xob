@@ -59,16 +59,12 @@ function mkItem(): LineItem {
 
 // ─── Divider ─────────────────────────────────────────────────────────────────
 function Divider() {
-  return <div style={{ height: '1px', background: 'rgba(15,13,42,0.055)' }} />
+  return <div className="section-divider" />
 }
 
 // ─── Section label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="label-caps mb-2.5" style={{ color: 'oklch(0.45 0.016 265)' }}>
-      {children}
-    </p>
-  )
+  return <p className="section-label">{children}</p>
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -322,12 +318,15 @@ export default function OrdersPage() {
 
         {/* ── LEFT: Create / Edit panel (≈70%) ──────────────────────────────── */}
         <div className="flex-1 min-w-0 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <div className="glass-card overflow-hidden">
+          <div className="glass-workspace overflow-hidden">
 
             {/* Panel header */}
             <div
               className="flex items-center justify-between px-6 py-4"
-              style={{ borderBottom: '1px solid rgba(15,13,42,0.055)' }}
+              style={{
+                background: 'linear-gradient(180deg, rgba(139,92,246,0.022) 0%, transparent 100%)',
+                boxShadow: 'inset 0 -1px 0 rgba(139,92,246,0.11), inset 0 -1px 0 rgba(34,211,238,0.07)',
+              }}
             >
               <AnimatePresence mode="wait">
                 <motion.div
@@ -360,10 +359,10 @@ export default function OrdersPage() {
             </div>
 
             {/* Form body */}
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6 form-stagger">
 
               {/* ── Buyer ── */}
-              <div>
+              <div className="form-section" style={{ animationDelay: '0.04s' }}>
                 <SectionLabel>Buyer</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -394,7 +393,7 @@ export default function OrdersPage() {
               <Divider />
 
               {/* ── Gamepasses ── */}
-              <div>
+              <div className="form-section" style={{ animationDelay: '0.09s' }}>
                 <div className="flex items-center justify-between mb-2.5">
                   <SectionLabel>Gamepasses</SectionLabel>
                   {validItems.length > 0 && (
@@ -466,10 +465,7 @@ export default function OrdersPage() {
 
               {/* Totals preview — always show when any item has a gamepass */}
               {validItems.length > 0 && (
-                <div
-                  className="rounded-xl p-4 grid grid-cols-3 gap-2 text-center"
-                  style={{ background: 'rgba(34,211,238,0.04)', border: '1px solid rgba(34,211,238,0.14)' }}
-                >
+                <div className="totals-bar grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
                     <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
@@ -492,7 +488,7 @@ export default function OrdersPage() {
               <Divider />
 
               {/* ── Account ── */}
-              <div>
+              <div className="form-section" style={{ animationDelay: '0.14s' }}>
                 <SectionLabel>Account</SectionLabel>
                 <AccountSelector
                   accounts={accounts}
@@ -508,7 +504,7 @@ export default function OrdersPage() {
               <Divider />
 
               {/* ── Order details ── */}
-              <div>
+              <div className="form-section" style={{ animationDelay: '0.19s' }}>
                 <SectionLabel>Order Details</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -545,7 +541,8 @@ export default function OrdersPage() {
               </div>
 
               {/* ── Submit ── */}
-              <div className="pt-1">
+              <div className="form-section pt-1" style={{ animationDelay: '0.24s' }}>
+                <div className="submit-glow-wrap">
                 <AnimatePresence mode="wait">
                   {justCreated ? (
                     <motion.div
@@ -586,6 +583,7 @@ export default function OrdersPage() {
                     </motion.button>
                   )}
                 </AnimatePresence>
+                </div>
                 {!isEditMode && (
                   <p className="text-center text-[11px] mt-2" style={{ color: 'oklch(0.64 0.010 265)' }}>
                     Form resets automatically — no need to reopen
@@ -604,10 +602,13 @@ export default function OrdersPage() {
         >
 
           {/* Active orders */}
-          <div className="glass-card overflow-hidden">
+          <div className="glass-secondary overflow-hidden">
             <div
               className="flex items-center justify-between px-4 py-3.5"
-              style={{ borderBottom: '1px solid rgba(15,13,42,0.055)' }}
+              style={{
+                background: 'rgba(255,255,255,0.28)',
+                borderBottom: '1px solid rgba(15,13,42,0.048)',
+              }}
             >
               <div className="flex items-center gap-2">
                 <span className="label-caps">Active Orders</span>
@@ -650,8 +651,8 @@ export default function OrdersPage() {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
                       transition={{ duration: 0.18 }}
-                      className="relative"
-                      style={{ borderBottom: '1px solid rgba(15,13,42,0.048)' }}
+                      className="relative order-row-shimmer"
+                      style={{ borderBottom: '1px solid rgba(15,13,42,0.042)' }}
                     >
                       {/* Left accent */}
                       <div
@@ -749,11 +750,14 @@ export default function OrdersPage() {
 
           {/* History */}
           {!loading && (
-            <div className="glass-card overflow-hidden" style={{ opacity: 0.88 }}>
+            <div className="glass-secondary overflow-hidden">
               <button
                 onClick={() => setHistoryExpanded(p => !p)}
-                className="w-full flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-black/[0.02]"
-                style={{ borderBottom: historyExpanded ? '1px solid rgba(15,13,42,0.055)' : 'none' }}
+                className="w-full flex items-center justify-between px-4 py-3.5 transition-colors"
+                style={{
+                  background: historyExpanded ? 'rgba(255,255,255,0.28)' : 'transparent',
+                  borderBottom: historyExpanded ? '1px solid rgba(15,13,42,0.048)' : 'none',
+                }}
               >
                 <div className="flex items-center gap-2">
                   <span className="label-caps">History</span>
@@ -786,9 +790,9 @@ export default function OrdersPage() {
                         return (
                           <div
                             key={order.id}
-                            className="flex items-center gap-2.5 px-4 py-2.5 group transition-colors"
-                            style={{ borderBottom: '1px solid rgba(15,13,42,0.042)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(15,13,42,0.025)')}
+                            className="flex items-center gap-2.5 px-4 py-2.5 group order-row-shimmer transition-colors"
+                            style={{ borderBottom: '1px solid rgba(15,13,42,0.038)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
                             onMouseLeave={e => (e.currentTarget.style.background = '')}
                           >
                             <div className="flex-1 min-w-0">
