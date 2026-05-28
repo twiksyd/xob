@@ -64,7 +64,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef}>
       {/* Trigger */}
       <button
         type="button"
@@ -72,7 +72,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
         className={cn(
           'w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-all text-left',
           open
-            ? 'border-primary/60 bg-input ring-2 ring-primary/20'
+            ? 'border-primary/60 bg-input ring-2 ring-primary/20 rounded-b-none border-b-0'
             : error
             ? 'border-red-500/50 bg-input'
             : 'border-border bg-input hover:border-border/80',
@@ -104,13 +104,16 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
               <X className="w-3.5 h-3.5" />
             </span>
           )}
-          <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
+          <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} />
         </span>
       </button>
 
-      {/* Dropdown panel */}
+      {/* Expanded panel — in document flow, pushes content below downward */}
       {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-xl border border-border bg-popover shadow-2xl overflow-hidden">
+        <div
+          className="rounded-b-xl rounded-t-none border border-t-0 border-border bg-popover overflow-hidden"
+          style={{ boxShadow: '0 8px 32px rgba(15,13,42,0.10), 0 2px 8px rgba(15,13,42,0.06), inset 0 1px 0 rgba(255,255,255,0.80)' }}
+        >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -129,7 +132,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
             )}
           </div>
 
-          {/* Game chips */}
+          {/* Game filter chips */}
           <div className="flex gap-1.5 px-2 py-2 overflow-x-auto border-b border-border/40 scrollbar-none">
             <button
               type="button"
@@ -160,8 +163,8 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
             ))}
           </div>
 
-          {/* Results */}
-          <div className="max-h-56 overflow-y-auto">
+          {/* Results — internal scroll, max height to keep form usable */}
+          <div className="max-h-64 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="text-center text-xs text-muted-foreground py-8">No gamepasses found</p>
             ) : (
