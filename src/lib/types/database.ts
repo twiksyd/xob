@@ -285,6 +285,23 @@ export type OrderWithDetails = Order & {
 export type WalletTransaction = Database['public']['Tables']['wallet_transactions']['Row']
 export type TransactionWithOrder = Transaction & { orders: Order | null }
 
+export type RobloxReservation = {
+  id: string
+  user_id: string
+  order_id: string
+  account_id: string
+  robux_amount: number
+  gamepass_names: string
+  status: 'active' | 'released'
+  released_at: string | null
+  created_at: string
+}
+
+export type ReservationWithDetails = RobloxReservation & {
+  roblox_accounts: { username: string } | null
+  orders: { order_number: string | null; buyer_name: string | null; status: string } | null
+}
+
 // UI helper types
 export type OrderStatus = Order['status']
 export type AccountStatus = RobloxAccount['status']

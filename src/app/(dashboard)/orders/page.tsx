@@ -250,15 +250,36 @@ export default function OrdersPage() {
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
         })))
       }
+      const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
+
       if (prevStatus !== 'completed' && newStatus === 'completed') {
+        // Deduct Robux + release reservation + credit wallet
         if (data.roblox_account_id && tRobux > 0) await deductRobux(data.roblox_account_id, tRobux)
+        if (['pending', 'paid'].includes(prevStatus)) {
+          await supabase.rpc('release_order_reservation', { p_order_id: editOrder.id })
+        }
         await creditWallet(user.id, editOrder.id, tPrice, editOrder.order_number ?? null, data.buyer_name || null)
       } else if (prevStatus === 'completed' && newStatus !== 'completed') {
+        // Restore Robux + reverse wallet (no reservation to release — was already released on completion)
         if (editOrder.roblox_account_id && editOrder.robux_amount) await restoreRobux(editOrder.roblox_account_id, editOrder.robux_amount)
         await reverseWallet(user.id, editOrder.id, editOrder.selling_price ?? 0, editOrder.order_number ?? null, editOrder.buyer_name ?? null, newStatus === 'refunded' ? 'Refund' : 'Cancellation')
+      } else if (['pending', 'paid'].includes(prevStatus) && ['cancelled', 'refunded'].includes(newStatus)) {
+        // Cancel/refund an active order: release reservation (no Robux deduction needed)
+        await supabase.rpc('release_order_reservation', { p_order_id: editOrder.id })
+      } else if (['pending', 'paid'].includes(prevStatus) && ['pending', 'paid'].includes(newStatus)) {
+        // Order stays active — update reservation in case account or amount changed
+        if (data.roblox_account_id && tRobux > 0) {
+          await supabase.rpc('reserve_order_robux', {
+            p_order_id:       editOrder.id,
+            p_account_id:     data.roblox_account_id,
+            p_robux_amount:   tRobux,
+            p_gamepass_names: gpNames,
+          })
+        }
       }
       setEditOrder(null)
     } else {
+      const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
       const { data: newOrder } = await supabase.from('orders').insert({
         user_id: user.id, buyer_name: data.buyer_name, buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
@@ -271,6 +292,15 @@ export default function OrdersPage() {
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
         })))
+      }
+      // Create reservation for new order (transition_order will release it if status goes beyond pending/paid)
+      if (newOrder && data.roblox_account_id && tRobux > 0) {
+        await supabase.rpc('reserve_order_robux', {
+          p_order_id:       newOrder.id,
+          p_account_id:     data.roblox_account_id,
+          p_robux_amount:   tRobux,
+          p_gamepass_names: gpNames,
+        })
       }
       if (newOrder && data.status !== 'pending') {
         await supabase.rpc('transition_order', { p_order_id: newOrder.id, p_new_status: data.status })
