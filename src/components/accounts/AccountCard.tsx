@@ -13,20 +13,28 @@ interface AccountCardProps {
   onDelete: (id: string) => void
 }
 
-export default function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
-  const available = account.current_robux - account.reserved_robux
-  const pct = Math.min(100, Math.max(0, (account.current_robux / 20000) * 100))
-  const isLow = available < 500
-  const isHigh = account.current_robux >= 8000
+// Color constants
+const COLOR_AVAILABLE = '#34d399'   // green  — most important
+const COLOR_RESERVED  = '#f59e0b'   // amber  — locked/allocated
+const COLOR_CURRENT   = 'oklch(0.10 0.030 272)' // neutral dark — reference
 
-  const barColor = pct < 15 ? '#f43f5e' : pct < 35 ? '#f59e0b' : '#22d3ee'
-  const availColor = available < 200 ? '#f43f5e' : available < 500 ? '#f59e0b' : '#22d3ee'
+export default function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
+  const available   = account.current_robux - account.reserved_robux
+  const isLow       = available < 500
+  const isHigh      = account.current_robux >= 8000
+
+  // Segmented bar percentages (of current_robux total)
+  const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
+  const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
+
+  // Available color degrades when critically low
+  const availDisplayColor = available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
   return (
     <div
       className="glass-card p-5 space-y-4 transition-all duration-200 group"
       style={isHigh ? {
-        boxShadow: '0 2px 16px rgba(34,211,238,0.07), 0 4px 24px rgba(15,13,42,0.04), inset 0 1px 0 rgba(34,211,238,0.18)',
+        boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(15,13,42,0.04), inset 0 1px 0 rgba(52,211,153,0.14)',
       } : undefined}
     >
       {/* Header */}
@@ -36,10 +44,10 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0"
             style={{
               background: isHigh
-                ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
+                ? 'linear-gradient(135deg, #34d399, #22d3ee)'
                 : 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))',
               boxShadow: isHigh
-                ? '0 0 14px rgba(34,211,238,0.32)'
+                ? '0 0 14px rgba(52,211,153,0.32)'
                 : '0 0 8px rgba(139,92,246,0.16)',
             }}
           >
@@ -71,51 +79,98 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
         </DropdownMenu>
       </div>
 
-      {/* Hero balance */}
-      <div
-        className="rounded-xl px-4 py-3"
-        style={{
-          background: isHigh ? 'rgba(34,211,238,0.04)' : 'rgba(15,13,42,0.025)',
-          border: `1px solid ${isHigh ? 'rgba(34,211,238,0.12)' : 'rgba(15,13,42,0.04)'}`,
-        }}
-      >
-        <p className="label-caps mb-1">Current Balance</p>
-        <p className="tabular-nums leading-tight" style={{ fontSize: '22px', fontWeight: 900, color: isHigh ? '#22d3ee' : 'oklch(0.10 0.030 272)' }}>
-          {account.current_robux.toLocaleString()}
-          <span className="text-[12px] font-semibold ml-1.5" style={{ color: 'oklch(0.60 0.010 265)' }}>R$</span>
-        </p>
-      </div>
+      {/* Three-stat balance row */}
+      <div className="grid grid-cols-3 gap-2">
+        {/* Current — reference */}
+        <div
+          className="rounded-xl p-2.5 text-center"
+          style={{ background: 'rgba(15,13,42,0.028)', border: '1px solid rgba(15,13,42,0.048)' }}
+        >
+          <p className="label-caps mb-1">Current</p>
+          <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: COLOR_CURRENT }}>
+            {account.current_robux.toLocaleString()}
+          </p>
+          <p className="text-[9px] font-semibold mt-0.5" style={{ color: 'oklch(0.65 0.010 265)' }}>R$</p>
+        </div>
 
-      {/* Available + Reserved */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl p-2.5 text-center" style={{ background: 'rgba(15,13,42,0.025)', border: '1px solid rgba(15,13,42,0.04)' }}>
-          <p className="label-caps mb-1">Available</p>
-          <p className="tabular-nums" style={{ fontSize: '14px', fontWeight: 700, color: availColor }}>
+        {/* Available — most important, green */}
+        <div
+          className="rounded-xl p-2.5 text-center"
+          style={{
+            background: available > 0 ? 'rgba(52,211,153,0.07)' : 'rgba(244,63,94,0.06)',
+            border: `1px solid ${available > 0 ? 'rgba(52,211,153,0.18)' : 'rgba(244,63,94,0.18)'}`,
+            boxShadow: available > 500 ? '0 0 10px rgba(52,211,153,0.08)' : 'none',
+          }}
+        >
+          <p className="label-caps mb-1" style={{ color: availDisplayColor, opacity: 0.75 }}>Available</p>
+          <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: availDisplayColor }}>
             {available.toLocaleString()}
-            <span className="text-[10px] font-semibold ml-1" style={{ color: 'oklch(0.65 0.010 265)' }}>R$</span>
           </p>
+          <p className="text-[9px] font-semibold mt-0.5" style={{ color: availDisplayColor, opacity: 0.65 }}>R$</p>
         </div>
-        <div className="rounded-xl p-2.5 text-center" style={{ background: 'rgba(15,13,42,0.025)', border: '1px solid rgba(15,13,42,0.04)' }}>
-          <p className="label-caps mb-1">Reserved</p>
-          <p className="tabular-nums" style={{ fontSize: '14px', fontWeight: 700, color: 'oklch(0.55 0.010 265)' }}>
+
+        {/* Reserved — amber */}
+        <div
+          className="rounded-xl p-2.5 text-center"
+          style={{
+            background: account.reserved_robux > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(15,13,42,0.025)',
+            border: `1px solid ${account.reserved_robux > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(15,13,42,0.04)'}`,
+          }}
+        >
+          <p className="label-caps mb-1" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.60 0.010 265)', opacity: 0.75 }}>Reserved</p>
+          <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.55 0.010 265)' }}>
             {account.reserved_robux.toLocaleString()}
-            <span className="text-[10px] font-semibold ml-1" style={{ color: 'oklch(0.65 0.010 265)' }}>R$</span>
           </p>
+          <p className="text-[9px] font-semibold mt-0.5" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.65 0.010 265)', opacity: 0.65 }}>R$</p>
         </div>
       </div>
 
-      {/* Progress */}
+      {/* Segmented allocation bar */}
       <div>
         <div className="flex justify-between items-center mb-1.5">
-          <span className="label-caps">Capacity</span>
-          <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'oklch(0.55 0.012 265)' }}>{pct.toFixed(0)}%</span>
+          <span className="label-caps">Allocation</span>
+          <div className="flex items-center gap-3">
+            {account.reserved_robux > 0 && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: COLOR_RESERVED }}>
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: COLOR_RESERVED }} />
+                {account.reserved_robux.toLocaleString()} reserved
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: availDisplayColor }}>
+              <span className="w-2 h-2 rounded-full inline-block" style={{ background: availDisplayColor }} />
+              {available.toLocaleString()} free
+            </span>
+          </div>
         </div>
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}50` }}
-          />
+
+        {/* Segmented bar: [green=available][amber=reserved][gray=empty] */}
+        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(15,13,42,0.07)' }}>
+          {/* Available segment */}
+          {availPct > 0 && (
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${availPct}%`,
+                background: availDisplayColor,
+                boxShadow: `0 0 8px ${availDisplayColor}60`,
+                borderRadius: reservedPct > 0 ? '0' : '0 99px 99px 0',
+              }}
+            />
+          )}
+          {/* Reserved segment */}
+          {reservedPct > 0 && (
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${reservedPct}%`,
+                background: COLOR_RESERVED,
+                boxShadow: `0 0 6px ${COLOR_RESERVED}50`,
+                borderRadius: availPct > 0 ? '0 99px 99px 0' : '0',
+              }}
+            />
+          )}
         </div>
+
         {isLow && (
           <p className="flex items-center gap-1.5 mt-2 text-[11px] font-medium text-amber-600">
             <AlertTriangle className="w-3 h-3" /> Low balance — consider topping up
