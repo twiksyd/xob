@@ -2,7 +2,7 @@
 
 import { RobloxAccount } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { MoreHorizontal, Edit2, Trash2, AlertTriangle } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -11,77 +11,107 @@ interface AccountCardProps {
   account: RobloxAccount
   onEdit: (account: RobloxAccount) => void
   onDelete: (id: string) => void
+  isSelected?: boolean
+  onToggleSelect?: () => void
 }
 
-// Color constants
-const COLOR_AVAILABLE = '#34d399'   // green  — most important
-const COLOR_RESERVED  = '#f59e0b'   // amber  — locked/allocated
-const COLOR_CURRENT   = 'oklch(0.10 0.030 272)' // neutral dark — reference
+const COLOR_AVAILABLE = '#34d399'
+const COLOR_RESERVED  = '#f59e0b'
+const COLOR_CURRENT   = 'oklch(0.10 0.030 272)'
 
-export default function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
+export default function AccountCard({ account, onEdit, onDelete, isSelected = false, onToggleSelect }: AccountCardProps) {
   const available   = account.current_robux - account.reserved_robux
   const isLow       = available < 500
   const isHigh      = account.current_robux >= 8000
 
-  // Segmented bar percentages (of current_robux total)
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
-
-  // Available color degrades when critically low
   const availDisplayColor = available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
+
+  const cardStyle = isSelected
+    ? {
+        background: 'rgba(34,211,238,0.028) padding-box, linear-gradient(140deg, rgba(34,211,238,0.42), rgba(139,92,246,0.28) 55%, rgba(34,211,238,0.24)) border-box',
+        boxShadow: '0 2px 20px rgba(34,211,238,0.12), 0 4px 24px rgba(15,13,42,0.04), inset 0 1.5px 0 rgba(34,211,238,0.30)',
+      }
+    : isHigh
+    ? { boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(15,13,42,0.04), inset 0 1px 0 rgba(52,211,153,0.14)' }
+    : undefined
 
   return (
     <div
       className="glass-card p-5 space-y-4 transition-all duration-200 group"
-      style={isHigh ? {
-        boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(15,13,42,0.04), inset 0 1px 0 rgba(52,211,153,0.14)',
-      } : undefined}
+      style={cardStyle}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0"
             style={{
-              background: isHigh
+              background: isSelected
+                ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
+                : isHigh
                 ? 'linear-gradient(135deg, #34d399, #22d3ee)'
                 : 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))',
-              boxShadow: isHigh
+              boxShadow: isSelected
+                ? '0 0 14px rgba(34,211,238,0.35)'
+                : isHigh
                 ? '0 0 14px rgba(52,211,153,0.32)'
                 : '0 0 8px rgba(139,92,246,0.16)',
             }}
           >
             {account.username.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>{account.username}</p>
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+              {account.username}
+            </p>
             <StatusBadge status={account.status} className="mt-0.5" />
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
-            style={{ color: 'oklch(0.55 0.012 265)' }}
+
+        <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
+          {/* Selection checkbox */}
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onToggleSelect?.() }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
+            style={{
+              color: isSelected ? '#22d3ee' : 'oklch(0.60 0.010 265)',
+              background: isSelected ? 'rgba(34,211,238,0.12)' : 'transparent',
+            }}
+            title={isSelected ? 'Deselect account' : 'Select account'}
           >
-            <MoreHorizontal className="w-4 h-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
-            <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
-              <Edit2 className="w-3.5 h-3.5" /> Edit Account
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete(account.id)}
-              className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+            {isSelected
+              ? <CheckCircle2 className="w-4 h-4" />
+              : <Circle className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity duration-150" />
+            }
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
+              style={{ color: 'oklch(0.55 0.012 265)' }}
             >
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <MoreHorizontal className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
+              <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
+                <Edit2 className="w-3.5 h-3.5" /> Edit Account
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(account.id)}
+                className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Three-stat balance row */}
       <div className="grid grid-cols-3 gap-2">
-        {/* Current — reference */}
         <div
           className="rounded-xl p-2.5 text-center"
           style={{ background: 'rgba(15,13,42,0.028)', border: '1px solid rgba(15,13,42,0.048)' }}
@@ -93,7 +123,6 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
           <p className="text-[9px] font-semibold mt-0.5" style={{ color: 'oklch(0.65 0.010 265)' }}>R$</p>
         </div>
 
-        {/* Available — most important, green */}
         <div
           className="rounded-xl p-2.5 text-center"
           style={{
@@ -109,7 +138,6 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
           <p className="text-[9px] font-semibold mt-0.5" style={{ color: availDisplayColor, opacity: 0.65 }}>R$</p>
         </div>
 
-        {/* Reserved — amber */}
         <div
           className="rounded-xl p-2.5 text-center"
           style={{
@@ -143,9 +171,7 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
           </div>
         </div>
 
-        {/* Segmented bar: [green=available][amber=reserved][gray=empty] */}
         <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(15,13,42,0.07)' }}>
-          {/* Available segment */}
           {availPct > 0 && (
             <div
               className="h-full transition-all duration-500"
@@ -157,7 +183,6 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
               }}
             />
           )}
-          {/* Reserved segment */}
           {reservedPct > 0 && (
             <div
               className="h-full transition-all duration-500"
