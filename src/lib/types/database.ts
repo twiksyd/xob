@@ -302,6 +302,32 @@ export type ReservationWithDetails = RobloxReservation & {
   orders: { order_number: string | null; buyer_name: string | null; status: string } | null
 }
 
+export type SellerAccount = {
+  id: string
+  user_id: string
+  username: string
+  display_name: string | null
+  has_drag_spec: boolean
+  estimated_price: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SellerAccountVehicle = {
+  id: string
+  user_id: string
+  seller_account_id: string
+  name: string
+  is_limited: boolean
+  estimated_value: number | null
+  created_at: string
+}
+
+export type SellerAccountWithVehicles = SellerAccount & {
+  seller_account_vehicles: SellerAccountVehicle[]
+}
+
 // UI helper types
 export type OrderStatus = Order['status']
 export type AccountStatus = RobloxAccount['status']
