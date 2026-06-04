@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns'
 import { Wallet, ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react'
+import SavingsWidget from '@/components/shared/SavingsWidget'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -232,6 +233,9 @@ export default function WalletPage() {
             </div>
           ))}
         </div>
+
+        {/* Savings Goals */}
+        <SavingsWidget compact={false} />
 
         {/* Chart + Add form */}
         <div className="grid grid-cols-3 gap-4">

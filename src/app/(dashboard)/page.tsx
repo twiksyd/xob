@@ -14,6 +14,7 @@ import {
   Coins, TrendingUp, ShoppingCart, Package, AlertTriangle, ArrowUpRight,
   Users, BarChart2, CheckCircle2,
 } from 'lucide-react'
+import SavingsWidget from '@/components/shared/SavingsWidget'
 
 export default function DashboardPage() {
   const [orders, setOrders] = useState<any[]>([])
@@ -325,6 +326,9 @@ export default function DashboardPage() {
                 />
               </div>
             </div>
+
+            {/* Savings Goals */}
+            <SavingsWidget compact={true} />
 
             {/* Low Robux Alert */}
             {lowRobuxAccounts.length > 0 && (

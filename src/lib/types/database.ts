@@ -302,6 +302,30 @@ export type ReservationWithDetails = RobloxReservation & {
   orders: { order_number: string | null; buyer_name: string | null; status: string } | null
 }
 
+export type SavingsGoal = {
+  id: string
+  user_id: string
+  name: string
+  target_amount: number
+  current_amount: number
+  allocation_pct: number
+  priority: number
+  status: 'active' | 'completed' | 'locked'
+  created_at: string
+  updated_at: string
+}
+
+export type SavingsTransaction = {
+  id: string
+  user_id: string
+  goal_id: string
+  order_id: string | null
+  amount: number
+  type: 'allocation' | 'reversal'
+  description: string | null
+  created_at: string
+}
+
 export type SellerAccount = {
   id: string
   user_id: string
