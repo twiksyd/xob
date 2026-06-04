@@ -95,13 +95,21 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
               {/* Info */}
               <div className="flex-1 min-w-0">
                 {/* Username row */}
-                <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                   <p className="text-[12px] font-bold truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
                     {acc.username}
                   </p>
                   {isBest && (
                     <span className="flex items-center gap-0.5 text-[10px] font-bold flex-shrink-0" style={{ color: COLOR_RESERVED }}>
                       <Star className="w-2.5 h-2.5 fill-current" /> Best
+                    </span>
+                  )}
+                  {acc.robux_cost_rate > 0 && (
+                    <span
+                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: 'rgba(167,139,250,0.08)', color: 'oklch(0.48 0.090 280)', border: '1px solid rgba(167,139,250,0.16)' }}
+                    >
+                      ₱{acc.robux_cost_rate}/1k R$
                     </span>
                   )}
                 </div>

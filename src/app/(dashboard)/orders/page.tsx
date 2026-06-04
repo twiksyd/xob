@@ -99,9 +99,23 @@ export default function OrdersPage() {
   const statusVal    = watch('status')
   const totalRobux   = items.reduce((s, i) => s + i.robux_amount, 0)
   const totalPrice   = items.reduce((s, i) => s + i.selling_price, 0)
-  const totalProfit  = items.reduce((s, i) => s + i.profit, 0)
   const validItems   = items.filter(i => i.gamepass_id)
   const isEditMode   = editOrder !== null
+
+  // Account-level cost basis: use the selected account's rate if set
+  const accountRate  = useMemo(() => {
+    if (!accountId) return 0
+    return accounts.find(a => a.id === accountId)?.robux_cost_rate ?? 0
+  }, [accountId, accounts])
+
+  const totalCost = useMemo(() => {
+    if (accountRate > 0) {
+      return Math.round(items.reduce((s, i) => s + (i.robux_amount / 1000) * accountRate, 0) * 100) / 100
+    }
+    return items.reduce((s, i) => s + i.cost, 0)
+  }, [items, accountRate])
+
+  const totalProfit = totalPrice - totalCost
 
   // ── Populate form when editing ──────────────────────────────────────────────
   useEffect(() => {
@@ -226,11 +240,14 @@ export default function OrdersPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    const tRobux  = validItems.reduce((s, i) => s + i.robux_amount, 0)
-    const tPrice  = validItems.reduce((s, i) => s + i.selling_price, 0)
-    const tCost   = validItems.reduce((s, i) => s + i.cost, 0)
-    const tProfit = validItems.reduce((s, i) => s + i.profit, 0)
-    const first   = validItems[0]
+    const tRobux    = validItems.reduce((s, i) => s + i.robux_amount, 0)
+    const tPrice    = validItems.reduce((s, i) => s + i.selling_price, 0)
+    const rateUsed  = accounts.find(a => a.id === data.roblox_account_id)?.robux_cost_rate ?? 0
+    const tCost     = rateUsed > 0
+      ? Math.round(validItems.reduce((s, i) => s + (i.robux_amount / 1000) * rateUsed, 0) * 100) / 100
+      : validItems.reduce((s, i) => s + i.cost, 0)
+    const tProfit   = tPrice - tCost
+    const first     = validItems[0]
 
     if (editOrder) {
       const prevStatus = editOrder.status
@@ -240,6 +257,7 @@ export default function OrdersPage() {
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
         status: newStatus, notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
+        account_rate_used: rateUsed || null,
         updated_at: new Date().toISOString(),
       }).eq('id', editOrder.id)
       await supabase.from('order_items').delete().eq('order_id', editOrder.id)
@@ -285,6 +303,7 @@ export default function OrdersPage() {
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
         status: 'pending', notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
+        account_rate_used: rateUsed || null,
       }).select().single()
       if (newOrder && validItems.length > 0) {
         await supabase.from('order_items').insert(validItems.map(item => ({
@@ -495,23 +514,39 @@ export default function OrdersPage() {
 
               {/* Totals preview — always show when any item has a gamepass */}
               {validItems.length > 0 && (
-                <div className="totals-bar grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
-                    <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                      {totalRobux.toLocaleString()} R$
-                    </p>
+                <div className="space-y-2">
+                  <div className="totals-bar grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
+                      <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                        {totalRobux.toLocaleString()} R$
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Price</p>
+                      <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                        ₱{totalPrice.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1 text-emerald-500/70">Net Profit</p>
+                      <p className="text-[14px] font-bold text-emerald-600">₱{totalProfit.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Price</p>
-                    <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                      ₱{totalPrice.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] mb-1 text-emerald-500/70">Total Profit</p>
-                    <p className="text-[14px] font-bold text-emerald-600">₱{totalProfit.toFixed(2)}</p>
-                  </div>
+                  {/* Cost basis detail line */}
+                  {accountRate > 0 && (
+                    <div
+                      className="flex items-center justify-between px-3 py-2 rounded-lg text-[11px]"
+                      style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.14)' }}
+                    >
+                      <span style={{ color: 'oklch(0.48 0.016 265)' }}>
+                        Rate: ₱{accountRate}/1k R$ · Cost: ₱{totalCost.toFixed(2)}
+                      </span>
+                      <span style={{ color: 'oklch(0.48 0.016 265)' }}>
+                        Gross ₱{totalPrice.toFixed(2)} − Cost ₱{totalCost.toFixed(2)} = <span style={{ color: '#34d399', fontWeight: 700 }}>₱{totalProfit.toFixed(2)}</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

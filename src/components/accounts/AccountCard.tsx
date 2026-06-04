@@ -66,7 +66,17 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
             <p className="text-[13px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
               {account.username}
             </p>
-            <StatusBadge status={account.status} className="mt-0.5" />
+            <div className="flex items-center gap-2 mt-0.5">
+              <StatusBadge status={account.status} />
+              {account.robux_cost_rate > 0 && (
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(167,139,250,0.08)', color: 'oklch(0.48 0.090 280)', border: '1px solid rgba(167,139,250,0.16)' }}
+                >
+                  ₱{account.robux_cost_rate}/1k R$
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

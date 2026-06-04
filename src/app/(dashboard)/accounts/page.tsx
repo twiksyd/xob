@@ -76,12 +76,12 @@ export default function AccountsPage() {
   // ── CRUD ──────────────────────────────────────────────────────────────────
   async function handleSave(data: {
     username: string; current_robux: number; reserved_robux: number
-    status: 'active' | 'inactive' | 'banned' | 'low'; notes?: string
+    robux_cost_rate: number; status: 'active' | 'inactive' | 'banned' | 'low'; notes?: string
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
-    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, status: data.status, notes: data.notes ?? null }
+    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null }
     if (editAccount) {
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {

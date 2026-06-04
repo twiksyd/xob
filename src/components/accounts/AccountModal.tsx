@@ -17,11 +17,12 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 
 const schema = z.object({
-  username: z.string().min(1, 'Username required'),
-  current_robux: z.number().min(0),
-  reserved_robux: z.number().min(0),
-  status: z.enum(['active', 'inactive', 'banned', 'low']),
-  notes: z.string().optional(),
+  username:        z.string().min(1, 'Username required'),
+  current_robux:   z.number().min(0),
+  reserved_robux:  z.number().min(0),
+  robux_cost_rate: z.number().min(0),
+  status:          z.enum(['active', 'inactive', 'banned', 'low']),
+  notes:           z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -38,25 +39,23 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      username: '',
-      current_robux: 0,
-      reserved_robux: 0,
-      status: 'active',
-      notes: '',
+      username: '', current_robux: 0, reserved_robux: 0,
+      robux_cost_rate: 0, status: 'active', notes: '',
     }
   })
 
   useEffect(() => {
     if (account) {
       reset({
-        username: account.username,
-        current_robux: account.current_robux,
-        reserved_robux: account.reserved_robux,
-        status: account.status,
-        notes: account.notes ?? '',
+        username:        account.username,
+        current_robux:   account.current_robux,
+        reserved_robux:  account.reserved_robux,
+        robux_cost_rate: account.robux_cost_rate ?? 0,
+        status:          account.status,
+        notes:           account.notes ?? '',
       })
     } else {
-      reset({ username: '', current_robux: 0, reserved_robux: 0, status: 'active', notes: '' })
+      reset({ username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '' })
     }
   }, [account, reset])
 
@@ -87,12 +86,34 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
             </div>
           </div>
 
+          {/* Cost rate */}
+          <div className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-2">
+              Robux Cost Rate (PHP / 1,000 R$)
+              <span
+                className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
+                style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}
+              >
+                cost basis
+              </span>
+            </Label>
+            <Input
+              {...register('robux_cost_rate', { valueAsNumber: true })}
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="e.g. 240"
+              className="bg-input"
+            />
+            <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+              How much PHP you paid per 1,000 Robux on this account
+            </p>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">Status</Label>
             <Select value={statusValue} onValueChange={(v) => setValue('status', (v ?? 'active') as FormData['status'])}>
-              <SelectTrigger className="bg-input">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="bg-input"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-popover border-border">
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>

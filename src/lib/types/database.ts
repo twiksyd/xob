@@ -41,6 +41,7 @@ export type Database = {
           username: string
           current_robux: number
           reserved_robux: number
+          robux_cost_rate: number
           notes: string | null
           status: 'active' | 'inactive' | 'banned' | 'low'
           created_at: string
@@ -52,6 +53,7 @@ export type Database = {
           username: string
           current_robux?: number
           reserved_robux?: number
+          robux_cost_rate?: number
           notes?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
         }
@@ -59,6 +61,7 @@ export type Database = {
           username?: string
           current_robux?: number
           reserved_robux?: number
+          robux_cost_rate?: number
           notes?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
           updated_at?: string
@@ -149,6 +152,7 @@ export type Database = {
           profit: number | null
           payment_method: 'GCash' | 'Maya' | 'Bank' | 'Cash' | 'Other'
           status: 'pending' | 'paid' | 'delivering' | 'completed' | 'refunded' | 'cancelled'
+          account_rate_used: number | null
           notes: string | null
           paid_at: string | null
           delivered_at: string | null
@@ -182,6 +186,7 @@ export type Database = {
           profit?: number | null
           payment_method?: 'GCash' | 'Maya' | 'Bank' | 'Cash' | 'Other'
           status?: 'pending' | 'paid' | 'delivering' | 'completed' | 'refunded' | 'cancelled'
+          account_rate_used?: number | null
           notes?: string | null
           updated_at?: string
         }
