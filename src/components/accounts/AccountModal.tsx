@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
 
 const schema = z.object({
   username:        z.string().min(1, 'Username required'),
@@ -23,9 +24,19 @@ const schema = z.object({
   robux_cost_rate: z.number().min(0),
   status:          z.enum(['active', 'inactive', 'banned', 'low']),
   notes:           z.string().optional(),
+  roblox_profile:  z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
+
+// Accepts a full profile URL (roblox.com/users/123456/profile) or a bare numeric ID
+export function parseRobloxUserId(input?: string): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+  if (/^\d+$/.test(trimmed)) return trimmed
+  const match = trimmed.match(/users\/(\d+)/)
+  return match ? match[1] : null
+}
 
 interface AccountModalProps {
   open: boolean
@@ -40,7 +51,7 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
     resolver: zodResolver(schema),
     defaultValues: {
       username: '', current_robux: 0, reserved_robux: 0,
-      robux_cost_rate: 0, status: 'active', notes: '',
+      robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
     }
   })
 
@@ -53,13 +64,17 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
         robux_cost_rate: account.robux_cost_rate ?? 0,
         status:          account.status,
         notes:           account.notes ?? '',
+        roblox_profile:  account.roblox_user_id ?? '',
       })
     } else {
-      reset({ username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '' })
+      reset({ username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '' })
     }
   }, [account, reset])
 
   const statusValue = watch('status')
+  const usernameValue = watch('username')
+  const profileValue = watch('roblox_profile')
+  const previewUserId = parseRobloxUserId(profileValue)
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -73,6 +88,27 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
             <Label className="text-xs">Roblox Username</Label>
             <Input {...register('username')} placeholder="e.g. SellerAccount1" className="bg-input" />
             {errors.username && <p className="text-xs text-red-400">{errors.username.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Roblox Profile Link (optional)</Label>
+            <div className="flex items-center gap-3">
+              <RobloxAvatar
+                username={usernameValue || '?'}
+                userId={previewUserId}
+                size={40}
+              />
+              <Input
+                {...register('roblox_profile')}
+                placeholder="https://www.roblox.com/users/123456/profile"
+                className="bg-input flex-1"
+              />
+            </div>
+            <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+              {profileValue && !previewUserId
+                ? 'Could not find a user ID in that link — paste the full profile URL or just the numeric ID'
+                : 'Paste the profile link (or numeric user ID) to show the account’s real Roblox avatar'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

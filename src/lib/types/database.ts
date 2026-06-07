@@ -43,6 +43,7 @@ export type Database = {
           reserved_robux: number
           robux_cost_rate: number
           notes: string | null
+          roblox_user_id: string | null
           status: 'active' | 'inactive' | 'banned' | 'low'
           created_at: string
           updated_at: string
@@ -55,6 +56,7 @@ export type Database = {
           reserved_robux?: number
           robux_cost_rate?: number
           notes?: string | null
+          roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
         }
         Update: {
@@ -63,6 +65,7 @@ export type Database = {
           reserved_robux?: number
           robux_cost_rate?: number
           notes?: string | null
+          roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
           updated_at?: string
         }

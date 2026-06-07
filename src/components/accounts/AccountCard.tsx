@@ -2,6 +2,7 @@
 
 import { RobloxAccount } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -45,23 +46,26 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0"
-            style={{
-              background: isSelected
+          <RobloxAvatar
+            username={account.username}
+            userId={account.roblox_user_id}
+            size={40}
+            className="text-base"
+            gradient={
+              isSelected
                 ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
                 : isHigh
                 ? 'linear-gradient(135deg, #34d399, #22d3ee)'
-                : 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))',
-              boxShadow: isSelected
+                : 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))'
+            }
+            glow={
+              isSelected
                 ? '0 0 14px rgba(34,211,238,0.35)'
                 : isHigh
                 ? '0 0 14px rgba(52,211,153,0.32)'
-                : '0 0 8px rgba(139,92,246,0.16)',
-            }}
-          >
-            {account.username.charAt(0).toUpperCase()}
-          </div>
+                : '0 0 8px rgba(139,92,246,0.16)'
+            }
+          />
           <div className="min-w-0">
             <p className="text-[13px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
               {account.username}

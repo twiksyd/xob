@@ -5,8 +5,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import StatCard from '@/components/shared/StatCard'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountCard from '@/components/accounts/AccountCard'
-import AccountModal from '@/components/accounts/AccountModal'
+import AccountModal, { parseRobloxUserId } from '@/components/accounts/AccountModal'
 import { RobloxAccount, ReservationWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -77,11 +78,12 @@ export default function AccountsPage() {
   async function handleSave(data: {
     username: string; current_robux: number; reserved_robux: number
     robux_cost_rate: number; status: 'active' | 'inactive' | 'banned' | 'low'; notes?: string
+    roblox_profile?: string
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
-    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null }
+    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null, roblox_user_id: parseRobloxUserId(data.roblox_profile) }
     if (editAccount) {
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
@@ -162,10 +164,11 @@ export default function AccountsPage() {
     return Array.from(map.entries()).map(([accountId, data]) => ({
       accountId,
       username: data.username,
+      robloxUserId: accounts.find(a => a.id === accountId)?.roblox_user_id ?? null,
       reservations: data.reservations,
       total: data.reservations.reduce((s, r) => s + r.robux_amount, 0),
     }))
-  }, [reservations])
+  }, [reservations, accounts])
 
   const hasSelection    = selectedIds.size > 0
   const allSelected     = accounts.length > 0 && selectedIds.size === accounts.length
@@ -485,16 +488,17 @@ export default function AccountsPage() {
                         </div>
                       </div>
 
-                      {reservationsByAccount.map(({ accountId, username, reservations: accRes, total }) => (
+                      {reservationsByAccount.map(({ accountId, username, robloxUserId, reservations: accRes, total }) => (
                         <div key={accountId} style={{ borderBottom: '1px solid rgba(15,13,42,0.048)' }}>
                           <div className="flex items-center justify-between px-5 py-2.5" style={{ background: 'rgba(15,13,42,0.020)' }}>
                             <div className="flex items-center gap-2">
-                              <div
-                                className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black text-white flex-shrink-0"
-                                style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))' }}
-                              >
-                                {username.charAt(0).toUpperCase()}
-                              </div>
+                              <RobloxAvatar
+                                username={username}
+                                userId={robloxUserId}
+                                size={24}
+                                className="rounded-lg text-[11px] font-black"
+                                glow="none"
+                              />
                               <span className="text-[12px] font-bold" style={{ color: 'oklch(0.18 0.025 270)' }}>{username}</span>
                             </div>
                             <div className="flex items-center gap-1.5">

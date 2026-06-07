@@ -3,6 +3,7 @@
 import { RobloxAccount } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, Star } from 'lucide-react'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
 
 interface AccountSelectorProps {
   accounts: RobloxAccount[]
@@ -76,21 +77,19 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
               )}
             >
               {/* Avatar */}
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{
-                  background: isSelected
+              <RobloxAvatar
+                username={acc.username}
+                userId={acc.roblox_user_id}
+                size={32}
+                className="rounded-lg text-[13px] font-bold mt-0.5"
+                gradient={
+                  isSelected
                     ? 'linear-gradient(135deg, rgba(52,211,153,0.25), rgba(34,211,238,0.20))'
-                    : 'rgba(139,92,246,0.10)',
-                }}
-              >
-                <span
-                  className="text-[13px] font-bold"
-                  style={{ color: isSelected ? '#22d3ee' : 'oklch(0.48 0.090 280)' }}
-                >
-                  {acc.username.charAt(0).toUpperCase()}
-                </span>
-              </div>
+                    : 'rgba(139,92,246,0.10)'
+                }
+                textColor={isSelected ? '#22d3ee' : 'oklch(0.48 0.090 280)'}
+                glow="none"
+              />
 
               {/* Info */}
               <div className="flex-1 min-w-0">
