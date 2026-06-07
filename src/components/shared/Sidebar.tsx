@@ -53,7 +53,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="relative flex flex-col h-screen flex-shrink-0 z-10 transition-[width] duration-200 ease-out"
+      className="relative flex flex-col h-screen flex-shrink-0 z-20 transition-[width] duration-200 ease-out"
       style={{
         width: collapsed ? '76px' : '220px',
         background: 'linear-gradient(180deg, rgba(8,5,28,0.97) 0%, rgba(13,8,42,0.96) 60%, rgba(10,6,34,0.96) 100%)',

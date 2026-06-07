@@ -43,9 +43,19 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
   const grouped = useMemo(() => {
     const map = new Map<string, { name: string; color: string; items: GamepassWithGame[] }>()
     filtered.forEach(gp => {
-      const key = gp.game_id ?? 'none'
+      const accent = gp.games?.color ?? '#8b5cf6'
+      const lower = gp.name.toLowerCase()
+      let key = gp.game_id ?? 'none'
+      let name = gp.games?.name ?? 'Other'
+      if (lower.includes('tax covered')) {
+        key = `${key}::covered-tax`
+        name = 'Covered Tax'
+      } else if (lower.includes('no tax')) {
+        key = `${key}::not-covered-tax`
+        name = 'Not Covered Tax'
+      }
       if (!map.has(key)) {
-        map.set(key, { name: gp.games?.name ?? 'Other', color: gp.games?.color ?? '#8b5cf6', items: [] })
+        map.set(key, { name, color: accent, items: [] })
       }
       map.get(key)!.items.push(gp)
     })
