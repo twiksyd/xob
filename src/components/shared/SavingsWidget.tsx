@@ -8,13 +8,15 @@ import { PiggyBank, CheckCircle2, Lock, Edit2, X, Check } from 'lucide-react'
 
 interface SavingsWidgetProps {
   compact?: boolean
+  /** Optional goal.id -> "projected to complete around <date>" text, computed by the caller from recent allocation pace */
+  forecasts?: Record<string, string>
 }
 
 const COLOR_ACTIVE    = '#34d399'
 const COLOR_COMPLETED = '#22d3ee'
 const COLOR_LOCKED    = 'oklch(0.62 0.010 265)'
 
-function GoalBar({ goal, compact }: { goal: SavingsGoal; compact: boolean }) {
+function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: boolean; forecast?: string }) {
   const pct       = goal.target_amount > 0 ? Math.min(100, (goal.current_amount / goal.target_amount) * 100) : 0
   const remaining = Math.max(0, goal.target_amount - goal.current_amount)
   const isActive    = goal.status === 'active'
@@ -124,11 +126,18 @@ function GoalBar({ goal, compact }: { goal: SavingsGoal; compact: boolean }) {
           Activates after Primary goal completes
         </p>
       )}
+
+      {/* Forecast — "if you keep going at this pace, here's when this finishes" */}
+      {isActive && forecast && (
+        <p className="text-[10px] font-medium" style={{ color: 'oklch(0.50 0.18 200)' }}>
+          📈 {forecast}
+        </p>
+      )}
     </div>
   )
 }
 
-export default function SavingsWidget({ compact = false }: SavingsWidgetProps) {
+export default function SavingsWidget({ compact = false, forecasts }: SavingsWidgetProps) {
   const [goals, setGoals]         = useState<SavingsGoal[]>([])
   const [loading, setLoading]     = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -195,7 +204,7 @@ export default function SavingsWidget({ compact = false }: SavingsWidgetProps) {
         </div>
         <div className="space-y-3">
           {goals.map(goal => (
-            <GoalBar key={goal.id} goal={goal} compact={true} />
+            <GoalBar key={goal.id} goal={goal} compact={true} forecast={forecasts?.[goal.id]} />
           ))}
         </div>
         <div
@@ -287,7 +296,7 @@ export default function SavingsWidget({ compact = false }: SavingsWidgetProps) {
               </div>
             ) : (
               <div className="relative group">
-                <GoalBar goal={goal} compact={false} />
+                <GoalBar goal={goal} compact={false} forecast={forecasts?.[goal.id]} />
                 <button
                   onClick={() => {
                     setEditingId(goal.id)
