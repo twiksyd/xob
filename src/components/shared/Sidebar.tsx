@@ -1,10 +1,12 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Receipt, LogOut, Box, Wallet, TrendingUp, Archive,
+  ChevronsLeft, ChevronsRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -20,9 +22,27 @@ const navItems = [
   { href: '/seller-inventory', label: 'Seller Accts',  icon: Archive    },
 ]
 
+const LS_COLLAPSED = 'xob_sidebar_collapsed'
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_COLLAPSED)
+      if (saved === '1') setCollapsed(true)
+    } catch {}
+  }, [])
+
+  function toggleCollapsed() {
+    setCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem(LS_COLLAPSED, next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -33,8 +53,9 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="relative flex flex-col h-screen w-[220px] flex-shrink-0 z-10"
+      className="relative flex flex-col h-screen flex-shrink-0 z-10 transition-[width] duration-200 ease-out"
       style={{
+        width: collapsed ? '76px' : '220px',
         background: 'linear-gradient(180deg, rgba(8,5,28,0.97) 0%, rgba(13,8,42,0.96) 60%, rgba(10,6,34,0.96) 100%)',
         backdropFilter: 'blur(32px) saturate(200%)',
         WebkitBackdropFilter: 'blur(32px) saturate(200%)',
@@ -53,9 +74,24 @@ export default function Sidebar() {
         style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 115%, rgba(232,121,249,0.10), transparent)' }}
       />
 
+      {/* Collapse toggle */}
+      <button
+        onClick={toggleCollapsed}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="absolute -right-4 top-[28px] w-8 h-8 rounded-full flex items-center justify-center z-30 transition-all hover:scale-110"
+        style={{
+          background: 'linear-gradient(135deg, #22d3ee 0%, #a78bfa 55%, #e879f9 100%)',
+          border: '1px solid rgba(255,255,255,0.35)',
+          color: 'white',
+          boxShadow: '0 0 0 4px rgba(8,5,28,0.9), 0 4px 16px rgba(167,139,250,0.55), 0 0 20px rgba(34,211,238,0.35)',
+        }}
+      >
+        {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+      </button>
+
       {/* Logo */}
       <div
-        className="relative flex items-center gap-3 px-5 py-[22px]"
+        className={cn('relative flex items-center gap-3 px-5 py-[22px]', collapsed && 'justify-center px-0')}
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
       >
         <div
@@ -67,34 +103,40 @@ export default function Sidebar() {
         >
           <Box className="w-[18px] h-[18px] text-white" />
         </div>
-        <div>
-          <p className="text-[14px] font-black tracking-tight" style={{ color: 'rgba(255,255,255,0.95)' }}>
-            XOB
-          </p>
-          <p className="text-[9px] font-semibold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.28)' }}>
-            Seller
-          </p>
-        </div>
+        {!collapsed && (
+          <div>
+            <p className="text-[14px] font-black tracking-tight" style={{ color: 'rgba(255,255,255,0.95)' }}>
+              XOB
+            </p>
+            <p className="text-[9px] font-semibold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.28)' }}>
+              Seller
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Nav section label */}
-      <p
-        className="relative px-5 pt-5 pb-2"
-        style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.20)' }}
-      >
-        Navigation
-      </p>
+      {!collapsed && (
+        <p
+          className="relative px-5 pt-5 pb-2"
+          style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.20)' }}
+        >
+          Navigation
+        </p>
+      )}
 
       {/* Nav items */}
-      <nav className="relative flex-1 px-3 space-y-0.5 overflow-y-auto">
+      <nav className={cn('relative flex-1 px-3 space-y-0.5 overflow-y-auto', collapsed && 'pt-5')}>
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           return (
             <Link
               key={href}
               href={href}
+              title={collapsed ? label : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all duration-150',
+                collapsed && 'justify-center px-0',
                 active
                   ? 'nav-active-dark text-white/95'
                   : 'text-white/35 hover:text-white/65 hover:bg-white/[0.04]'
@@ -104,7 +146,7 @@ export default function Sidebar() {
                 className="w-[14px] h-[14px] flex-shrink-0 transition-colors"
                 style={active ? { color: '#22d3ee', filter: 'drop-shadow(0 0 4px rgba(34,211,238,0.7))' } : {}}
               />
-              {label}
+              {!collapsed && label}
             </Link>
           )
         })}
@@ -120,10 +162,14 @@ export default function Sidebar() {
       <div className="relative px-3 pb-5">
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all duration-150 text-white/28 hover:text-red-400/80 hover:bg-red-500/[0.06]"
+          title={collapsed ? 'Sign Out' : undefined}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all duration-150 text-white/28 hover:text-red-400/80 hover:bg-red-500/[0.06]',
+            collapsed && 'justify-center px-0'
+          )}
         >
           <LogOut className="w-[14px] h-[14px] flex-shrink-0" />
-          Sign Out
+          {!collapsed && 'Sign Out'}
         </button>
       </div>
     </aside>

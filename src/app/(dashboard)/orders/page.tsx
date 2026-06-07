@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import TopBar from '@/components/shared/TopBar'
 import StatusBadge from '@/components/shared/StatusBadge'
-import GamepassPicker from '@/components/orders/GamepassPicker'
+import GamepassCatalog from '@/components/orders/GamepassCatalog'
 import AccountSelector from '@/components/inventory/AccountSelector'
 import { Gamepass, Game, RobloxAccount, LineItem, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Plus, MoreHorizontal, Edit2, Trash2, X, ChevronDown, CheckCircle2, ArrowRight,
+  Plus, Minus, MoreHorizontal, Edit2, Trash2, X, ChevronDown, CheckCircle2, ArrowRight,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -49,14 +49,6 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-function mkItem(): LineItem {
-  return {
-    _key: Math.random().toString(36).slice(2),
-    gamepass_id: '', gamepass_name: '', game_name: null,
-    robux_amount: 0, selling_price: 0, cost: 0, profit: 0,
-  }
-}
-
 // ─── Divider ─────────────────────────────────────────────────────────────────
 function Divider() {
   return <div className="section-divider" />
@@ -80,7 +72,7 @@ export default function OrdersPage() {
   const [editOrder, setEditOrder]             = useState<OrderWithDetails | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [justCreated, setJustCreated]         = useState(false)
-  const [items, setItems]                     = useState<LineItem[]>([mkItem()])
+  const [items, setItems]                     = useState<LineItem[]>([])
   const supabase = useMemo(() => createClient(), [])
 
   const {
@@ -154,24 +146,56 @@ export default function OrdersPage() {
       }
     } else {
       reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      setItems([mkItem()])
+      setItems([])
     }
   }, [editOrder, reset])
 
   function cancelEdit() { setEditOrder(null) }
 
-  function updateItem(key: string, gamepass_id: string) {
-    const gp = gamepasses.find(g => g.id === gamepass_id)
-    setItems(prev => prev.map(item => item._key !== key ? item : {
-      ...item, gamepass_id,
-      gamepass_name:  gp?.name ?? '',
-      game_name:      gp?.games?.name ?? null,
-      robux_amount:   gp?.robux_amount ?? 0,
-      selling_price:  gp?.your_price ?? 0,
-      cost:           gp?.your_cost ?? 0,
-      profit:         gp?.profit ?? 0,
-    }))
+  // ── Cart helpers — catalog click adds/increments, cart panel removes ────────
+  function addToCart(gamepassId: string) {
+    const gp = gamepasses.find(g => g.id === gamepassId)
+    if (!gp) return
+    setItems(prev => [
+      ...prev.filter(i => i.gamepass_id),
+      {
+        _key:           Math.random().toString(36).slice(2),
+        gamepass_id:    gp.id,
+        gamepass_name:  gp.name,
+        game_name:      gp.games?.name ?? null,
+        robux_amount:   gp.robux_amount,
+        selling_price:  gp.your_price,
+        cost:           gp.your_cost,
+        profit:         gp.profit,
+      },
+    ])
   }
+
+  function removeFromCart(gamepassId: string) {
+    setItems(prev => {
+      const idx = prev.map(i => i.gamepass_id).lastIndexOf(gamepassId)
+      if (idx === -1) return prev
+      return prev.filter((_, i) => i !== idx)
+    })
+  }
+
+  // Group cart line items by gamepass for display (one tile click = one unit)
+  const cartGroups = useMemo(() => {
+    const map = new Map<string, LineItem & { count: number }>()
+    items.forEach(item => {
+      if (!item.gamepass_id) return
+      const existing = map.get(item.gamepass_id)
+      if (existing) existing.count += 1
+      else map.set(item.gamepass_id, { ...item, count: 1 })
+    })
+    return Array.from(map.values())
+  }, [items])
+
+  const cartCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    cartGroups.forEach(g => m.set(g.gamepass_id, g.count))
+    return m
+  }, [cartGroups])
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -326,7 +350,7 @@ export default function OrdersPage() {
       }
       setJustCreated(true)
       reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      setItems([mkItem()])
+      setItems([])
       setTimeout(() => setJustCreated(false), 1800)
     }
 
@@ -441,75 +465,72 @@ export default function OrdersPage() {
 
               <Divider />
 
-              {/* ── Gamepasses ── */}
+              {/* ── Gamepasses — click-to-add catalog ── */}
               <div className="form-section" style={{ animationDelay: '0.09s' }}>
                 <div className="flex items-center justify-between mb-2.5">
                   <SectionLabel>Gamepasses</SectionLabel>
                   {validItems.length > 0 && (
-                    <span className="text-[10px] font-bold tabular-nums" style={{ color: '#22d3ee' }}>
-                      {validItems.length} selected
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setItems([])}
+                      className="flex items-center gap-1 text-[10px] font-semibold transition-colors hover:text-red-400"
+                      style={{ color: 'oklch(0.55 0.010 265)' }}
+                    >
+                      <Trash2 className="w-3 h-3" /> Clear ({validItems.length})
+                    </button>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  {items.map((item) => (
-                    <div key={item._key}>
-                      <div className="flex items-start gap-2">
+                <GamepassCatalog gamepasses={gamepasses} cartCounts={cartCounts} onAdd={addToCart} onRemove={removeFromCart} />
+
+                {/* Cart — grouped line items with quantity steppers */}
+                {cartGroups.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {cartGroups.map(g => (
+                      <div
+                        key={g.gamepass_id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{ background: 'rgba(15,13,42,0.030)', border: '1px solid rgba(15,13,42,0.045)' }}
+                      >
                         <div className="flex-1 min-w-0">
-                          <GamepassPicker
-                            gamepasses={gamepasses}
-                            value={item.gamepass_id}
-                            onChange={id => updateItem(item._key, id)}
-                          />
-                          {item.gamepass_id && (
-                            <div className="mt-2 grid grid-cols-3 gap-1.5">
-                              <div className="rounded-lg py-2 text-center" style={{ background: 'rgba(15,13,42,0.030)' }}>
-                                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Robux</p>
-                                <p className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.10 0.030 272)' }}>
-                                  {item.robux_amount.toLocaleString()} R$
-                                </p>
-                              </div>
-                              <div className="rounded-lg py-2 text-center" style={{ background: 'rgba(15,13,42,0.030)' }}>
-                                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Price</p>
-                                <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
-                                  ₱{item.selling_price}
-                                </p>
-                              </div>
-                              <div className="rounded-lg py-2 text-center" style={{ background: 'rgba(52,211,153,0.08)' }}>
-                                <p className="text-[10px] mb-0.5 text-emerald-500/70">Profit</p>
-                                <p className="text-[12px] font-bold text-emerald-600">₱{item.profit.toFixed(2)}</p>
-                              </div>
-                            </div>
-                          )}
+                          <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                            {g.gamepass_name}
+                          </p>
+                          <p className="text-[10px] truncate" style={{ color: 'oklch(0.58 0.010 265)' }}>
+                            {g.game_name ?? '—'} · {g.robux_amount.toLocaleString()} R$ · ₱{g.selling_price} each
+                          </p>
                         </div>
-                        {items.length > 1 && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             type="button"
-                            onClick={() => setItems(prev => prev.filter(i => i._key !== item._key))}
-                            className="mt-1 w-8 h-8 flex-shrink-0 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 flex items-center justify-center transition-colors"
-                            style={{ background: 'rgba(15,13,42,0.03)' }}
+                            onClick={() => removeFromCart(g.gamepass_id)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                            style={{ background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <Minus className="w-3 h-3" />
                           </button>
-                        )}
+                          <span className="w-6 text-center text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                            {g.count}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => addToCart(g.gamepass_id)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                            style={{ background: 'rgba(139,92,246,0.10)', color: 'oklch(0.50 0.090 280)' }}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <span
+                          className="text-[12px] font-bold tabular-nums flex-shrink-0 text-right"
+                          style={{ color: 'oklch(0.10 0.030 272)', minWidth: '64px' }}
+                        >
+                          ₱{(g.selling_price * g.count).toFixed(2)}
+                        </span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setItems(prev => [...prev, mkItem()])}
-                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-medium transition-colors"
-                  style={{
-                    border: '1px dashed rgba(139,92,246,0.25)',
-                    color: 'oklch(0.50 0.090 280)',
-                    background: 'rgba(139,92,246,0.03)',
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add another gamepass
-                </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Totals preview — always show when any item has a gamepass */}
