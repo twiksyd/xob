@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Plus, Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, Zap,
+  CheckSquare, Square, Zap, RefreshCw,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { springToggle } from '@/lib/motion'
@@ -31,6 +31,7 @@ export default function AccountsPage() {
   const [modalOpen, setModalOpen]       = useState(false)
   const [editAccount, setEditAccount]   = useState<RobloxAccount | null>(null)
   const [resExpanded, setResExpanded]   = useState(true)
+  const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 
   // ── Selection state ────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
@@ -83,7 +84,17 @@ export default function AccountsPage() {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
-    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null, roblox_user_id: parseRobloxUserId(data.roblox_profile) }
+
+    // Manual profile link wins; otherwise auto-resolve the avatar from the username
+    let robloxUserId = parseRobloxUserId(data.roblox_profile)
+    if (!robloxUserId && data.username) {
+      try {
+        const res = await fetch(`/api/roblox-lookup?username=${encodeURIComponent(data.username)}`)
+        if (res.ok) robloxUserId = (await res.json()).userId ?? null
+      } catch {}
+    }
+
+    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
     if (editAccount) {
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
@@ -92,6 +103,25 @@ export default function AccountsPage() {
     setSaving(false)
     setModalOpen(false)
     setEditAccount(null)
+    fetchData()
+  }
+
+  // One-time backfill: resolve avatars for accounts that don't have one yet
+  async function refreshAvatars() {
+    const missing = accounts.filter(a => !a.roblox_user_id)
+    if (missing.length === 0) return
+    setRefreshingAvatars(true)
+    for (const account of missing) {
+      try {
+        const res = await fetch(`/api/roblox-lookup?username=${encodeURIComponent(account.username)}`)
+        if (!res.ok) continue
+        const { userId } = await res.json()
+        if (userId) {
+          await supabase.from('roblox_accounts').update({ roblox_user_id: userId }).eq('id', account.id)
+        }
+      } catch {}
+    }
+    setRefreshingAvatars(false)
     fetchData()
   }
 
@@ -250,18 +280,32 @@ export default function AccountsPage() {
               <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>
                 All Accounts ({accounts.length})
               </p>
-              {/* Select all / none toggle */}
-              <button
-                onClick={allSelected ? clearAll : selectAll}
-                className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                style={{ color: allSelected ? '#22d3ee' : 'oklch(0.48 0.016 265)' }}
-              >
-                {allSelected
-                  ? <CheckSquare className="w-3.5 h-3.5" />
-                  : <Square className="w-3.5 h-3.5" />
-                }
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </button>
+              <div className="flex items-center gap-3">
+                {accounts.some(a => !a.roblox_user_id) && (
+                  <button
+                    onClick={refreshAvatars}
+                    disabled={refreshingAvatars}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                    style={{ color: 'oklch(0.48 0.016 265)' }}
+                    title="Look up Roblox avatars for accounts that don't have one yet"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} />
+                    {refreshingAvatars ? 'Refreshing avatars…' : 'Refresh Avatars'}
+                  </button>
+                )}
+                {/* Select all / none toggle */}
+                <button
+                  onClick={allSelected ? clearAll : selectAll}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: allSelected ? '#22d3ee' : 'oklch(0.48 0.016 265)' }}
+                >
+                  {allSelected
+                    ? <CheckSquare className="w-3.5 h-3.5" />
+                    : <Square className="w-3.5 h-3.5" />
+                  }
+                  {allSelected ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
             </div>
 
             {/* Quick filter chips */}

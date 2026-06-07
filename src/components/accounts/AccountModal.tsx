@@ -91,7 +91,15 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Roblox Profile Link (optional)</Label>
+            <Label className="text-xs flex items-center gap-2">
+              Profile Picture Override
+              <span
+                className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
+                style={{ background: 'rgba(34,211,238,0.08)', color: 'oklch(0.50 0.12 220)' }}
+              >
+                optional
+              </span>
+            </Label>
             <div className="flex items-center gap-3">
               <RobloxAvatar
                 username={usernameValue || '?'}
@@ -107,7 +115,7 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
             <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
               {profileValue && !previewUserId
                 ? 'Could not find a user ID in that link — paste the full profile URL or just the numeric ID'
-                : 'Paste the profile link (or numeric user ID) to show the account’s real Roblox avatar'}
+                : 'The avatar is looked up automatically from the username on save — only fill this in if you need to point at a different profile'}
             </p>
           </div>
 
