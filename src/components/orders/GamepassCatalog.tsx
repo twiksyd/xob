@@ -59,7 +59,9 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
       }
       map.get(key)!.items.push(gp)
     })
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+    const groups = Array.from(map.values())
+    groups.forEach(g => g.items.sort((a, b) => b.robux_amount - a.robux_amount))
+    return groups.sort((a, b) => a.name.localeCompare(b.name))
   }, [filtered])
 
   return (
