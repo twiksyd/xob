@@ -4,37 +4,32 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 const LETTERS = ['T', 'W', 'I', 'C', 'K', 'S']
-
-// Cyan → indigo → purple → pink across the word
-const LETTER_COLORS = ['#22d3ee', '#38bdf8', '#818cf8', '#a78bfa', '#c084fc', '#e879f9']
+const COLORS  = ['#22d3ee', '#38bdf8', '#818cf8', '#a78bfa', '#c084fc', '#e879f9']
 
 type Phase = 'typing' | 'visible' | 'fading' | 'hidden'
 
 export default function TwicksHero() {
-  const [phase, setPhase]             = useState<Phase>('typing')
-  const [visibleCount, setVisibleCount] = useState(0)
+  const [phase, setPhase] = useState<Phase>('typing')
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>
-
     if (phase === 'typing') {
-      if (visibleCount < LETTERS.length) {
-        t = setTimeout(() => setVisibleCount(c => c + 1), 108)
-      } else {
-        t = setTimeout(() => setPhase('visible'), 160)
-      }
+      t = count < LETTERS.length
+        ? setTimeout(() => setCount(c => c + 1), 75)
+        : setTimeout(() => setPhase('visible'), 100)
     } else if (phase === 'visible') {
-      t = setTimeout(() => setPhase('fading'), 2200)
+      t = setTimeout(() => setPhase('fading'), 2000)
     } else if (phase === 'fading') {
-      t = setTimeout(() => setPhase('hidden'), 500)
+      t = setTimeout(() => setPhase('hidden'), 320)
     } else {
-      t = setTimeout(() => { setVisibleCount(0); setPhase('typing') }, 280)
+      t = setTimeout(() => { setCount(0); setPhase('typing') }, 200)
     }
-
     return () => clearTimeout(t)
-  }, [phase, visibleCount])
+  }, [phase, count])
 
-  const isOut = phase === 'fading' || phase === 'hidden'
+  const isOut   = phase === 'fading' || phase === 'hidden'
+  const isFloat = phase === 'visible' || phase === 'fading'
 
   return (
     <div
@@ -52,8 +47,7 @@ export default function TwicksHero() {
         style={{
           width: '50%', height: '260px',
           background: 'radial-gradient(circle, rgba(139,92,246,0.48) 0%, transparent 65%)',
-          filter: 'blur(55px)',
-          top: '-80px', left: '-10%',
+          filter: 'blur(55px)', top: '-80px', left: '-10%',
         }}
         animate={{ x: [0, 40, -20, 30, 0], y: [0, 18, -8, 22, 0] }}
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
@@ -65,50 +59,46 @@ export default function TwicksHero() {
         style={{
           width: '42%', height: '220px',
           background: 'radial-gradient(circle, rgba(34,211,238,0.36) 0%, transparent 65%)',
-          filter: 'blur(50px)',
-          bottom: '-55px', right: '-8%',
+          filter: 'blur(50px)', bottom: '-55px', right: '-8%',
         }}
         animate={{ x: [0, -30, 18, -24, 0], y: [0, -15, 10, -25, 0] }}
         transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
       />
 
       {/* Vignette */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 88% 88% at 50% 50%, transparent 36%, rgba(2,1,8,0.78) 100%)',
-        }}
-      />
-
-      {/* Noise grain */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          opacity: 0.020,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '256px 256px',
-        }}
-      />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 88% 88% at 50% 50%, transparent 36%, rgba(2,1,8,0.78) 100%)',
+      }} />
 
       {/* ── Content ── */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
 
         {/* Letter row */}
-        <div className="flex items-baseline" style={{ gap: '0.01em' }}>
+        <div className="flex items-end" style={{ gap: '0.01em' }}>
           {LETTERS.map((letter, i) => {
-            const color = LETTER_COLORS[i]
-            const shown = !isOut && i < visibleCount
+            const color = COLORS[i]
+            const shown = !isOut && i < count
+
             return (
               <motion.span
                 key={i}
+                /*
+                  Entry:  spring pop with natural overshoot (stiffness 550, damping 14 → ~20% overshoot)
+                  Exit:   quick keyframe — scale blooms 1→1.22→0, tiny stagger per letter
+                */
                 animate={{
-                  opacity: shown ? 1 : 0,
-                  y: isOut ? -12 : shown ? 0 : 14,
+                  scale:   isOut ? [1, 1.22, 0] : shown ? 1 : 0,
+                  opacity: isOut ? [1, 1, 0]     : shown ? 1 : 0,
+                  y:       shown && !isOut ? 0 : !isOut ? -18 : 0,
                 }}
                 transition={{
-                  opacity: { duration: isOut ? 0.38 : 0.14, ease: isOut ? 'easeIn' : 'easeOut' },
-                  y:       { duration: isOut ? 0.38 : 0.20, ease: isOut ? 'easeIn' : [0.16, 1, 0.3, 1] },
+                  scale: isOut
+                    ? { duration: 0.26, times: [0, 0.32, 1], ease: [0.55, 0, 1, 1], delay: i * 0.030 }
+                    : { type: 'spring', stiffness: 550, damping: 14 },
+                  opacity: isOut
+                    ? { duration: 0.26, times: [0, 0.60, 1], delay: i * 0.030 }
+                    : { duration: 0.10 },
+                  y: { type: 'spring', stiffness: 420, damping: 18 },
                 }}
                 style={{
                   fontSize: 'clamp(52px, 8.5vw, 100px)',
@@ -116,64 +106,79 @@ export default function TwicksHero() {
                   lineHeight: 1,
                   letterSpacing: '-0.02em',
                   display: 'inline-block',
-                  background: `linear-gradient(160deg, ${color} 0%, ${color}cc 100%)`,
+                  background: `linear-gradient(160deg, ${color} 0%, ${color}bb 100%)`,
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: `drop-shadow(0 0 20px ${color}60) drop-shadow(0 0 6px ${color}40)`,
+                  filter: `drop-shadow(0 0 22px ${color}65) drop-shadow(0 0 7px ${color}44)`,
                 }}
               >
-                {letter}
+                {/*
+                  Inner span handles the continuous wave float via CSS animation.
+                  Negative animation-delay offsets each letter into a different
+                  phase of the cycle — creates a rolling left-to-right wave.
+                */}
+                <span
+                  className={isFloat ? 'hero-letter-float' : ''}
+                  style={{
+                    display: 'inline-block',
+                    animationDuration: '1.25s',
+                    animationTimingFunction: 'ease-in-out',
+                    animationIterationCount: 'infinite',
+                    animationDelay: isFloat ? `${i * -0.185}s` : '0s',
+                  }}
+                >
+                  {letter}
+                </span>
               </motion.span>
             )
           })}
 
-          {/* Blinking cursor while typing */}
+          {/* Blinking gradient cursor — visible only while typing */}
           {phase === 'typing' && (
             <motion.span
               animate={{ opacity: [1, 0] }}
-              transition={{ duration: 0.48, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
+              transition={{ duration: 0.45, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
               style={{
                 display: 'inline-block',
-                width: '3px',
-                height: '0.72em',
+                width: '4px',
+                height: '0.70em',
                 background: 'linear-gradient(180deg, #22d3ee, #a78bfa)',
                 borderRadius: '2px',
                 marginLeft: '6px',
-                verticalAlign: 'middle',
-                marginBottom: '4px',
+                marginBottom: '6px',
+                verticalAlign: 'bottom',
               }}
             />
           )}
         </div>
 
-        {/* Accent line — grows as letters type, shrinks on fade */}
+        {/* Accent line — scaleX grows with each letter typed, collapses on exit */}
         <motion.div
           animate={{
-            scaleX: isOut ? 0 : visibleCount / LETTERS.length,
-            opacity: isOut ? 0 : 1,
+            scaleX:  isOut ? 0 : count / LETTERS.length,
+            opacity: isOut ? 0 : count > 0 ? 1 : 0,
           }}
-          transition={{ duration: isOut ? 0.35 : 0.14, ease: isOut ? 'easeIn' : 'easeOut' }}
+          transition={{ duration: isOut ? 0.22 : 0.14, ease: isOut ? 'easeIn' : 'easeOut' }}
           style={{
             height: '1.5px',
-            width: '320px',
-            maxWidth: '80%',
+            width: '300px',
+            maxWidth: '75%',
             background: 'linear-gradient(90deg, #22d3ee, #818cf8 50%, #e879f9)',
             transformOrigin: 'left center',
             borderRadius: '1px',
-            boxShadow: '0 0 10px 3px rgba(139,92,246,0.30)',
+            boxShadow: '0 0 10px 3px rgba(139,92,246,0.28)',
           }}
         />
 
-        {/* Tagline — fades in when fully typed */}
+        {/* Tagline — fades in only when all letters are settled */}
         <motion.p
-          animate={{ opacity: phase === 'visible' ? 1 : 0, y: phase === 'visible' ? 0 : 4 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
+          animate={{ opacity: phase === 'visible' ? 1 : 0, y: phase === 'visible' ? 0 : 5 }}
+          transition={{ duration: 0.32, ease: 'easeOut' }}
           style={{
             fontSize: '8.5px', fontWeight: 600, letterSpacing: '0.32em',
             textTransform: 'uppercase', color: 'rgba(139,92,246,0.42)',
-            fontFamily: 'var(--font-sans)',
-            marginTop: '-4px',
+            fontFamily: 'var(--font-sans)', marginTop: '-4px',
           }}
         >
           Roblox Seller Platform
