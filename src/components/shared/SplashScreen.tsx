@@ -54,12 +54,13 @@ export default function SplashScreen() {
       animate={{ opacity: exiting ? 0 : 1 }}
       transition={{ duration: exiting ? 0.70 : 0.22, ease: exiting ? [0.55, 0, 1, 1] : 'easeOut' }}
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden select-none"
+      style={{ background: '#050000' }}
       aria-hidden
     >
       <img
         src="/splash-bg.gif"
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: 0.55 }}
+        style={{ opacity: 0.92 }}
         alt=""
         aria-hidden
       />
