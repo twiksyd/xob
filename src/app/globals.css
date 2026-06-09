@@ -892,9 +892,21 @@ input:focus, textarea:focus, select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.80) !important;
 }
 
-/* ── TwicksHero bubbly float ────────────────────────────────────── */
-@keyframes hero-letter-float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-10px); }
+/* ── TwicksHero premium ─────────────────────────────────────────── */
+@keyframes twicks-glow-breath {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 14px rgba(255,255,255,0.10))
+      drop-shadow(0 0 40px rgba(255,255,255,0.04));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 26px rgba(255,255,255,0.20))
+      drop-shadow(0 0 60px rgba(255,255,255,0.08));
+  }
+}
+
+.twicks-glow {
+  animation: twicks-glow-breath 5s ease-in-out infinite;
 }
 
