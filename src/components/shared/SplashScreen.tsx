@@ -14,6 +14,122 @@ const LETTER_COLORS = [
   { from: '#eef0ff', mid: '#ffffff', to: '#f5f7ff' },
 ]
 
+function Background() {
+  return (
+    <>
+      {/* Base */}
+      <div className="absolute inset-0" style={{ background: 'oklch(0.04 0.025 272)' }} />
+
+      {/* Grid layer 1 — 45° drifting right-down */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent 0px, transparent 28px, rgba(139,92,246,0.055) 28px, rgba(139,92,246,0.055) 30px)',
+        }}
+        animate={{ backgroundPosition: ['0px 0px', '60px 60px'] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* Grid layer 2 — 135° drifting counter */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(135deg, transparent 0px, transparent 46px, rgba(34,211,238,0.038) 46px, rgba(34,211,238,0.038) 48px)',
+        }}
+        animate={{ backgroundPosition: ['0px 0px', '-96px 96px'] }}
+        transition={{ duration: 11, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* Orb 1 — large purple, top-left */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: '70vw', height: '70vw',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.58) 0%, transparent 65%)',
+          filter: 'blur(90px)',
+          top: '-25vh', left: '-20vw',
+        }}
+        animate={{
+          x: [0, 110, -55, 85, 0],
+          y: [0, 65, -35, 105, 0],
+          scale: [1, 1.14, 0.93, 1.07, 1],
+        }}
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
+      />
+
+      {/* Orb 2 — cyan, bottom-right */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: '60vw', height: '60vw',
+          background: 'radial-gradient(circle, rgba(34,211,238,0.42) 0%, transparent 65%)',
+          filter: 'blur(100px)',
+          bottom: '-20vh', right: '-15vw',
+        }}
+        animate={{
+          x: [0, -85, 45, -65, 0],
+          y: [0, -65, 35, -95, 0],
+          scale: [1, 1.09, 0.96, 1.11, 1],
+        }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
+      />
+
+      {/* Orb 3 — pink/magenta, top-right */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: '50vw', height: '50vw',
+          background: 'radial-gradient(circle, rgba(232,121,249,0.38) 0%, transparent 65%)',
+          filter: 'blur(80px)',
+          top: '-15vh', right: '-10vw',
+        }}
+        animate={{
+          x: [0, -65, 35, -45, 0],
+          y: [0, 85, -25, 65, 0],
+          scale: [1, 0.89, 1.16, 0.94, 1],
+        }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
+      />
+
+      {/* Orb 4 — deep indigo, center-bottom */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: '55vw', height: '55vw',
+          background: 'radial-gradient(circle, rgba(99,102,241,0.32) 0%, transparent 65%)',
+          filter: 'blur(110px)',
+          bottom: '-10vh', left: '25vw',
+        }}
+        animate={{
+          x: [0, 65, -35, 55, 0],
+          y: [0, -45, 25, -65, 0],
+          scale: [1, 1.06, 0.91, 1.09, 1],
+        }}
+        transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut', times: [0, 0.25, 0.5, 0.75, 1] }}
+      />
+
+      {/* Noise grain */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          opacity: 0.025,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          backgroundSize: '256px 256px',
+        }}
+      />
+
+      {/* Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 85% 85% at 50% 50%, transparent 35%, rgba(2,1,8,0.78) 100%)',
+        }}
+      />
+    </>
+  )
+}
+
 export default function SplashScreen() {
   const [phase, setPhase] = useState<'enter' | 'scan' | 'exit' | 'done'>('enter')
 
@@ -34,41 +150,10 @@ export default function SplashScreen() {
       animate={{ opacity: exiting ? 0 : 1 }}
       transition={{ duration: exiting ? 0.65 : 0.18, ease: exiting ? [0.55, 0, 1, 1] : 'easeOut' }}
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden select-none"
-      style={{ background: 'rgba(4, 2, 12, 1)' }}
+      style={{ background: 'oklch(0.04 0.025 272)' }}
       aria-hidden
     >
-      {/* Ambient orbs */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
-        <div style={{
-          position: 'absolute', width: '820px', height: '820px',
-          top: '-280px', left: '-220px',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 58%)',
-          animation: 'orb-drift-1 28s ease-in-out infinite',
-        }} />
-        <div style={{
-          position: 'absolute', width: '700px', height: '700px',
-          bottom: '-240px', right: '-200px',
-          background: 'radial-gradient(circle, rgba(232,121,249,0.22) 0%, transparent 58%)',
-          animation: 'orb-drift-2 34s ease-in-out infinite',
-        }} />
-        <div style={{
-          position: 'absolute', width: '500px', height: '500px',
-          top: '-200px', left: '50%', transform: 'translateX(-50%)',
-          background: 'radial-gradient(circle, rgba(34,211,238,0.14) 0%, transparent 60%)',
-          animation: 'orb-drift-3 22s ease-in-out infinite',
-        }} />
-      </div>
-
-      {/* Noise grain */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          opacity: 0.028,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '256px 256px',
-        }}
-      />
+      <Background />
 
       {/* Main content */}
       <motion.div
@@ -100,7 +185,7 @@ export default function SplashScreen() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: `drop-shadow(0 0 22px ${c.from}60) drop-shadow(0 0 6px ${c.to}40)`,
+                  filter: `drop-shadow(0 0 22px rgba(255,255,255,0.38)) drop-shadow(0 0 6px rgba(255,255,255,0.22))`,
                 }}
               >
                 {letter}
