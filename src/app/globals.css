@@ -854,3 +854,40 @@ input:focus, textarea:focus, select:focus {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   GLASS FORM CONTROLS — inputs, textareas, select triggers
+   Nestled inside glass panels — slightly transparent, recessed.
+   No backdrop-filter (Container Rule: could appear in lists).
+═══════════════════════════════════════════════════════════════ */
+[data-slot="input"],
+[data-slot="textarea"] {
+  background: rgba(255, 255, 255, 0.74) !important;
+  border: 1px solid rgba(139, 92, 246, 0.16) !important;
+  box-shadow:
+    inset 0 1.5px 3px rgba(15, 13, 42, 0.034),
+    inset 0 1px 0 rgba(255, 255, 255, 0.80) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+}
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(34, 211, 238, 0.52) !important;
+  box-shadow:
+    0 0 0 3px rgba(34, 211, 238, 0.12),
+    inset 0 1px 2px rgba(15, 13, 42, 0.018) !important;
+}
+[data-slot="input"][aria-invalid="true"],
+[data-slot="textarea"][aria-invalid="true"] {
+  border-color: oklch(0.58 0.22 25) !important;
+  box-shadow:
+    0 0 0 3px oklch(0.58 0.22 25 / 0.14),
+    inset 0 1.5px 3px rgba(15, 13, 42, 0.030) !important;
+}
+[data-slot="select-trigger"] {
+  background: rgba(255, 255, 255, 0.74) !important;
+  border: 1px solid rgba(139, 92, 246, 0.16) !important;
+  box-shadow:
+    inset 0 1.5px 3px rgba(15, 13, 42, 0.034),
+    inset 0 1px 0 rgba(255, 255, 255, 0.80) !important;
+}

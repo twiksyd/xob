@@ -46,7 +46,7 @@ export default function TopBar({
           <div
             className="relative flex items-center w-full max-w-[440px]"
             style={{
-              background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, rgba(139,92,246,0.18), rgba(34,211,238,0.14)) border-box',
+              background: 'rgba(255,255,255,0.84) padding-box, linear-gradient(135deg, rgba(139,92,246,0.18), rgba(34,211,238,0.14)) border-box',
               border: '1px solid transparent',
               borderRadius: '100px',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 1px 6px rgba(139,92,246,0.07), 0 2px 12px rgba(15,13,42,0.04)',

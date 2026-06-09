@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 
 const TT = {
-  backgroundColor: 'rgba(255,255,255,0.97)',
+  backgroundColor: 'rgba(255,255,255,0.90)',
   border: '1px solid rgba(139,92,246,0.15)',
   borderRadius: '12px',
   color: 'oklch(0.10 0.030 272)',

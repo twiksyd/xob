@@ -132,7 +132,7 @@ export default function TransactionsPage() {
             style={{
               background: metrics.profit > 0
                 ? 'rgba(52,211,153,0.07) padding-box, linear-gradient(140deg, rgba(52,211,153,0.28), rgba(34,211,238,0.18) 55%, rgba(52,211,153,0.12)) border-box'
-                : 'rgba(255,255,255,0.93) padding-box, linear-gradient(140deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box',
+                : 'rgba(255,255,255,0.74) padding-box, linear-gradient(140deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box',
               boxShadow: metrics.profit > 0
                 ? 'inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(15,13,42,0.04)'
                 : undefined,
