@@ -6,12 +6,12 @@ import { motion } from 'framer-motion'
 const LETTERS = ['T', 'W', 'I', 'C', 'K', 'S']
 
 const LETTER_COLORS = [
-  { from: '#22d3ee', mid: '#38bdf8', to: '#818cf8' },
-  { from: '#818cf8', mid: '#a78bfa', to: '#a78bfa' },
-  { from: '#a78bfa', mid: '#b07ef7', to: '#c084fc' },
-  { from: '#c084fc', mid: '#d87bef', to: '#e879f9' },
-  { from: '#e879f9', mid: '#f472b6', to: '#fb7185' },
-  { from: '#fb7185', mid: '#fda4af', to: '#fde68a' },
+  { from: '#ffffff', mid: '#f8faff', to: '#e8ecff' },
+  { from: '#f0f4ff', mid: '#ffffff', to: '#f5f7ff' },
+  { from: '#ffffff', mid: '#f2f2f2', to: '#e8ecff' },
+  { from: '#f5f7ff', mid: '#ffffff', to: '#f0f0f0' },
+  { from: '#ffffff', mid: '#f8f8f8', to: '#f0f4ff' },
+  { from: '#eef0ff', mid: '#ffffff', to: '#f5f7ff' },
 ]
 
 export default function SplashScreen() {
@@ -119,8 +119,8 @@ export default function SplashScreen() {
                 top: '-6px', bottom: '-6px',
                 width: '2px',
                 pointerEvents: 'none',
-                background: 'linear-gradient(180deg, transparent 0%, rgba(34,211,238,0.65) 22%, rgba(255,255,255,0.98) 50%, rgba(34,211,238,0.65) 78%, transparent 100%)',
-                boxShadow: '0 0 22px 10px rgba(34,211,238,0.60), 0 0 60px 24px rgba(139,92,246,0.20)',
+                background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.70) 22%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.70) 78%, transparent 100%)',
+                boxShadow: '0 0 22px 10px rgba(255,255,255,0.50), 0 0 60px 24px rgba(255,255,255,0.15)',
               }}
             />
           )}
@@ -134,10 +134,10 @@ export default function SplashScreen() {
           style={{
             height: '1.5px',
             width: '100%',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(34,211,238,0.7) 15%, #818cf8 38%, #e879f9 52%, #818cf8 68%, rgba(34,211,238,0.7) 85%, transparent 100%)',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 15%, rgba(255,255,255,0.9) 38%, rgba(255,255,255,1) 52%, rgba(255,255,255,0.9) 68%, rgba(255,255,255,0.4) 85%, transparent 100%)',
             transformOrigin: 'left center',
             marginTop: '14px',
-            boxShadow: '0 0 12px 4px rgba(139,92,246,0.35)',
+            boxShadow: '0 0 12px 4px rgba(255,255,255,0.20)',
           }}
         />
 
@@ -150,19 +150,19 @@ export default function SplashScreen() {
         >
           <span style={{
             fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.34em',
-            textTransform: 'uppercase', color: 'rgba(139,92,246,0.38)',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)',
             fontFamily: 'var(--font-sans)',
           }}>
             XOB PLATFORM
           </span>
           <span style={{
             width: '1px', height: '9px',
-            background: 'rgba(139,92,246,0.22)',
+            background: 'rgba(255,255,255,0.18)',
             display: 'inline-block', flexShrink: 0,
           }} />
           <span style={{
             fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.22em',
-            textTransform: 'uppercase', color: 'rgba(139,92,246,0.22)',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.22)',
             fontFamily: 'var(--font-sans)',
           }}>
             ROBLOX SELLER DASHBOARD
@@ -176,7 +176,7 @@ export default function SplashScreen() {
           transition={{ duration: 0.38, delay: 1.22 }}
           style={{
             fontSize: '9px', fontWeight: 600, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: 'rgba(139,92,246,0.14)',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.14)',
             marginTop: '28px',
             fontFamily: 'var(--font-sans)',
           }}
