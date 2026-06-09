@@ -891,3 +891,29 @@ input:focus, textarea:focus, select:focus {
     inset 0 1.5px 3px rgba(15, 13, 42, 0.034),
     inset 0 1px 0 rgba(255, 255, 255, 0.80) !important;
 }
+
+/* ── TwicksHero shimmer ─────────────────────────────────────────── */
+@keyframes hero-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.hero-shimmer-text {
+  background-image: linear-gradient(
+    110deg,
+    #505070 0%,
+    #9090b8 18%,
+    #d8d8f0 30%,
+    #ffffff 40%,
+    #f4f4ff 50%,
+    #ffffff 60%,
+    #d8d8f0 70%,
+    #9090b8 82%,
+    #505070 100%
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: hero-shimmer 4s linear infinite;
+}

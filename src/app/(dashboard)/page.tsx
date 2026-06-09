@@ -18,6 +18,7 @@ import {
   CheckCircle2, ChevronDown, Loader2, Trophy, Coins,
 } from 'lucide-react'
 import SavingsWidget from '@/components/shared/SavingsWidget'
+import TwicksHero from '@/components/shared/TwicksHero'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
 import {
   OrderWithDetails, RobloxAccount, ReservationWithDetails, SavingsGoal,
@@ -190,6 +191,9 @@ export default function DashboardPage() {
       <TopBar title="Command Center" subtitle="What should you do next?" />
       <div className="flex-1 overflow-auto">
         <div className="p-5 max-w-[1400px] mx-auto space-y-4">
+
+          {/* ── 0. TWICKS hero banner ── */}
+          <TwicksHero />
 
           {/* ── 1. Hero: the single highest-value thing to do right now ── */}
           <NextBestAction recommendations={recommendations} />
