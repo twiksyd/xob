@@ -1,178 +1,113 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-const LETTERS = ['T', 'W', 'I', 'C', 'K', 'S']
-
-/*
-  Variable stagger — the gaps create the suspense.
-  Long pause on T, then W arrives, then I/C in quicker succession,
-  K builds the climax, S is the resolution.
-*/
-const REVEAL_AT = [0, 700, 1060, 1480, 1900, 2360]
-const LAST_REVEAL = REVEAL_AT[REVEAL_AT.length - 1]
+import { motion, useAnimationControls } from 'framer-motion'
 
 type Phase = 'dark' | 'building' | 'holding' | 'dissolving'
 
+const BUILD_S = 3.4
+
+/*
+  Heartbeat pattern — opacity spikes and drops like an EKG while blur
+  gradually clears. Three beats of increasing strength, then full resolution.
+
+  beat 1: flash to 24%, nearly vanishes  ("blurry → none → blurry")
+  beat 2: flash to 46%, drops back        (building)
+  beat 3: flash to 74%, small dip         (almost there)
+  final:  resolves to 100%, sharp          (full reveal)
+*/
+const TIMES   = [0,    0.09, 0.18, 0.30, 0.42, 0.55, 0.66, 0.78, 0.90, 1.00]
+const OPACITY = [0,    0.24, 0.02, 0.46, 0.06, 0.74, 0.15, 0.88, 0.97, 1.00]
+const BLURS   = [30,   17,   26,   12,   21,    5,   14,    2,    0.5,  0   ] // px
+const SCALES  = [0.97, 1.00, 0.97, 1.01, 0.97, 1.02, 0.98, 1.01, 1.00, 1.00]
+
 export default function TwicksHero() {
-  const [phase, setPhase]               = useState<Phase>('dark')
-  const [revealedCount, setRevealedCount] = useState(0)
-  const [bloom, setBloom]               = useState(false)
+  const [phase, setPhase] = useState<Phase>('dark')
+  const controls = useAnimationControls()
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = []
 
     if (phase === 'dark') {
-      timers.push(setTimeout(() => setPhase('building'), 480))
+      controls.set({ opacity: 0, filter: 'blur(30px)', scale: 0.97 })
+      timers.push(setTimeout(() => setPhase('building'), 450))
 
     } else if (phase === 'building') {
-      REVEAL_AT.forEach((ms, i) => {
-        timers.push(setTimeout(() => setRevealedCount(i + 1), ms))
+      controls.start({
+        opacity: OPACITY,
+        filter: BLURS.map(b => `blur(${b}px)`),
+        scale: SCALES,
+        transition: { duration: BUILD_S, times: TIMES, ease: 'linear' },
       })
-      // Give last letter time to fully settle before holding
-      timers.push(setTimeout(() => setPhase('holding'), LAST_REVEAL + 520))
+      timers.push(setTimeout(() => setPhase('holding'), BUILD_S * 1000 + 100))
 
     } else if (phase === 'holding') {
-      setBloom(true)
-      timers.push(setTimeout(() => setBloom(false), 900))
-      timers.push(setTimeout(() => setPhase('dissolving'), 2400))
+      timers.push(setTimeout(() => setPhase('dissolving'), 2200))
 
     } else {
-      // dissolving — let fade run then reset
-      timers.push(setTimeout(() => {
-        setRevealedCount(0)
-        setPhase('dark')
-      }, 720))
+      // dissolving — blur grows back as it fades
+      controls.start({
+        opacity: [1, 0.50, 0],
+        filter: ['blur(0px)', 'blur(7px)', 'blur(24px)'],
+        scale: [1.00, 0.99, 0.97],
+        transition: { duration: 0.80, times: [0, 0.45, 1], ease: [0.55, 0, 1, 1] },
+      })
+      timers.push(setTimeout(() => setPhase('dark'), 820))
     }
 
     return () => timers.forEach(clearTimeout)
-  }, [phase])
+  }, [phase, controls])
 
-  const ambientIntensity = revealedCount / LETTERS.length
-  const isDissolving     = phase === 'dissolving'
-  const isDark           = phase === 'dark'
+  const isHolding = phase === 'holding'
 
   return (
     <div
       className="relative w-full overflow-hidden rounded-2xl"
-      style={{
-        height: '200px',
-        background: '#040405',
-        border: '1px solid rgba(255,255,255,0.07)',
-      }}
+      style={{ height: '200px', background: '#040405', border: '1px solid rgba(255,255,255,0.07)' }}
     >
-      {/* Ambient overhead glow — intensifies as each letter appears */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 55% 95% at 50% 35%, rgba(255,255,255,0.06) 0%, transparent 70%)',
-          opacity: ambientIntensity,
-          transition: 'opacity 0.45s ease-out',
-        }}
-      />
+      {/* Overhead spotlight */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 55% 90% at 50% 35%, rgba(255,255,255,0.048) 0%, transparent 70%)',
+      }} />
 
-      {/* Floor glow — builds from below */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 80% 40% at 50% 100%, rgba(255,255,255,0.025) 0%, transparent 70%)',
-          opacity: ambientIntensity * 0.7,
-          transition: 'opacity 0.45s ease-out',
-        }}
-      />
-
-      {/* Bloom burst — fires the moment the last letter settles */}
-      <AnimatePresence>
-        {bloom && (
-          <motion.div
-            key="bloom"
-            initial={{ scale: 0.3, opacity: 0 }}
-            animate={{ scale: [0.3, 2.2, 3.8], opacity: [0, 0.50, 0] }}
-            exit={{}}
-            transition={{ duration: 0.88, ease: 'easeOut' }}
-            className="absolute pointer-events-none"
-            style={{
-              top: '50%', left: '50%',
-              width: '640px', height: '200px',
-              marginLeft: '-320px', marginTop: '-100px',
-              borderRadius: '50%',
-              background: 'radial-gradient(ellipse, rgba(255,255,255,0.32) 0%, rgba(220,220,255,0.12) 50%, transparent 70%)',
-              filter: 'blur(22px)',
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── Main content ── */}
+      {/* Whole-unit heartbeat animation */}
       <motion.div
+        animate={controls}
+        initial={{ opacity: 0, filter: 'blur(30px)', scale: 0.97 }}
         className="absolute inset-0 flex flex-col items-center justify-center"
         style={{ gap: '16px' }}
-        animate={{ opacity: isDissolving || isDark ? 0 : 1 }}
-        transition={{ duration: isDissolving ? 0.65 : 0.01, ease: [0.55, 0, 1, 1] }}
       >
-
-        {/* Letter row — each in an overflow:hidden slot so it rises from below */}
-        <div className="flex items-end" style={{ gap: '0.01em' }}>
-          {LETTERS.map((letter, i) => {
-            const revealed = i < revealedCount
-            return (
-              <div
-                key={i}
-                style={{
-                  overflow: 'hidden',
-                  display: 'inline-block',
-                  /* height clips the rising letter until it reaches its position */
-                  paddingBottom: '0.06em',
-                }}
-              >
-                <motion.span
-                  animate={{ y: revealed ? '0%' : '115%' }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 260,
-                    damping: 26,
-                  }}
-                  style={{
-                    fontSize: 'clamp(48px, 8vw, 96px)',
-                    fontWeight: 900,
-                    lineHeight: 1,
-                    letterSpacing: '0.14em',
-                    display: 'block',
-                    background: 'linear-gradient(180deg, #ffffff 0%, #c8c8c8 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.14))',
-                  }}
-                >
-                  {letter}
-                </motion.span>
-              </div>
-            )
-          })}
+        {/* TWICKS word */}
+        <div className={isHolding ? 'twicks-glow' : ''}>
+          <span style={{
+            fontSize: 'clamp(48px, 8vw, 96px)',
+            fontWeight: 900,
+            letterSpacing: '0.14em',
+            background: 'linear-gradient(180deg, #ffffff 0%, #c8c8c8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            display: 'block',
+          }}>
+            TWICKS
+          </span>
         </div>
 
-        {/* Accent line — draws from centre once holding */}
+        {/* Accent line — draws from centre on hold */}
         <motion.div
-          animate={{
-            scaleX: phase === 'holding' || isDissolving ? 1 : 0,
-            opacity: phase === 'holding' || isDissolving ? 1 : 0,
-          }}
-          transition={{ duration: 0.75, ease: [0.25, 0.10, 0.25, 1] }}
+          animate={{ scaleX: isHolding ? 1 : 0, opacity: isHolding ? 1 : 0 }}
+          transition={{ duration: 0.70, ease: [0.25, 0.10, 0.25, 1] }}
           style={{
-            height: '1px',
-            width: '150px',
+            height: '1px', width: '150px',
             background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.28) 30%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0.28) 70%, transparent)',
             transformOrigin: 'center center',
-            borderRadius: '1px',
           }}
         />
 
-        {/* Tagline — whisper, only when fully assembled */}
+        {/* Tagline — whispers in on hold */}
         <motion.p
-          animate={{ opacity: phase === 'holding' ? 1 : 0, y: phase === 'holding' ? 0 : 4 }}
-          transition={{ duration: 0.5, delay: phase === 'holding' ? 0.2 : 0 }}
+          animate={{ opacity: isHolding ? 1 : 0, y: isHolding ? 0 : 4 }}
+          transition={{ duration: 0.50, delay: isHolding ? 0.20 : 0 }}
           style={{
             fontSize: '8.5px', fontWeight: 500, letterSpacing: '0.40em',
             textTransform: 'uppercase', color: 'rgba(255,255,255,0.18)',
