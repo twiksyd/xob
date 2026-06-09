@@ -1,122 +1,130 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion, useAnimationControls } from 'framer-motion'
+import { useEffect, useRef, useCallback } from 'react'
+import { motion, animate, useMotionValue, useTransform } from 'framer-motion'
 
-type Phase = 'dark' | 'building' | 'holding' | 'dissolving'
-
-const BUILD_S = 3.4
-
-/*
-  Heartbeat pattern — opacity spikes and drops like an EKG while blur
-  gradually clears. Three beats of increasing strength, then full resolution.
-
-  beat 1: flash to 24%, nearly vanishes  ("blurry → none → blurry")
-  beat 2: flash to 46%, drops back        (building)
-  beat 3: flash to 74%, small dip         (almost there)
-  final:  resolves to 100%, sharp          (full reveal)
-*/
-const TIMES   = [0,    0.09, 0.18, 0.30, 0.42, 0.55, 0.66, 0.78, 0.90, 1.00]
-const OPACITY = [0,    0.24, 0.02, 0.46, 0.06, 0.74, 0.15, 0.88, 0.97, 1.00]
-const BLURS   = [30,   17,   26,   12,   21,    5,   14,    2,    0.5,  0   ] // px
-const SCALES  = [0.97, 1.00, 0.97, 1.01, 0.97, 1.02, 0.98, 1.01, 1.00, 1.00]
+const SWEEP_S = 2.6   // seconds to cross full width
+const PAUSE_MS = 650  // pause before repeating
 
 export default function TwicksHero() {
-  const [phase, setPhase] = useState<Phase>('dark')
-  const controls = useAnimationControls()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const beamX        = useMotionValue(-120)
+
+  // Narrow illuminated window follows the beam
+  const maskImage = useTransform(beamX, (x) =>
+    `linear-gradient(90deg,
+      transparent ${x - 70}px,
+      white       ${x - 16}px,
+      white       ${x + 16}px,
+      transparent ${x + 70}px)`
+  )
+
+  const runSweep = useCallback(() => {
+    if (!containerRef.current) return
+    const w = containerRef.current.offsetWidth
+    beamX.set(-120)
+    animate(beamX, w + 120, {
+      duration: SWEEP_S,
+      ease: 'linear',
+      onComplete: () => setTimeout(runSweep, PAUSE_MS),
+    })
+  }, [beamX])
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = []
+    const id = setTimeout(runSweep, 300)
+    return () => clearTimeout(id)
+  }, [runSweep])
 
-    if (phase === 'dark') {
-      controls.set({ opacity: 0, filter: 'blur(30px)', scale: 0.97 })
-      timers.push(setTimeout(() => setPhase('building'), 450))
-
-    } else if (phase === 'building') {
-      controls.start({
-        opacity: OPACITY,
-        filter: BLURS.map(b => `blur(${b}px)`),
-        scale: SCALES,
-        transition: { duration: BUILD_S, times: TIMES, ease: 'linear' },
-      })
-      timers.push(setTimeout(() => setPhase('holding'), BUILD_S * 1000 + 100))
-
-    } else if (phase === 'holding') {
-      timers.push(setTimeout(() => setPhase('dissolving'), 2200))
-
-    } else {
-      // dissolving — blur grows back as it fades
-      controls.start({
-        opacity: [1, 0.50, 0],
-        filter: ['blur(0px)', 'blur(7px)', 'blur(24px)'],
-        scale: [1.00, 0.99, 0.97],
-        transition: { duration: 0.80, times: [0, 0.45, 1], ease: [0.55, 0, 1, 1] },
-      })
-      timers.push(setTimeout(() => setPhase('dark'), 820))
-    }
-
-    return () => timers.forEach(clearTimeout)
-  }, [phase, controls])
-
-  const isHolding = phase === 'holding'
+  const textStyle: React.CSSProperties = {
+    fontSize: 'clamp(48px, 8vw, 96px)',
+    fontWeight: 900,
+    letterSpacing: '0.14em',
+    lineHeight: 1,
+    display: 'block',
+    userSelect: 'none',
+  }
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full overflow-hidden rounded-2xl"
       style={{ height: '200px', background: '#040405', border: '1px solid rgba(255,255,255,0.07)' }}
     >
       {/* Overhead spotlight */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse 55% 90% at 50% 35%, rgba(255,255,255,0.048) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 55% 90% at 50% 35%, rgba(255,255,255,0.04) 0%, transparent 70%)',
       }} />
 
-      {/* Whole-unit heartbeat animation */}
+      {/* Static white base text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none">
+        <span style={{
+          ...textStyle,
+          background: 'linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}>
+          TWICKS
+        </span>
+      </div>
+
+      {/* Red illumination layer — only visible inside the moving beam window */}
       <motion.div
-        animate={controls}
-        initial={{ opacity: 0, filter: 'blur(30px)', scale: 0.97 }}
-        className="absolute inset-0 flex flex-col items-center justify-center"
-        style={{ gap: '16px' }}
+        className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none"
+        style={{ maskImage, WebkitMaskImage: maskImage }}
       >
-        {/* TWICKS word */}
-        <div className={isHolding ? 'twicks-glow' : ''}>
-          <span style={{
-            fontSize: 'clamp(48px, 8vw, 96px)',
-            fontWeight: 900,
-            letterSpacing: '0.14em',
-            background: 'linear-gradient(180deg, #ffffff 0%, #c8c8c8 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            display: 'block',
-          }}>
-            TWICKS
-          </span>
-        </div>
-
-        {/* Accent line — draws from centre on hold */}
-        <motion.div
-          animate={{ scaleX: isHolding ? 1 : 0, opacity: isHolding ? 1 : 0 }}
-          transition={{ duration: 0.70, ease: [0.25, 0.10, 0.25, 1] }}
-          style={{
-            height: '1px', width: '150px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.28) 30%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0.28) 70%, transparent)',
-            transformOrigin: 'center center',
-          }}
-        />
-
-        {/* Tagline — whispers in on hold */}
-        <motion.p
-          animate={{ opacity: isHolding ? 1 : 0, y: isHolding ? 0 : 4 }}
-          transition={{ duration: 0.50, delay: isHolding ? 0.20 : 0 }}
-          style={{
-            fontSize: '8.5px', fontWeight: 500, letterSpacing: '0.40em',
-            textTransform: 'uppercase', color: 'rgba(255,255,255,0.18)',
-            fontFamily: 'var(--font-sans)', marginTop: '-6px',
-          }}
-        >
-          Roblox Seller Platform
-        </motion.p>
+        <span style={{
+          ...textStyle,
+          color: '#ff2222',
+          filter: [
+            'drop-shadow(0 0 6px  rgba(255, 50, 50, 1.0))',
+            'drop-shadow(0 0 18px rgba(255, 10, 10, 0.85))',
+            'drop-shadow(0 0 45px rgba(255,  0,  0, 0.45))',
+          ].join(' '),
+        }}>
+          TWICKS
+        </span>
       </motion.div>
+
+      {/* Beam — thin bright red cursor line */}
+      <motion.div
+        className="absolute pointer-events-none"
+        style={{
+          top: '14%', bottom: '14%',
+          width: '2px',
+          x: beamX,
+          translateX: '-50%',
+          borderRadius: '1px',
+          background: [
+            'linear-gradient(180deg,',
+            '  transparent 0%,',
+            '  rgba(255, 80, 80, 0.85) 12%,',
+            '  rgba(255,255,255, 1.00) 50%,',
+            '  rgba(255, 80, 80, 0.85) 88%,',
+            '  transparent 100%)',
+          ].join(' '),
+          boxShadow: [
+            '0 0  4px  2px rgba(255, 80, 80, 0.95)',
+            '0 0 14px  6px rgba(255, 20, 20, 0.60)',
+            '0 0 36px 16px rgba(255,  0,  0, 0.28)',
+          ].join(', '),
+        }}
+      />
+
+      {/* Tagline */}
+      <div className="absolute bottom-[18px] left-0 right-0 flex flex-col items-center gap-[8px] pointer-events-none">
+        <div style={{
+          height: '1px', width: '140px',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 30%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0.18) 70%, transparent)',
+        }} />
+        <p style={{
+          fontSize: '8px', fontWeight: 500, letterSpacing: '0.40em',
+          textTransform: 'uppercase', color: 'rgba(255,255,255,0.16)',
+          fontFamily: 'var(--font-sans)',
+        }}>
+          Roblox Seller Platform
+        </p>
+      </div>
 
       {/* Bottom hair-line */}
       <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{
