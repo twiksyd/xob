@@ -239,7 +239,7 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             <StatCard
               title="Total Robux"
               value={`${totalRobux.toLocaleString()} R$`}

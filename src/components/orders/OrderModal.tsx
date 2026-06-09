@@ -128,7 +128,7 @@ export default function OrderModal({ open, onClose, onSave, order, gamepasses, a
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-elevated max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="glass-elevated sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">{order ? 'Edit Order' : 'New Order'}</DialogTitle>
         </DialogHeader>

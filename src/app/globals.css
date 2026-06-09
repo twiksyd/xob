@@ -162,6 +162,7 @@
     -moz-osx-font-smoothing: grayscale;
     font-size: 14px;
     line-height: 1.55;
+    overflow-x: hidden;
   }
 }
 
@@ -908,5 +909,29 @@ input:focus, textarea:focus, select:focus {
 
 .twicks-glow {
   animation: twicks-glow-breath 5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE — touch targets & responsive utilities (< 640 px)
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 639px) {
+  /* Minimum 44 × 44 px tap target for primary / outline buttons */
+  .btn-primary,
+  .btn-outline {
+    min-height: 44px;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  /* Filter chips — taller for easier tapping */
+  .chip {
+    height: 36px;
+    padding: 0 14px;
+  }
+
+  /* Stat values — slightly smaller on mobile to prevent overflow */
+  .stat-value {
+    font-size: 22px;
+  }
 }
 

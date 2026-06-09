@@ -209,7 +209,7 @@ export default function WalletPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {[
             { label: 'Total Inflow',  value: `₱${totalIncome.toFixed(2)}`,   color: '#22d3ee',  accent: '#22d3ee' },
             { label: 'Total Outflow', value: `₱${totalExpenses.toFixed(2)}`, color: '#f43f5e',  accent: '#f43f5e' },
@@ -238,7 +238,7 @@ export default function WalletPage() {
         <SavingsWidget compact={false} />
 
         {/* Chart + Add form */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Cash Flow Chart */}
           <div className="col-span-2 glass-card p-5">
             <div className="flex items-start justify-between mb-4">

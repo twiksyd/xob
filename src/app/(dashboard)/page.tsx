@@ -179,31 +179,31 @@ export default function DashboardPage() {
   ]
 
   if (loading) return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-dvh">
       <TopBar title="Command Center" subtitle="Everything that needs your attention, in one place" />
       <div className="flex-1 flex items-center justify-center"><div className="spinner" /></div>
     </div>
   )
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-dvh overflow-hidden">
       <TopBar title="Command Center" subtitle="What should you do next?" />
       <div className="flex-1 overflow-auto">
-        <div className="p-5 max-w-[1400px] mx-auto space-y-4">
+        <div className="p-4 sm:p-5 max-w-[1400px] mx-auto space-y-4">
 
           {/* ── 1. Hero: the single highest-value thing to do right now ── */}
           <NextBestAction recommendations={recommendations} />
 
           {/* ── 2. Operator framing: capacity + where the money went ── */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FulfillmentReadiness orders={orders} accounts={accounts} />
             <MoneyFlowSummary orders={orders} savingsGoals={savingsGoals} />
           </div>
 
           {/* ── 3. The action queue + savings progress ── */}
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Outstanding orders — the literal click-list */}
-            <div className="col-span-3 glass-card overflow-hidden">
+            <div className="lg:col-span-3 glass-card overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(15,13,42,0.05)' }}>
                 <div>
                   <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Outstanding Orders</p>
@@ -266,7 +266,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Savings progress, with forecast baked in */}
-            <div className="col-span-2">
+            <div className="lg:col-span-2">
               <SavingsWidget compact={false} forecasts={savingsForecasts} />
             </div>
           </div>
@@ -299,8 +299,8 @@ export default function DashboardPage() {
                   <div className="p-5 space-y-4" style={{ borderTop: '1px solid rgba(15,13,42,0.05)' }}>
 
                     {/* Top performing accounts + Account balances */}
-                    <div className="grid grid-cols-5 gap-4">
-                      <div className="col-span-2 glass-secondary rounded-2xl p-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                      <div className="lg:col-span-2 glass-secondary rounded-2xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Trophy className="w-3.5 h-3.5" style={{ color: '#fbbf24' }} />
                           <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Top Performing Accounts</p>
@@ -329,7 +329,7 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      <div className="col-span-3 glass-secondary rounded-2xl p-4">
+                      <div className="lg:col-span-3 glass-secondary rounded-2xl p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Coins className="w-3.5 h-3.5" style={{ color: '#22d3ee' }} />
@@ -364,20 +364,20 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Trends */}
-                    <div className="grid grid-cols-5 gap-4">
-                      <div className="col-span-3"><RevenueChart data={revenueData} /></div>
-                      <div className="col-span-2"><OrderStatusChart data={statusData} /></div>
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                      <div className="lg:col-span-3"><RevenueChart data={revenueData} /></div>
+                      <div className="lg:col-span-2"><OrderStatusChart data={statusData} /></div>
                     </div>
-                    <div className="grid grid-cols-5 gap-4">
-                      <div className="col-span-2"><TopGamesChart data={topGamesData} /></div>
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                      <div className="lg:col-span-2"><TopGamesChart data={topGamesData} /></div>
 
                       {/* Recent activity */}
-                      <div className="col-span-3 glass-secondary rounded-2xl p-4">
+                      <div className="lg:col-span-3 glass-secondary rounded-2xl p-4">
                         <p className="text-[12px] font-bold mb-3" style={{ color: 'oklch(0.10 0.030 272)' }}>Recent Activity</p>
                         {activityFeed.length === 0 ? (
                           <p className="text-[12px] text-center py-4" style={{ color: 'oklch(0.55 0.010 265)' }}>No activity yet.</p>
                         ) : (
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                             {activityFeed.map((item) => {
                               const Icon = item.icon
                               return (
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                     {/* Quick actions */}
                     <div className="glass-secondary rounded-2xl p-4">
                       <p className="text-[12px] font-bold mb-3" style={{ color: 'oklch(0.10 0.030 272)' }}>Quick Actions</p>
-                      <div className="grid grid-cols-4 gap-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {quickActions.map(({ label, sub, icon: Icon, href, color }) => (
                           <a
                             key={label}

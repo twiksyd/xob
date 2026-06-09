@@ -78,7 +78,7 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-elevated max-w-lg">
+      <DialogContent className="glass-elevated sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{gamepass ? 'Edit Gamepass' : 'Add Gamepass'}</DialogTitle>
         </DialogHeader>

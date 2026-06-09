@@ -456,7 +456,7 @@ export default function SellerInventoryPage() {
       <div className="p-5 space-y-5">
 
         {/* ── Summary cards ── */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { title: 'Total Accounts', value: String(totalAccounts), icon: Archive, color: '#a78bfa' },
             { title: 'Ready For Sale', value: String(readyCount),    icon: Check,   color: '#34d399' },
@@ -546,7 +546,7 @@ export default function SellerInventoryPage() {
 
       {/* ── Add / Edit modal ── */}
       <Dialog open={modalOpen} onOpenChange={o => !o && setModalOpen(false)}>
-        <DialogContent className="glass-elevated max-w-md">
+        <DialogContent className="glass-elevated sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-bold">
               {editAccount ? 'Edit Account' : 'Add Seller Account'}

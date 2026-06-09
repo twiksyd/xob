@@ -381,13 +381,13 @@ export default function OrdersPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col" style={{ height: '100%' }}>
+    <div className="flex flex-col lg:h-full">
       <TopBar
         title="Order Workspace"
         subtitle={isEditMode ? `Editing ${editOrder.order_number ?? 'order'}` : 'Create orders fast — form stays open'}
       />
 
-      <div className="flex gap-5 p-5 pt-4 flex-1 min-h-0" style={{ overflow: 'hidden' }}>
+      <div className="flex flex-col lg:flex-row gap-5 p-4 lg:p-5 pt-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
         {/* ── LEFT: Create / Edit panel (≈70%) ──────────────────────────────── */}
         <div className="flex-1 min-w-0 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
@@ -437,7 +437,7 @@ export default function OrdersPage() {
               {/* ── Buyer ── */}
               <div className="form-section" style={{ animationDelay: '0.04s' }}>
                 <SectionLabel>Buyer</SectionLabel>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
                       Name / GCash Name
@@ -592,7 +592,7 @@ export default function OrdersPage() {
               {/* ── Order details ── */}
               <div className="form-section" style={{ animationDelay: '0.19s' }}>
                 <SectionLabel>Order Details</SectionLabel>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
                       Payment Method
@@ -683,8 +683,8 @@ export default function OrdersPage() {
 
         {/* ── RIGHT: Activity panel (≈30%) ──────────────────────────────────── */}
         <div
-          className="flex-shrink-0 flex flex-col gap-4 overflow-y-auto"
-          style={{ width: '320px', scrollbarWidth: 'thin' }}
+          className="w-full lg:w-80 lg:flex-shrink-0 flex flex-col gap-4 lg:overflow-y-auto"
+          style={{ scrollbarWidth: 'thin' }}
         >
 
           {/* Active orders */}

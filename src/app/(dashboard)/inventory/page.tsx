@@ -217,7 +217,7 @@ export default function InventoryPage() {
                       </td>
                       <td>
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground transition-opacity">
+                          <DropdownMenuTrigger className="sm:opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground transition-opacity">
                             <MoreHorizontal className="w-4 h-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border-border">

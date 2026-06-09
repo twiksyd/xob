@@ -222,7 +222,7 @@ export default function OverallSalesPage() {
             boxShadow: '0 0 36px rgba(244,63,94,0.14), 0 4px 20px rgba(244,63,94,0.08), inset 0 1px 0 rgba(244,63,94,0.18)',
           }}
         >
-          <div className="px-5 py-3.5 flex items-center justify-between gap-4">
+          <div className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0 w-3 h-3">
                 <span className="absolute inset-0 rounded-full animate-ping" style={{ background: 'rgba(244,63,94,0.55)' }} />
@@ -245,7 +245,7 @@ export default function OverallSalesPage() {
         </div>
 
         {/* ── Summary Cards ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3.5 flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0">
           <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Completed Revenue</p>
             <RevenueValue amount={totalRevenue} color="oklch(0.10 0.030 272)" />

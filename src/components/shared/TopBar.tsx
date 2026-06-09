@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, Search, Plus } from 'lucide-react'
+import { Bell, Search, Plus, Menu } from 'lucide-react'
+import { useMobileNav } from './MobileNavContext'
 
 interface TopBarProps {
   title: string
@@ -17,9 +18,11 @@ export default function TopBar({
   searchPlaceholder, searchValue, onSearchChange,
   actionLabel, onActionClick,
 }: TopBarProps) {
+  const { open } = useMobileNav()
+
   return (
     <header
-      className="flex items-center h-[60px] px-6 gap-4 flex-shrink-0 sticky top-0 z-10"
+      className="flex items-center h-[60px] px-4 sm:px-6 gap-3 sm:gap-4 flex-shrink-0 sticky top-0 z-10"
       style={{
         background: 'rgba(240,236,255,0.80)',
         backdropFilter: 'blur(28px) saturate(180%)',
@@ -28,8 +31,22 @@ export default function TopBar({
         boxShadow: '0 1px 0 rgba(255,255,255,0.60) inset, 0 1px 16px rgba(139,92,246,0.06)',
       }}
     >
+      {/* Hamburger — mobile only (lg+ shows the sidebar inline) */}
+      <button
+        onClick={open}
+        aria-label="Open navigation menu"
+        className="lg:hidden flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-colors"
+        style={{
+          background: 'rgba(255,255,255,0.70) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16)) border-box',
+          border: '1px solid transparent',
+          color: 'oklch(0.32 0.18 220)',
+        }}
+      >
+        <Menu className="w-[18px] h-[18px]" />
+      </button>
+
       {/* Left */}
-      <div className="flex-shrink-0 min-w-[160px]">
+      <div className="flex-shrink-0 min-w-0">
         <h1 className="text-[15px] font-bold tracking-tight leading-tight" style={{ color: 'oklch(0.10 0.030 272)' }}>
           {title}
         </h1>
@@ -40,8 +57,8 @@ export default function TopBar({
         )}
       </div>
 
-      {/* Center — search */}
-      <div className="flex-1 flex justify-center">
+      {/* Center — search (hidden on mobile, visible sm+) */}
+      <div className="hidden sm:flex flex-1 justify-center">
         {searchPlaceholder && (
           <div
             className="relative flex items-center w-full max-w-[440px]"
