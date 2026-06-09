@@ -22,7 +22,7 @@ const INCOME_CATEGORIES = ['Sale', 'Bonus', 'Deposit', 'Other']
 const EXPENSE_CATEGORIES = ['Robux Purchase', 'Operating Cost', 'Refund Issued', 'Withdrawal', 'Other']
 
 const TT = {
-  backgroundColor: 'rgba(255,255,255,0.97)',
+  backgroundColor: 'rgba(255,255,255,0.90)',
   border: '1px solid rgba(139,92,246,0.15)',
   borderRadius: '12px',
   color: 'oklch(0.10 0.030 272)',
@@ -144,10 +144,10 @@ export default function WalletPage() {
         <div
           className="rounded-2xl p-6"
           style={{
-            background: 'rgba(255,255,255,0.92) padding-box, linear-gradient(135deg, rgba(34,211,238,0.38), rgba(167,139,250,0.28), rgba(232,121,249,0.18)) border-box',
+            background: 'rgba(255,255,255,0.82) padding-box, linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.22), rgba(232,121,249,0.14)) border-box',
             border: '1px solid transparent',
-            backdropFilter: 'blur(20px) saturate(160%)',
-            boxShadow: '0 4px 32px rgba(34,211,238,0.10), 0 8px 48px rgba(139,92,246,0.06)',
+            backdropFilter: 'blur(24px) saturate(170%)',
+            boxShadow: '0 4px 32px rgba(34,211,238,0.08), 0 8px 48px rgba(139,92,246,0.05), inset 0 0 0 1px rgba(255,255,255,0.22)',
           }}
         >
           <div className="flex items-start justify-between">
@@ -224,7 +224,7 @@ export default function WalletPage() {
               key={label}
               className="summary-card"
               style={{
-                background: `rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, ${accent}42, rgba(34,211,238,0.18)) border-box`,
+                background: `rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, ${accent}38, rgba(34,211,238,0.14)) border-box`,
                 border: '1px solid transparent',
               }}
             >

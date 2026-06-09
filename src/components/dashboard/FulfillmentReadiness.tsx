@@ -55,7 +55,7 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
     .slice(0, 4)
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-elevated overflow-hidden">
       <div className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">

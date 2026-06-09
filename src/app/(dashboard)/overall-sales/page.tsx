@@ -246,15 +246,15 @@ export default function OverallSalesPage() {
 
         {/* ── Summary Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-3.5 flex-shrink-0">
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Completed Revenue</p>
             <RevenueValue amount={totalRevenue} color="oklch(0.10 0.030 272)" />
           </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Profit</p>
             <p className="stat-value" style={{ color: '#22d3ee', filter: BLUR, userSelect: 'none' }}>₱{totalProfit.toFixed(2)}</p>
           </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.90) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Orders</p>
             <p className="stat-value" style={{ color: '#f59e0b' }}>{sales.length}</p>
           </div>

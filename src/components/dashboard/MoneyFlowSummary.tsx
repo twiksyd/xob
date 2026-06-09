@@ -53,7 +53,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
   }
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-elevated p-5">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2.5">
           <div

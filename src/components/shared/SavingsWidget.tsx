@@ -192,7 +192,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
 
   if (compact) {
     return (
-      <div className="glass-card p-4">
+      <div className="glass-elevated p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5">
             <PiggyBank className="w-3.5 h-3.5" style={{ color: '#34d399', filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.5))' }} />
@@ -222,7 +222,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
 
   // Full mode
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-elevated overflow-hidden">
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-4"

@@ -71,7 +71,7 @@
 
   /* ── Muted backgrounds & text ────────────────── */
   --muted:             oklch(0.955 0.010 258);
-  --muted-foreground:  oklch(0.48  0.016 265);
+  --muted-foreground:  oklch(0.42  0.014 265);  /* raised from 0.48 — glass contrast floor */
 
   /* ── Hover accent ────────────────────────────── */
   --accent:            oklch(0.948 0.013 258);
@@ -125,7 +125,7 @@
   --secondary:         oklch(0.950 0.012 258);
   --secondary-foreground:oklch(0.26 0.024 265);
   --muted:             oklch(0.955 0.010 258);
-  --muted-foreground:  oklch(0.48  0.016 265);
+  --muted-foreground:  oklch(0.42  0.014 265);  /* raised from 0.48 — glass contrast floor */
   --accent:            oklch(0.948 0.013 258);
   --accent-foreground: oklch(0.16  0.024 265);
   --destructive:       oklch(0.58  0.22  25);
@@ -215,7 +215,7 @@
 .ambient-orb-1 {
   width: 800px;
   height: 800px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.11) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 60%);
   top: -280px;
   left: -240px;
   animation: orb-drift-1 28s ease-in-out infinite;
@@ -223,7 +223,7 @@
 .ambient-orb-2 {
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle, rgba(232, 121, 249, 0.085) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(232, 121, 249, 0.11) 0%, transparent 60%);
   bottom: -240px;
   right: -180px;
   animation: orb-drift-2 34s ease-in-out infinite;
@@ -231,7 +231,7 @@
 .ambient-orb-3 {
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.065) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.085) 0%, transparent 60%);
   top: 35%;
   left: 32%;
   animation: orb-drift-3 22s ease-in-out infinite;
@@ -270,45 +270,62 @@
   background-size: 256px 256px;
 }
 
-/* ─── Glass card — premium floating panel ────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   GLASS HIERARCHY — 5-tier depth system
+   T1 Background · T2 Standard · T3 Elevated · T4 Floating · T5 Workspace
+   Container Rule: backdrop-filter only on containers & singleton widgets,
+   never on individual list/grid items (perf: 100 blurs = GPU memory spike).
+═══════════════════════════════════════════════════════════════ */
+
+/* ─── T2 Standard Glass — default card surface ───────────────── */
 .glass-card {
   background:
-    rgba(255, 255, 255, 0.92) padding-box,
-    linear-gradient(140deg, rgba(139,92,246,0.22), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box;
+    rgba(255, 255, 255, 0.72) padding-box,
+    linear-gradient(140deg, rgba(139,92,246,0.18), rgba(34,211,238,0.12) 55%, rgba(232,121,249,0.08)) border-box;
   border: 1px solid transparent;
-  backdrop-filter: blur(24px) saturate(170%);
-  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  /* No backdrop-filter: Container Rule — this class is used on list items (AccountCard etc.) */
   border-radius: 16px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),   /* top inner light edge */
-    0 1px 2px  rgba(15, 13, 42, 0.04),           /* crisp contact shadow */
-    0 4px 16px rgba(139, 92, 246, 0.065),        /* mid diffusion */
-    0 16px 48px rgba(15, 13, 42, 0.055);         /* far atmospheric shadow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    0 1px 2px  rgba(15, 13, 42, 0.028),
+    0 4px 14px rgba(139, 92, 246, 0.048),
+    0 14px 40px rgba(15, 13, 42, 0.038);
   transition: box-shadow 0.22s ease, transform 0.22s ease;
 }
 .glass-card:hover {
   transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 1px 2px  rgba(15, 13, 42, 0.05),
-    0 6px 24px rgba(139, 92, 246, 0.095),
-    0 20px 56px rgba(15, 13, 42, 0.07);
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 2px 4px  rgba(15, 13, 42, 0.038),
+    0 6px 20px rgba(139, 92, 246, 0.072),
+    0 18px 48px rgba(15, 13, 42, 0.052);
 }
 
-/* Elevated surface (modals, dropdowns) */
+/* ─── T3 Elevated Glass — metric widgets, key decision surfaces ─ */
 .glass-elevated {
   background:
-    rgba(255, 255, 255, 0.97) padding-box,
-    linear-gradient(140deg, rgba(139,92,246,0.32), rgba(34,211,238,0.24) 55%, rgba(232,121,249,0.20)) border-box;
+    rgba(255, 255, 255, 0.82) padding-box,
+    linear-gradient(140deg, rgba(139,92,246,0.24), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.10)) border-box;
   border: 1px solid transparent;
-  backdrop-filter: blur(32px) saturate(190%);
-  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
   border-radius: 20px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 2px 8px  rgba(15, 13, 42, 0.06),
-    0 8px 32px rgba(139, 92, 246, 0.10),
-    0 24px 64px rgba(15, 13, 42, 0.12);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.92),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),  /* inner rim — lens quality */
+    0 2px 6px  rgba(15, 13, 42, 0.042),
+    0 8px 28px rgba(139, 92, 246, 0.082),
+    0 20px 52px rgba(15, 13, 42, 0.055);
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+.glass-elevated:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 4px 10px rgba(15, 13, 42, 0.052),
+    0 12px 36px rgba(139, 92, 246, 0.108),
+    0 28px 64px rgba(15, 13, 42, 0.070);
 }
 
 /* ─── Stat metric value ─────────────────────────────────────── */
@@ -328,7 +345,7 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: oklch(0.48 0.016 265);
+  color: oklch(0.42 0.014 265);  /* raised from 0.48 — passes AA on glass surfaces */
 }
 
 /* ─── Sidebar nav active (light sidebar) ────────────────────── */
@@ -435,10 +452,10 @@
   white-space: nowrap;
 }
 .data-table tbody tr:nth-child(even) {
-  background: rgba(139, 92, 246, 0.014);
+  background: rgba(139, 92, 246, 0.032);  /* increased from 0.014 — visible on glass */
 }
 .data-table tbody tr:hover {
-  background: rgba(34, 211, 238, 0.038) !important;
+  background: rgba(34, 211, 238, 0.058) !important;  /* increased from 0.038 */
 }
 .data-table tbody td {
   padding: 14px 16px;
@@ -458,27 +475,27 @@
   transform: translateY(-2px) scale(1.01);
 }
 
-/* ─── Mini summary card ─────────────────────────────────────── */
+/* ─── T2 Mini summary card (no blur — Container Rule) ────────── */
 .summary-card {
   background:
-    rgba(255, 255, 255, 0.93) padding-box,
-    linear-gradient(140deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box;
+    rgba(255, 255, 255, 0.74) padding-box,
+    linear-gradient(140deg, rgba(139,92,246,0.18), rgba(34,211,238,0.13) 55%, rgba(232,121,249,0.09)) border-box;
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 18px 20px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    0 2px 12px rgba(139, 92, 246, 0.055),
-    0 8px 28px rgba(15, 13, 42, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 2px 10px rgba(139, 92, 246, 0.050),
+    0 8px 24px rgba(15, 13, 42, 0.035);
   animation: summary-glow-breathe 8s ease-in-out infinite;
   transition: transform 0.20s ease, box-shadow 0.20s ease;
 }
 .summary-card:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 4px 20px rgba(139, 92, 246, 0.085),
-    0 12px 40px rgba(15, 13, 42, 0.065);
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 4px 18px rgba(139, 92, 246, 0.078),
+    0 12px 36px rgba(15, 13, 42, 0.055);
 }
 
 /* ─── Metric view toggle ────────────────────────────────────── */
@@ -638,37 +655,34 @@ input:focus, textarea:focus, select:focus {
    WORKSPACE SURFACE SYSTEM — Orders page art direction
 ═══════════════════════════════════════════════════════════════ */
 
-/* ─── Primary workspace panel — dominant, elevated ───────────── */
+/* ─── T3+ Workspace panel — dominant, elevated (Orders page etc) */
 .glass-workspace {
   background:
-    rgba(255, 255, 255, 0.95) padding-box,
-    linear-gradient(150deg, rgba(139,92,246,0.30), rgba(34,211,238,0.22) 48%, rgba(232,121,249,0.17)) border-box;
+    rgba(255, 255, 255, 0.86) padding-box,
+    linear-gradient(150deg, rgba(139,92,246,0.26), rgba(34,211,238,0.18) 48%, rgba(232,121,249,0.10)) border-box;
   border: 1px solid transparent;
   backdrop-filter: blur(28px) saturate(185%);
   -webkit-backdrop-filter: blur(28px) saturate(185%);
   border-radius: 18px;
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.97),   /* key top-edge light */
-    inset 0 0 0 1px rgba(255, 255, 255, 0.38),    /* inner rim */
-    0 1px 3px  rgba(15, 13, 42, 0.048),
-    0 6px 28px rgba(139, 92, 246, 0.090),
-    0 22px 60px rgba(15, 13, 42, 0.065);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.40),
+    0 2px 4px  rgba(15, 13, 42, 0.042),
+    0 8px 32px rgba(139, 92, 246, 0.088),
+    0 24px 64px rgba(15, 13, 42, 0.062);
 }
 
-/* ─── Secondary panel — recessed, supporting ─────────────────── */
+/* ─── T1 Background Glass — recessed, inner sections ─────────── */
 .glass-secondary {
   background:
-    rgba(255, 255, 255, 0.84) padding-box,
-    linear-gradient(140deg, rgba(139,92,246,0.14), rgba(34,211,238,0.10) 55%, rgba(232,121,249,0.08)) border-box;
+    rgba(255, 255, 255, 0.44) padding-box,
+    linear-gradient(140deg, rgba(139,92,246,0.12), rgba(34,211,238,0.08) 55%, rgba(232,121,249,0.05)) border-box;
   border: 1px solid transparent;
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border-radius: 16px;
+  /* No backdrop-filter: sits inside glass-workspace/elevated which already blurs */
+  border-radius: 14px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 1px 2px  rgba(15, 13, 42, 0.028),
-    0 4px 14px rgba(139, 92, 246, 0.046),
-    0 12px 36px rgba(15, 13, 42, 0.038);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 3px rgba(15, 13, 42, 0.020);
 }
 
 /* ─── Illuminated section divider ────────────────────────────── */
@@ -780,4 +794,63 @@ input:focus, textarea:focus, select:focus {
 }
 .form-section {
   animation: section-enter 0.30s ease both;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   T4 FLOATING GLASS — dropdowns, selects, context menus
+   Appears above the surface plane; world is visible but blurred.
+═══════════════════════════════════════════════════════════════ */
+.glass-floating {
+  background: rgba(255, 255, 255, 0.90) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 8px  rgba(15, 13, 42, 0.055),
+    0 8px 28px rgba(139, 92, 246, 0.095),
+    0 20px 48px rgba(15, 13, 42, 0.075) !important;
+}
+
+/* T4 via data-slot — targets Base UI select/dropdown without component edits */
+[data-slot="select-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  background: rgba(255, 255, 255, 0.90) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 8px  rgba(15, 13, 42, 0.055),
+    0 8px 28px rgba(139, 92, 246, 0.095),
+    0 20px 48px rgba(15, 13, 42, 0.075) !important;
+  ring: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   T5 WORKSPACE GLASS — modals, dialogs, command surfaces
+   World recedes. This is where focused work happens.
+═══════════════════════════════════════════════════════════════ */
+.glass-modal {
+  background:
+    rgba(255, 255, 255, 0.94) padding-box,
+    linear-gradient(140deg, rgba(139,92,246,0.32), rgba(34,211,238,0.24) 55%, rgba(232,121,249,0.18)) border-box;
+  border: 1px solid transparent;
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.99),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+    0 4px 16px rgba(15, 13, 42, 0.065),
+    0 12px 48px rgba(139, 92, 246, 0.120),
+    0 36px 80px rgba(15, 13, 42, 0.130);
+}
+
+/* T5 modal backdrop — world blurs and darkens when dialog opens */
+.glass-modal-overlay {
+  background: rgba(8, 4, 24, 0.32);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
