@@ -133,7 +133,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
           </div>
 
           {/* Game filter chips */}
-          <div className="flex gap-1.5 px-2 py-2 overflow-x-auto border-b border-border/40 scrollbar-none">
+          <div className="flex flex-wrap gap-1.5 px-2 py-2 border-b border-border/40">
             <button
               type="button"
               onClick={() => setFilterGame('all')}
