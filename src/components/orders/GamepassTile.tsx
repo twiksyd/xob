@@ -26,7 +26,7 @@ export default function GamepassTile({ gamepass, quantity, onAdd, onRemove }: Ga
       }}
       title={inCart ? 'Click to add — right-click to remove' : undefined}
       className={cn(
-        'relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all',
+        'relative flex w-full min-w-0 flex-col gap-2 p-3 rounded-2xl border text-left transition-all',
         inCart
           ? 'bg-primary/8 border-primary/35'
           : 'bg-secondary/35 border-border/35 hover:border-primary/25 hover:bg-accent/20'
