@@ -53,6 +53,9 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
       } else if (lower.includes('no tax')) {
         key = `${key}::not-covered-tax`
         name = 'Not Covered Tax'
+      } else if (/^rp\s*[\d,]/.test(lower)) {
+        key = `${key}::in-game-currency`
+        name = `${gp.games?.name ?? 'Other'} — In-Game Currency`
       }
       if (!map.has(key)) {
         map.set(key, { name, color: accent, items: [] })
