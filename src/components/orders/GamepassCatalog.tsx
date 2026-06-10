@@ -89,7 +89,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
 
       {/* Game filter chips */}
       {games.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+        <div className="flex flex-wrap gap-1.5 pb-0.5">
           <button
             type="button"
             onClick={() => setFilterGame('all')}
@@ -122,7 +122,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
       )}
 
       {/* Grid grouped by game */}
-      <div className="space-y-4 max-h-[420px] overflow-y-auto pr-0.5" style={{ scrollbarWidth: 'thin' }}>
+      <div className="space-y-4 max-h-[420px] overflow-y-auto overscroll-contain pr-0.5" style={{ scrollbarWidth: 'thin' }}>
         {grouped.length === 0 ? (
           <p className="text-center text-[12px] py-8" style={{ color: 'oklch(0.62 0.010 265)' }}>
             No gamepasses found

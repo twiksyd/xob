@@ -87,7 +87,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
         </p>
       ) : (
         <>
-          <div className="flex items-stretch gap-1.5 mt-4 overflow-x-auto pb-1">
+          <div className="flex items-stretch gap-1.5 mt-4 overflow-x-auto overscroll-x-contain pb-1">
             {STAGES.map((stage, i) => {
               const v = values[stage.key]
               const isNegativeFlow = stage.key === 'cost' || stage.key === 'savings'

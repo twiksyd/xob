@@ -164,7 +164,7 @@ export default function GamepassPicker({ gamepasses, value, onChange, error }: G
           </div>
 
           {/* Results — internal scroll, max height to keep form usable */}
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto overscroll-contain">
             {filtered.length === 0 ? (
               <p className="text-center text-xs text-muted-foreground py-8">No gamepasses found</p>
             ) : (

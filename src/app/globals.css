@@ -155,13 +155,19 @@
 /* ─── Base ──────────────────────────────────────────────────── */
 @layer base {
   * { @apply border-border outline-ring/50; }
-  html { @apply font-sans; color-scheme: light; }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+    width: 100%;
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 14px;
     line-height: 1.55;
+    width: 100%;
     overflow-x: hidden;
   }
 }

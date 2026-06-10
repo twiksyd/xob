@@ -373,7 +373,7 @@ export default function AccountsPage() {
                     border: '1px solid transparent',
                   }}
                 >
-                  <div className="flex items-center gap-5 px-5 py-3">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3">
                     {/* Count */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <CheckSquare className="w-4 h-4" style={{ color: '#22d3ee' }} />

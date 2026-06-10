@@ -390,7 +390,7 @@ export default function OrdersPage() {
       <div className="flex flex-col lg:flex-row gap-5 p-4 lg:p-5 pt-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
         {/* ── LEFT: Create / Edit panel (≈70%) ──────────────────────────────── */}
-        <div className="flex-1 min-w-0 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex-1 min-w-0 lg:overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
           <div className="glass-workspace overflow-hidden">
 
             {/* Panel header */}
