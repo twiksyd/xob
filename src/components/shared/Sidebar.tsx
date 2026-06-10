@@ -182,6 +182,19 @@ export default function Sidebar() {
           style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }}
         />
 
+        {/* Logo animation */}
+        <div className={cn('relative px-3 pb-2', collapsed && 'hidden lg:hidden')}>
+          <video
+            src="/animation.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full aspect-video rounded-xl object-cover opacity-50"
+            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          />
+        </div>
+
         {/* Sign Out */}
         <div className="relative px-3 pb-5">
           <button
