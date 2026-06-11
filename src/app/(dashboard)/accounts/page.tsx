@@ -8,7 +8,8 @@ import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountCard from '@/components/accounts/AccountCard'
 import AccountModal, { parseRobloxUserId } from '@/components/accounts/AccountModal'
-import { RobloxAccount, ReservationWithDetails } from '@/lib/types/database'
+import LiquidationForecast from '@/components/accounts/LiquidationForecast'
+import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +27,8 @@ const LS_MODE     = 'xob-stats-mode'
 export default function AccountsPage() {
   const [accounts, setAccounts]         = useState<RobloxAccount[]>([])
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
+  const [completedOrders, setCompletedOrders] = useState<OrderWithItems[]>([])
+  const [walletBalance, setWalletBalance] = useState(0)
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)
   const [modalOpen, setModalOpen]       = useState(false)
@@ -61,15 +64,19 @@ export default function AccountsPage() {
   // ── Data ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [accRes, resRes] = await Promise.all([
+    const [accRes, resRes, ordersRes, walletRes] = await Promise.all([
       supabase.from('roblox_accounts').select('*').order('created_at', { ascending: true }),
       supabase.from('robux_reservations')
         .select('*, roblox_accounts(username), orders(order_number, buyer_name, status)')
         .eq('status', 'active')
         .order('created_at', { ascending: false }),
+      supabase.from('orders').select('*, order_items(*)').eq('status', 'completed'),
+      supabase.from('wallet_transactions').select('amount'),
     ])
     if (!accRes.error && accRes.data) setAccounts(accRes.data)
     if (!resRes.error && resRes.data)  setReservations(resRes.data as ReservationWithDetails[])
+    if (!ordersRes.error && ordersRes.data) setCompletedOrders(ordersRes.data as OrderWithItems[])
+    if (!walletRes.error && walletRes.data) setWalletBalance((walletRes.data as { amount: number }[]).reduce((s, t) => s + t.amount, 0))
     setLoading(false)
   }, [supabase])
 
@@ -216,6 +223,18 @@ export default function AccountsPage() {
       />
 
       <div className="p-5 space-y-5">
+
+        {/* ── Stock Liquidation Forecast ── */}
+        {loading ? (
+          <div className="glass-elevated p-5 h-64 animate-pulse" />
+        ) : (
+          <LiquidationForecast
+            accounts={accounts}
+            selectedIds={selectedIds}
+            completedOrders={completedOrders}
+            walletBalance={walletBalance}
+          />
+        )}
 
         {/* ── Stats mode toggle + stat cards ── */}
         <div className="space-y-3">
