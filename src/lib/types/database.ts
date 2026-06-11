@@ -160,6 +160,7 @@ export type Database = {
           paid_at: string | null
           delivered_at: string | null
           completed_at: string | null
+          refunded_at: string | null
           created_at: string
           updated_at: string
         }
@@ -290,6 +291,7 @@ export type OrderWithDetails = Order & {
   roblox_accounts: RobloxAccount | null
   order_items: OrderItem[]
 }
+export type OrderWithItems = Order & { order_items: OrderItem[] }
 export type WalletTransaction = Database['public']['Tables']['wallet_transactions']['Row']
 export type TransactionWithOrder = Transaction & { orders: Order | null }
 
@@ -331,6 +333,19 @@ export type SavingsTransaction = {
   amount: number
   type: 'allocation' | 'reversal'
   description: string | null
+  created_at: string
+}
+
+export type OrderReassignment = {
+  id: string
+  user_id: string
+  order_id: string
+  from_account_id: string | null
+  from_account_username: string
+  to_account_id: string | null
+  to_account_username: string
+  robux_amount: number
+  order_status_at_time: string
   created_at: string
 }
 

@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { RobloxAccount } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -225,6 +226,17 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
           {account.notes}
         </p>
       )}
+
+      <Link
+        href={`/accounts/${account.id}`}
+        onClick={e => e.stopPropagation()}
+        className="flex items-center justify-center gap-1.5 pt-2.5 text-[11px] font-bold transition-colors"
+        style={{ borderTop: '1px solid rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
+        onMouseEnter={e => e.currentTarget.style.color = '#0e7490'}
+        onMouseLeave={e => e.currentTarget.style.color = 'oklch(0.48 0.016 265)'}
+      >
+        View Ledger <ArrowRight className="w-3 h-3" />
+      </Link>
     </div>
   )
 }
