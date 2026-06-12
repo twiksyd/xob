@@ -58,8 +58,6 @@ BEGIN
   );
 
   -- Keyboard Escape | Candy & Chocolate gamepasses
-  -- NOTE: a 5th item ("1 pack", suggested lower price -5) was in the source data
-  -- but is missing its Robux Amount / Your Price, so it is not included here.
   INSERT INTO public.gamepasses (user_id, game_id, name, robux_amount, competitor_price, your_price, robux_rate, your_cost, profit, status, suggested_lower_price)
   SELECT v_user_id, v_kbescape, v.name, v.robux_amount, 0, v.your_price, 230, v.your_cost, v.profit, v.status, -5
   FROM (VALUES
