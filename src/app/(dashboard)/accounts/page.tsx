@@ -20,9 +20,10 @@ import {
   CheckSquare, Square, Zap, RefreshCw, Archive,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { springToggle } from '@/lib/motion'
+import { springToggle, fadeUpVariants } from '@/lib/motion'
 
 type StatsMode = 'all' | 'selected'
+type PageTab = 'accounts' | 'planning'
 
 const LS_SELECTED = 'xob-selected-accounts'
 const LS_MODE     = 'xob-stats-mode'
@@ -38,6 +39,7 @@ export default function AccountsPage() {
   const [editAccount, setEditAccount]   = useState<RobloxAccount | null>(null)
   const [resExpanded, setResExpanded]   = useState(true)
   const [depletedExpanded, setDepletedExpanded] = useState(false)
+  const [pageTab, setPageTab]           = useState<PageTab>('accounts')
   const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 
   // ── Selection state ────────────────────────────────────────────────────────
@@ -239,6 +241,28 @@ export default function AccountsPage() {
 
       <div className="p-5 space-y-5">
 
+        {/* ── Page section toggle ── */}
+        <div className="metric-toggle w-full">
+          {(['accounts', 'planning'] as PageTab[]).map(t => (
+            <button
+              key={t}
+              onClick={() => setPageTab(t)}
+              className={`metric-toggle-btn flex-1 ${pageTab === t ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive'}`}
+            >
+              {pageTab === t && (
+                <motion.div layoutId="page-tab-bg" className="metric-toggle-bg" transition={springToggle} />
+              )}
+              <span className="relative z-10">
+                {t === 'accounts' ? 'Accounts' : 'Planning'}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+        {pageTab === 'planning' ? (
+        <motion.div key="planning" variants={fadeUpVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
+
         {/* ── Stock Liquidation Forecast ── */}
         {loading ? (
           <div className="glass-elevated p-5 h-64 animate-pulse" />
@@ -271,6 +295,10 @@ export default function AccountsPage() {
             walletBalance={walletBalance}
           />
         )}
+
+        </motion.div>
+        ) : (
+        <motion.div key="accounts" variants={fadeUpVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
 
         {/* ── Stats mode toggle + stat cards ── */}
         <div className="space-y-3">
@@ -732,6 +760,10 @@ export default function AccountsPage() {
             </AnimatePresence>
           </div>
         )}
+
+        </motion.div>
+        )}
+        </AnimatePresence>
 
       </div>
 
