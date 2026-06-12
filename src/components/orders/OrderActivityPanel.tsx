@@ -12,8 +12,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { OrderWithDetails } from '@/lib/types/database'
-import { formatPHP } from '@/lib/utils/pricing'
-import { isActiveOrder, isHistoryOrder, isStaleOrder } from '@/lib/utils/orders'
+import { formatPHP, formatRobux } from '@/lib/utils/pricing'
+import { isActiveOrder, isHistoryOrder, isStaleOrder, groupOrderItems } from '@/lib/utils/orders'
+import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 
 const STATUS_FLOW: Record<string, string> = { pending: 'paid', paid: 'completed' }
 
@@ -45,6 +46,7 @@ export default function OrderActivityPanel({
   const activeOrders  = useMemo(() => orders.filter(isActiveOrder), [orders])
   const historyOrders = useMemo(() => orders.filter(isHistoryOrder), [orders])
   const [now] = useState(() => Date.now())
+  const [inspectOrder, setInspectOrder] = useState<OrderWithDetails | null>(null)
 
   return (
     <div
@@ -94,6 +96,7 @@ export default function OrderActivityPanel({
                 : order.gamepasses
                   ? [{ gamepass_name: order.gamepasses.name }]
                   : []
+              const itemGroups = groupOrderItems(order)
 
               return (
                 <motion.div
@@ -103,8 +106,9 @@ export default function OrderActivityPanel({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
                   transition={{ duration: 0.18 }}
-                  className="relative order-row-shimmer"
+                  className="relative order-row-shimmer group cursor-pointer"
                   style={{ borderBottom: '1px solid rgba(15,13,42,0.042)' }}
+                  onClick={() => setInspectOrder(order)}
                 >
                   {/* Left accent */}
                   <div
@@ -131,7 +135,7 @@ export default function OrderActivityPanel({
                       </div>
                       <div className="flex items-center gap-0.5">
                         <button
-                          onClick={() => onEdit(order)}
+                          onClick={(e) => { e.stopPropagation(); onEdit(order) }}
                           className="w-6 h-6 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                         >
                           <Edit2 className="w-3 h-3" />
@@ -139,6 +143,7 @@ export default function OrderActivityPanel({
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             disabled={isBusy}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-6 h-6 rounded-md hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -189,7 +194,7 @@ export default function OrderActivityPanel({
                       </span>
                       {action && nextStatus && (
                         <button
-                          onClick={() => onStatusChange(order, nextStatus)}
+                          onClick={(e) => { e.stopPropagation(); onStatusChange(order, nextStatus) }}
                           disabled={isBusy}
                           className="h-7 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all disabled:opacity-40 flex-shrink-0"
                           style={{ background: action.bg, color: action.color, border: `1px solid ${action.border}` }}
@@ -199,6 +204,40 @@ export default function OrderActivityPanel({
                             : action.label}
                         </button>
                       )}
+                    </div>
+
+                    {/* Hover preview — quick inspection without opening the dialog */}
+                    <div className="max-h-0 group-hover:max-h-40 overflow-hidden transition-all duration-200 ease-out">
+                      <div className="mt-2.5 pt-2.5 space-y-1.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+                        {itemGroups.slice(0, 3).map((g, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 text-[10px]">
+                            <span className="truncate" style={{ color: 'oklch(0.40 0.020 270)' }}>
+                              {g.gamepass_name}
+                              <span style={{ color: 'oklch(0.55 0.010 265)' }}> ×{g.count}</span>
+                            </span>
+                            <span className="font-semibold tabular-nums flex-shrink-0" style={{ color: 'oklch(0.30 0.020 270)' }}>
+                              {formatPHP(g.subtotal)}
+                            </span>
+                          </div>
+                        ))}
+                        {itemGroups.length > 3 && (
+                          <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                            +{itemGroups.length - 3} more item{itemGroups.length - 3 > 1 ? 's' : ''}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-2 text-[10px]">
+                          <span style={{ color: 'oklch(0.55 0.010 265)' }}>Account</span>
+                          <span className="font-semibold truncate" style={{ color: 'oklch(0.30 0.020 270)' }}>
+                            {order.roblox_accounts?.username ?? '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-[10px]">
+                          <span style={{ color: 'oklch(0.55 0.010 265)' }}>Total</span>
+                          <span className="font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                            {formatRobux(order.robux_amount ?? 0)} · {formatPHP(order.selling_price ?? 0)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -314,6 +353,12 @@ export default function OrderActivityPanel({
           </AnimatePresence>
         </div>
       )}
+
+      <OrderInspectDialog
+        order={inspectOrder}
+        onClose={() => setInspectOrder(null)}
+        onEdit={onEdit}
+      />
     </div>
   )
 }
