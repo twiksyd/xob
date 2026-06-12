@@ -2,62 +2,19 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import TopBar from '@/components/shared/TopBar'
-import StatusBadge from '@/components/shared/StatusBadge'
-import GamepassCatalog from '@/components/orders/GamepassCatalog'
-import AccountSelector from '@/components/inventory/AccountSelector'
-import { Gamepass, Game, RobloxAccount, LineItem, OrderWithDetails } from '@/lib/types/database'
+import OrderSummary from '@/components/orders/OrderSummary'
+import OrderForm, { orderFormSchema, OrderFormData, GamepassWithGame } from '@/components/orders/OrderForm'
+import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
+import { useOrderCart } from '@/hooks/useOrderCart'
+import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Plus, Minus, MoreHorizontal, Edit2, Trash2, X, ChevronDown, CheckCircle2, ArrowRight,
-} from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-
-type GamepassWithGame = Gamepass & { games: Game | null }
-
-const STATUS_FLOW: Record<string, string> = { pending: 'paid', paid: 'completed' }
-
-const ACTION_CFG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  pending: { label: 'Mark Paid',  bg: 'rgba(245,158,11,0.09)',  color: '#b45309', border: 'rgba(245,158,11,0.24)' },
-  paid:    { label: 'Complete',   bg: 'rgba(52,211,153,0.09)',  color: '#047857', border: 'rgba(52,211,153,0.24)' },
-}
-
-const STATUS_ACCENT: Record<string, string> = { pending: '#f59e0b', paid: '#22d3ee' }
+import { calculateOrderTotals } from '@/lib/utils/pricing'
+import { deductRobux, restoreRobux, creditWallet, reverseWallet } from '@/lib/orders/ledger'
 
 const PAGE_SIZE = 50
-
-const schema = z.object({
-  buyer_name:            z.string().optional(),
-  buyer_roblox_username: z.string().optional(),
-  roblox_account_id:     z.string().min(1, 'Select an account'),
-  payment_method:        z.enum(['GCash', 'Maya', 'Bank', 'Cash', 'Other']),
-  status:                z.enum(['pending', 'paid', 'completed', 'refunded', 'cancelled']),
-  notes:                 z.string().optional(),
-})
-type FormData = z.infer<typeof schema>
-
-// ─── Divider ─────────────────────────────────────────────────────────────────
-function Divider() {
-  return <div className="section-divider" />
-}
-
-// ─── Section label ────────────────────────────────────────────────────────────
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="section-label">{children}</p>
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function OrdersPage() {
@@ -72,42 +29,34 @@ export default function OrdersPage() {
   const [editOrder, setEditOrder]             = useState<OrderWithDetails | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [justCreated, setJustCreated]         = useState(false)
-  const [items, setItems]                     = useState<LineItem[]>([])
   const supabase = useMemo(() => createClient(), [])
+
+  const cart = useOrderCart(gamepasses)
 
   const {
     register, handleSubmit, reset, setValue, watch,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  } = useForm<OrderFormData>({
+    resolver: zodResolver(orderFormSchema),
     defaultValues: {
       buyer_name: '', buyer_roblox_username: '',
       roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '',
     },
   })
 
-  const accountId    = watch('roblox_account_id')
-  const payMethod    = watch('payment_method')
-  const statusVal    = watch('status')
-  const totalRobux   = items.reduce((s, i) => s + i.robux_amount, 0)
-  const totalPrice   = items.reduce((s, i) => s + i.selling_price, 0)
-  const validItems   = items.filter(i => i.gamepass_id)
-  const isEditMode   = editOrder !== null
+  const accountId  = watch('roblox_account_id')
+  const isEditMode = editOrder !== null
 
   // Account-level cost basis: use the selected account's rate if set
-  const accountRate  = useMemo(() => {
+  const accountRate = useMemo(() => {
     if (!accountId) return 0
     return accounts.find(a => a.id === accountId)?.robux_cost_rate ?? 0
   }, [accountId, accounts])
 
-  const totalCost = useMemo(() => {
-    if (accountRate > 0) {
-      return Math.round(items.reduce((s, i) => s + (i.robux_amount / 1000) * accountRate, 0) * 100) / 100
-    }
-    return items.reduce((s, i) => s + i.cost, 0)
-  }, [items, accountRate])
-
-  const totalProfit = totalPrice - totalCost
+  const totals = useMemo(
+    () => calculateOrderTotals(cart.items, accountRate),
+    [cart.items, accountRate]
+  )
 
   // ── Populate form when editing ──────────────────────────────────────────────
   useEffect(() => {
@@ -117,12 +66,12 @@ export default function OrdersPage() {
         buyer_roblox_username: editOrder.buyer_roblox_username ?? '',
         roblox_account_id:     editOrder.roblox_account_id ?? '',
         payment_method:        editOrder.payment_method,
-        status:                (editOrder.status === 'delivering' ? 'paid' : editOrder.status) as any,
+        status:                (editOrder.status === 'delivering' ? 'paid' : editOrder.status) as OrderFormData['status'],
         notes:                 editOrder.notes ?? '',
       })
       const oi = editOrder.order_items
       if (oi && oi.length > 0) {
-        setItems(oi.map(item => ({
+        cart.setItems(oi.map(item => ({
           _key: item.id,
           gamepass_id:    item.gamepass_id ?? '',
           gamepass_name:  item.gamepass_name,
@@ -133,7 +82,7 @@ export default function OrdersPage() {
           profit:         item.profit,
         })))
       } else {
-        setItems([{
+        cart.setItems([{
           _key:           'legacy',
           gamepass_id:    editOrder.gamepass_id ?? '',
           gamepass_name:  '',
@@ -146,56 +95,12 @@ export default function OrdersPage() {
       }
     } else {
       reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      setItems([])
+      cart.setItems([])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOrder, reset])
 
   function cancelEdit() { setEditOrder(null) }
-
-  // ── Cart helpers — catalog click adds/increments, cart panel removes ────────
-  function addToCart(gamepassId: string) {
-    const gp = gamepasses.find(g => g.id === gamepassId)
-    if (!gp) return
-    setItems(prev => [
-      ...prev.filter(i => i.gamepass_id),
-      {
-        _key:           Math.random().toString(36).slice(2),
-        gamepass_id:    gp.id,
-        gamepass_name:  gp.name,
-        game_name:      gp.games?.name ?? null,
-        robux_amount:   gp.robux_amount,
-        selling_price:  gp.your_price,
-        cost:           gp.your_cost,
-        profit:         gp.profit,
-      },
-    ])
-  }
-
-  function removeFromCart(gamepassId: string) {
-    setItems(prev => {
-      const idx = prev.map(i => i.gamepass_id).lastIndexOf(gamepassId)
-      if (idx === -1) return prev
-      return prev.filter((_, i) => i !== idx)
-    })
-  }
-
-  // Group cart line items by gamepass for display (one tile click = one unit)
-  const cartGroups = useMemo(() => {
-    const map = new Map<string, LineItem & { count: number }>()
-    items.forEach(item => {
-      if (!item.gamepass_id) return
-      const existing = map.get(item.gamepass_id)
-      if (existing) existing.count += 1
-      else map.set(item.gamepass_id, { ...item, count: 1 })
-    })
-    return Array.from(map.values())
-  }, [items])
-
-  const cartCounts = useMemo(() => {
-    const m = new Map<string, number>()
-    cartGroups.forEach(g => m.set(g.gamepass_id, g.count))
-    return m
-  }, [cartGroups])
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -237,41 +142,16 @@ export default function OrdersPage() {
     setLoadingMore(false)
   }, [supabase, hasMore, loadingMore, orders])
 
-  // ── Financial helpers ───────────────────────────────────────────────────────
-  async function deductRobux(acctId: string, amount: number) {
-    const { data: acc } = await supabase.from('roblox_accounts').select('current_robux').eq('id', acctId).single()
-    if (!acc) return
-    await supabase.from('roblox_accounts').update({ current_robux: Math.max(0, acc.current_robux - amount), updated_at: new Date().toISOString() }).eq('id', acctId)
-  }
-  async function restoreRobux(acctId: string, amount: number) {
-    const { data: acc } = await supabase.from('roblox_accounts').select('current_robux').eq('id', acctId).single()
-    if (!acc) return
-    await supabase.from('roblox_accounts').update({ current_robux: acc.current_robux + amount, updated_at: new Date().toISOString() }).eq('id', acctId)
-  }
-  async function creditWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null) {
-    if (amount <= 0) return
-    await supabase.from('wallet_transactions').insert({ user_id: userId, type: 'income', amount, category: 'Sale', description: `Order ${orderNum ?? ''} — ${buyer ?? 'Customer'}`, reference_order_id: orderId })
-  }
-  async function reverseWallet(userId: string, orderId: string, amount: number, orderNum: string | null, buyer: string | null, reason: 'Refund' | 'Cancellation') {
-    if (amount <= 0) return
-    await supabase.from('wallet_transactions').insert({ user_id: userId, type: 'expense', amount: -amount, category: reason === 'Refund' ? 'Refund Issued' : 'Cancellation', description: `${reason}: Order ${orderNum ?? ''} — ${buyer ?? 'Customer'}`, reference_order_id: orderId })
-  }
-
   // ── Submit ──────────────────────────────────────────────────────────────────
-  async function onSubmit(data: FormData) {
-    if (validItems.length === 0) return
+  async function onSubmit(data: OrderFormData) {
+    if (cart.validItems.length === 0) return
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    const tRobux    = validItems.reduce((s, i) => s + i.robux_amount, 0)
-    const tPrice    = validItems.reduce((s, i) => s + i.selling_price, 0)
-    const rateUsed  = accounts.find(a => a.id === data.roblox_account_id)?.robux_cost_rate ?? 0
-    const tCost     = rateUsed > 0
-      ? Math.round(validItems.reduce((s, i) => s + (i.robux_amount / 1000) * rateUsed, 0) * 100) / 100
-      : validItems.reduce((s, i) => s + i.cost, 0)
-    const tProfit   = tPrice - tCost
-    const first     = validItems[0]
+    const rateUsed = accounts.find(a => a.id === data.roblox_account_id)?.robux_cost_rate ?? 0
+    const { totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit } = calculateOrderTotals(cart.validItems, rateUsed)
+    const first = cart.validItems[0]
 
     if (editOrder) {
       const prevStatus = editOrder.status
@@ -285,26 +165,26 @@ export default function OrdersPage() {
         updated_at: new Date().toISOString(),
       }).eq('id', editOrder.id)
       await supabase.from('order_items').delete().eq('order_id', editOrder.id)
-      if (validItems.length > 0) {
-        await supabase.from('order_items').insert(validItems.map(item => ({
+      if (cart.validItems.length > 0) {
+        await supabase.from('order_items').insert(cart.validItems.map(item => ({
           order_id: editOrder.id, gamepass_id: item.gamepass_id || null,
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
         })))
       }
-      const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
+      const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
 
       if (prevStatus !== 'completed' && newStatus === 'completed') {
         // Deduct Robux + release reservation + credit wallet
-        if (data.roblox_account_id && tRobux > 0) await deductRobux(data.roblox_account_id, tRobux)
+        if (data.roblox_account_id && tRobux > 0) await deductRobux(supabase, data.roblox_account_id, tRobux)
         if (['pending', 'paid'].includes(prevStatus)) {
           await supabase.rpc('release_order_reservation', { p_order_id: editOrder.id })
         }
-        await creditWallet(user.id, editOrder.id, tPrice, editOrder.order_number ?? null, data.buyer_name || null)
+        await creditWallet(supabase, user.id, editOrder.id, tPrice, editOrder.order_number ?? null, data.buyer_name || null)
       } else if (prevStatus === 'completed' && newStatus !== 'completed') {
         // Restore Robux + reverse wallet (no reservation to release — was already released on completion)
-        if (editOrder.roblox_account_id && editOrder.robux_amount) await restoreRobux(editOrder.roblox_account_id, editOrder.robux_amount)
-        await reverseWallet(user.id, editOrder.id, editOrder.selling_price ?? 0, editOrder.order_number ?? null, editOrder.buyer_name ?? null, newStatus === 'refunded' ? 'Refund' : 'Cancellation')
+        if (editOrder.roblox_account_id && editOrder.robux_amount) await restoreRobux(supabase, editOrder.roblox_account_id, editOrder.robux_amount)
+        await reverseWallet(supabase, user.id, editOrder.id, editOrder.selling_price ?? 0, editOrder.order_number ?? null, editOrder.buyer_name ?? null, newStatus === 'refunded' ? 'Refund' : 'Cancellation')
       } else if (['pending', 'paid'].includes(prevStatus) && ['cancelled', 'refunded'].includes(newStatus)) {
         // Cancel/refund an active order: release reservation (no Robux deduction needed)
         await supabase.rpc('release_order_reservation', { p_order_id: editOrder.id })
@@ -321,7 +201,7 @@ export default function OrdersPage() {
       }
       setEditOrder(null)
     } else {
-      const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
+      const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
       const { data: newOrder } = await supabase.from('orders').insert({
         user_id: user.id, buyer_name: data.buyer_name, buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
@@ -329,8 +209,8 @@ export default function OrdersPage() {
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
         account_rate_used: rateUsed || null,
       }).select().single()
-      if (newOrder && validItems.length > 0) {
-        await supabase.from('order_items').insert(validItems.map(item => ({
+      if (newOrder && cart.validItems.length > 0) {
+        await supabase.from('order_items').insert(cart.validItems.map(item => ({
           order_id: newOrder.id, gamepass_id: item.gamepass_id || null,
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
@@ -350,7 +230,7 @@ export default function OrdersPage() {
       }
       setJustCreated(true)
       reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      setItems([])
+      cart.setItems([])
       setTimeout(() => setJustCreated(false), 1800)
     }
 
@@ -375,10 +255,6 @@ export default function OrdersPage() {
     fetchData()
   }
 
-  // ── Derived ─────────────────────────────────────────────────────────────────
-  const activeOrders  = useMemo(() => orders.filter(o => ['pending', 'paid'].includes(o.status)), [orders])
-  const historyOrders = useMemo(() => orders.filter(o => ['completed', 'refunded', 'cancelled'].includes(o.status)), [orders])
-
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col lg:h-full">
@@ -387,550 +263,53 @@ export default function OrdersPage() {
         subtitle={isEditMode ? `Editing ${editOrder.order_number ?? 'order'}` : 'Create orders fast — form stays open'}
       />
 
+      <div className="px-4 lg:px-5 pt-4 space-y-2">
+        <span className="label-caps">Order Summary</span>
+        <OrderSummary orders={orders} />
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-5 p-4 lg:p-5 pt-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
 
         {/* ── LEFT: Create / Edit panel (≈70%) ──────────────────────────────── */}
         <div className="flex-1 min-w-0 lg:overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <div className="glass-workspace overflow-hidden">
-
-            {/* Panel header */}
-            <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{
-                background: 'linear-gradient(180deg, rgba(139,92,246,0.022) 0%, transparent 100%)',
-                boxShadow: 'inset 0 -1px 0 rgba(139,92,246,0.11), inset 0 -1px 0 rgba(34,211,238,0.07)',
-              }}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={isEditMode ? 'edit' : 'new'}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.16 }}
-                >
-                  <h2 className="text-[14px] font-bold tracking-tight" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                    {isEditMode ? 'Edit Order' : 'Create Order'}
-                  </h2>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                    {isEditMode
-                      ? `${editOrder.order_number ?? '—'} · ${editOrder.buyer_name ?? 'No buyer name'}`
-                      : 'Resets after submit — ready for the next order immediately'}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
-
-              {isEditMode && (
-                <button
-                  onClick={cancelEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
-                  style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.48 0.016 265)', border: '1px solid rgba(15,13,42,0.08)' }}
-                >
-                  <X className="w-3 h-3" /> Cancel Edit
-                </button>
-              )}
-            </div>
-
-            {/* Form body */}
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6 form-stagger">
-
-              {/* ── Buyer ── */}
-              <div className="form-section" style={{ animationDelay: '0.04s' }}>
-                <SectionLabel>Buyer</SectionLabel>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
-                      Name / GCash Name
-                    </Label>
-                    <Input
-                      {...register('buyer_name')}
-                      placeholder="John Doe"
-                      className="bg-input h-9 text-[13px]"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
-                      Roblox Username
-                    </Label>
-                    <Input
-                      {...register('buyer_roblox_username')}
-                      placeholder="JohnDoe123"
-                      className="bg-input h-9 text-[13px]"
-                      autoComplete="off"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Gamepasses — click-to-add catalog ── */}
-              <div className="form-section" style={{ animationDelay: '0.09s' }}>
-                <div className="flex items-center justify-between mb-2.5">
-                  <SectionLabel>Gamepasses</SectionLabel>
-                  {validItems.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setItems([])}
-                      className="flex items-center gap-1 text-[10px] font-semibold transition-colors hover:text-red-400"
-                      style={{ color: 'oklch(0.55 0.010 265)' }}
-                    >
-                      <Trash2 className="w-3 h-3" /> Clear ({validItems.length})
-                    </button>
-                  )}
-                </div>
-
-                <GamepassCatalog gamepasses={gamepasses} cartCounts={cartCounts} onAdd={addToCart} onRemove={removeFromCart} />
-
-                {/* Cart — grouped line items with quantity steppers */}
-                {cartGroups.length > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    {cartGroups.map(g => (
-                      <div
-                        key={g.gamepass_id}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                        style={{ background: 'rgba(15,13,42,0.030)', border: '1px solid rgba(15,13,42,0.045)' }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
-                            {g.gamepass_name}
-                          </p>
-                          <p className="text-[10px] truncate" style={{ color: 'oklch(0.58 0.010 265)' }}>
-                            {g.game_name ?? '—'} · {g.robux_amount.toLocaleString()} R$ · ₱{g.selling_price} each
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => removeFromCart(g.gamepass_id)}
-                            className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
-                            style={{ background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-6 text-center text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>
-                            {g.count}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => addToCart(g.gamepass_id)}
-                            className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
-                            style={{ background: 'rgba(139,92,246,0.10)', color: 'oklch(0.50 0.090 280)' }}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <span
-                          className="text-[12px] font-bold tabular-nums flex-shrink-0 text-right"
-                          style={{ color: 'oklch(0.10 0.030 272)', minWidth: '64px' }}
-                        >
-                          ₱{(g.selling_price * g.count).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Totals preview — always show when any item has a gamepass */}
-              {validItems.length > 0 && (
-                <div className="space-y-2">
-                  <div className="totals-bar grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
-                      <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                        {totalRobux.toLocaleString()} R$
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Price</p>
-                      <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                        ₱{totalPrice.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] mb-1 text-emerald-500/70">Net Profit</p>
-                      <p className="text-[14px] font-bold text-emerald-600">₱{totalProfit.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  {/* Cost basis detail line */}
-                  {accountRate > 0 && (
-                    <div
-                      className="flex items-center justify-between px-3 py-2 rounded-lg text-[11px]"
-                      style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.14)' }}
-                    >
-                      <span style={{ color: 'oklch(0.48 0.016 265)' }}>
-                        Rate: ₱{accountRate}/1k R$ · Cost: ₱{totalCost.toFixed(2)}
-                      </span>
-                      <span style={{ color: 'oklch(0.48 0.016 265)' }}>
-                        Gross ₱{totalPrice.toFixed(2)} − Cost ₱{totalCost.toFixed(2)} = <span style={{ color: '#34d399', fontWeight: 700 }}>₱{totalProfit.toFixed(2)}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Divider />
-
-              {/* ── Account ── */}
-              <div className="form-section" style={{ animationDelay: '0.14s' }}>
-                <SectionLabel>Account</SectionLabel>
-                <AccountSelector
-                  accounts={accounts}
-                  robuxRequired={totalRobux}
-                  selectedId={accountId}
-                  onSelect={id => setValue('roblox_account_id', id, { shouldValidate: true })}
-                />
-                {errors.roblox_account_id && (
-                  <p className="text-xs text-red-400 mt-1.5">{errors.roblox_account_id.message}</p>
-                )}
-              </div>
-
-              <Divider />
-
-              {/* ── Order details ── */}
-              <div className="form-section" style={{ animationDelay: '0.19s' }}>
-                <SectionLabel>Order Details</SectionLabel>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
-                      Payment Method
-                    </Label>
-                    <Select value={payMethod} onValueChange={v => setValue('payment_method', (v ?? 'GCash') as any)}>
-                      <SelectTrigger className="bg-input h-9 text-[13px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border">
-                        {['GCash', 'Maya', 'Bank', 'Cash', 'Other'].map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
-                      Status
-                    </Label>
-                    <Select value={statusVal} onValueChange={v => setValue('status', (v ?? 'pending') as any)}>
-                      <SelectTrigger className="bg-input h-9 text-[13px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border">
-                        {['pending', 'paid', 'completed', 'refunded', 'cancelled'].map(s => (
-                          <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Submit ── */}
-              <div className="form-section pt-1" style={{ animationDelay: '0.24s' }}>
-                <div className="submit-glow-wrap">
-                <AnimatePresence mode="wait">
-                  {justCreated ? (
-                    <motion.div
-                      key="success"
-                      initial={{ opacity: 0, scale: 0.97 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
-                      transition={{ duration: 0.16 }}
-                      className="w-full h-11 rounded-2xl flex items-center justify-center gap-2 text-[13px] font-bold"
-                      style={{
-                        background: 'rgba(52,211,153,0.11)',
-                        border: '1px solid rgba(52,211,153,0.28)',
-                        color: '#047857',
-                      }}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Order created — ready for next
-                    </motion.div>
-                  ) : (
-                    <motion.button
-                      key="submit"
-                      type="submit"
-                      initial={{ opacity: 0, scale: 0.97 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
-                      transition={{ duration: 0.16 }}
-                      disabled={saving || validItems.length === 0}
-                      className="btn-primary w-full h-11 text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-40"
-                    >
-                      {saving ? (
-                        <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          {isEditMode ? 'Save Changes' : 'Create Order'}
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-                </div>
-                {!isEditMode && (
-                  <p className="text-center text-[11px] mt-2" style={{ color: 'oklch(0.64 0.010 265)' }}>
-                    Form resets automatically — no need to reopen
-                  </p>
-                )}
-              </div>
-
-            </form>
-          </div>
+          <OrderForm
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            errors={errors}
+            onFormSubmit={handleSubmit(onSubmit)}
+            isEditMode={isEditMode}
+            editOrder={editOrder}
+            onCancelEdit={cancelEdit}
+            gamepasses={gamepasses}
+            accounts={accounts}
+            cartGroups={cart.cartGroups}
+            cartCounts={cart.cartCounts}
+            validItemsCount={cart.validItems.length}
+            onAddToCart={cart.addToCart}
+            onRemoveFromCart={cart.removeFromCart}
+            onClearCart={cart.clearCart}
+            totals={totals}
+            accountRate={accountRate}
+            saving={saving}
+            justCreated={justCreated}
+          />
         </div>
 
         {/* ── RIGHT: Activity panel (≈30%) ──────────────────────────────────── */}
-        <div
-          className="w-full lg:w-80 lg:flex-shrink-0 flex flex-col gap-4 lg:overflow-y-auto"
-          style={{ scrollbarWidth: 'thin' }}
-        >
-
-          {/* Active orders */}
-          <div className="glass-secondary overflow-hidden">
-            <div
-              className="flex items-center justify-between px-4 py-3.5"
-              style={{
-                background: 'rgba(255,255,255,0.28)',
-                borderBottom: '1px solid rgba(15,13,42,0.048)',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="label-caps">Active Orders</span>
-                {activeOrders.length > 0 && (
-                  <span
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
-                    style={{ background: 'rgba(34,211,238,0.10)', color: '#0e7490', border: '1px solid rgba(34,211,238,0.20)' }}
-                  >
-                    {activeOrders.length}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="p-8 flex justify-center"><div className="spinner" /></div>
-            ) : activeOrders.length === 0 ? (
-              <div className="p-6 text-center">
-                <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>No active orders</p>
-                <p className="text-[11px] mt-1" style={{ color: 'oklch(0.70 0.010 265)' }}>Orders appear here after creation</p>
-              </div>
-            ) : (
-              <AnimatePresence>
-                {activeOrders.map((order) => {
-                  const nextStatus = STATUS_FLOW[order.status]
-                  const action     = nextStatus ? ACTION_CFG[order.status] : null
-                  const accent     = STATUS_ACCENT[order.status] ?? '#a78bfa'
-                  const isBusy     = statusChanging === order.id
-                  const dispItems  = order.order_items && order.order_items.length > 0
-                    ? order.order_items
-                    : order.gamepasses
-                      ? [{ gamepass_name: order.gamepasses.name }]
-                      : []
-
-                  return (
-                    <motion.div
-                      key={order.id}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-                      transition={{ duration: 0.18 }}
-                      className="relative order-row-shimmer"
-                      style={{ borderBottom: '1px solid rgba(15,13,42,0.042)' }}
-                    >
-                      {/* Left accent */}
-                      <div
-                        className="absolute left-0 top-0 bottom-0 w-[2px]"
-                        style={{ background: accent }}
-                      />
-
-                      <div className="pl-4 pr-3 py-3">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[10px] font-bold" style={{ color: '#22d3ee' }}>
-                              {order.order_number ?? '—'}
-                            </span>
-                            <StatusBadge status={order.status} />
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            <button
-                              onClick={() => setEditOrder(order)}
-                              className="w-6 h-6 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                disabled={isBusy}
-                                className="w-6 h-6 rounded-md hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                              >
-                                <MoreHorizontal className="w-3.5 h-3.5" />
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-popover border-border">
-                                {order.status !== 'refunded' && (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(order, 'refunded')} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
-                                    <X className="w-3.5 h-3.5" /> Mark Refunded
-                                  </DropdownMenuItem>
-                                )}
-                                {order.status !== 'cancelled' && (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(order, 'cancelled')} className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400">
-                                    <X className="w-3.5 h-3.5" /> Cancel
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator className="bg-border/50" />
-                                <DropdownMenuItem onClick={() => handleDelete(order)} className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400">
-                                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
-
-                        {/* Buyer */}
-                        <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                          {order.buyer_name || (
-                            <span style={{ color: 'oklch(0.60 0.010 265)', fontStyle: 'italic', fontWeight: 400, fontSize: '11px' }}>
-                              No buyer name
-                            </span>
-                          )}
-                        </p>
-
-                        {/* Gamepass name */}
-                        {dispItems.length > 0 && (
-                          <p className="text-[11px] truncate mt-0.5 mb-2.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                            {(dispItems as any)[0].gamepass_name}
-                            {dispItems.length > 1 && (
-                              <span style={{ color: '#22d3ee' }}> +{dispItems.length - 1}</span>
-                            )}
-                          </p>
-                        )}
-
-                        {/* Price + action button */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                            {order.selling_price ? `₱${order.selling_price}` : '—'}
-                          </span>
-                          {action && nextStatus && (
-                            <button
-                              onClick={() => handleStatusChange(order, nextStatus)}
-                              disabled={isBusy}
-                              className="h-7 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all disabled:opacity-40 flex-shrink-0"
-                              style={{ background: action.bg, color: action.color, border: `1px solid ${action.border}` }}
-                            >
-                              {isBusy
-                                ? <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                                : action.label}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
-            )}
-          </div>
-
-          {/* History */}
-          {!loading && (
-            <div className="glass-secondary overflow-hidden">
-              <button
-                onClick={() => setHistoryExpanded(p => !p)}
-                className="w-full flex items-center justify-between px-4 py-3.5 transition-colors"
-                style={{
-                  background: historyExpanded ? 'rgba(255,255,255,0.28)' : 'transparent',
-                  borderBottom: historyExpanded ? '1px solid rgba(15,13,42,0.048)' : 'none',
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="label-caps">History</span>
-                  <span
-                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
-                  >
-                    {historyOrders.length}
-                  </span>
-                </div>
-                <ChevronDown
-                  className="w-3.5 h-3.5 transition-transform duration-200"
-                  style={{
-                    color: 'oklch(0.48 0.016 265)',
-                    transform: historyExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}
-                />
-              </button>
-
-              {historyExpanded && (
-                <div style={{ maxHeight: '420px', overflowY: 'auto', scrollbarWidth: 'thin' }}>
-                  {historyOrders.length === 0 ? (
-                    <p className="text-center text-[12px] py-6" style={{ color: 'oklch(0.62 0.010 265)' }}>
-                      No history yet
-                    </p>
-                  ) : (
-                    <>
-                      {historyOrders.slice(0, 40).map((order) => {
-                        const oi = order.order_items ?? []
-                        return (
-                          <div
-                            key={order.id}
-                            className="flex items-center gap-2.5 px-4 py-2.5 group order-row-shimmer transition-colors"
-                            style={{ borderBottom: '1px solid rgba(15,13,42,0.038)' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '')}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className="font-mono text-[10px] font-semibold" style={{ color: '#22d3ee' }}>
-                                  {order.order_number ?? '—'}
-                                </span>
-                                <StatusBadge status={order.status} />
-                              </div>
-                              <p className="text-[11px] font-medium truncate" style={{ color: 'oklch(0.20 0.025 270)' }}>
-                                {order.buyer_name ?? '—'}
-                              </p>
-                              <p className="text-[10px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                                {oi.length > 0 ? oi[0].gamepass_name : (order.gamepasses?.name ?? '—')}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[12px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
-                                {order.selling_price ? `₱${order.selling_price}` : '—'}
-                              </p>
-                              <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                                {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setEditOrder(order)}
-                              className="w-6 h-6 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-all flex-shrink-0"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )
-                      })}
-                      {hasMore && (
-                        <div className="px-4 py-3 text-center">
-                          <button
-                            onClick={loadMore}
-                            disabled={loadingMore}
-                            className="text-[11px] font-medium disabled:opacity-40 transition-opacity"
-                            style={{ color: '#22d3ee' }}
-                          >
-                            {loadingMore ? 'Loading…' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <OrderActivityPanel
+          orders={orders}
+          loading={loading}
+          statusChanging={statusChanging}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          historyExpanded={historyExpanded}
+          onToggleHistory={() => setHistoryExpanded(p => !p)}
+          onEdit={setEditOrder}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          onLoadMore={loadMore}
+        />
 
       </div>
     </div>

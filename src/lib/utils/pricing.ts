@@ -1,3 +1,5 @@
+import { LineItem } from '@/lib/types/database'
+
 export const ROBUX_RATE = 240 // PHP per 1000 Robux
 
 export function calculateCost(robuxAmount: number, rate = ROBUX_RATE): number {
@@ -53,4 +55,23 @@ export function computeGamepassFields(
   const status = calculateStatus(profit)
   const suggested_lower_price = calculateSuggestedLowerPrice(competitorPrice)
   return { your_cost, profit, status, suggested_lower_price }
+}
+
+export interface OrderTotals {
+  totalRobux: number
+  totalPrice: number
+  totalCost: number
+  totalProfit: number
+}
+
+// Account-level cost basis: when the account has a robux_cost_rate set, cost is
+// derived from that rate; otherwise falls back to each line item's own cost.
+export function calculateOrderTotals(items: LineItem[], accountRate: number): OrderTotals {
+  const totalRobux = items.reduce((sum, item) => sum + item.robux_amount, 0)
+  const totalPrice = items.reduce((sum, item) => sum + item.selling_price, 0)
+  const totalCost = accountRate > 0
+    ? Math.round(items.reduce((sum, item) => sum + (item.robux_amount / 1000) * accountRate, 0) * 100) / 100
+    : items.reduce((sum, item) => sum + item.cost, 0)
+  const totalProfit = totalPrice - totalCost
+  return { totalRobux, totalPrice, totalCost, totalProfit }
 }
