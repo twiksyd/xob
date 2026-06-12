@@ -9,12 +9,15 @@ import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountCard from '@/components/accounts/AccountCard'
 import AccountModal, { parseRobloxUserId } from '@/components/accounts/AccountModal'
 import LiquidationForecast from '@/components/accounts/LiquidationForecast'
+import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTracker'
+import RestockAdvisor from '@/components/accounts/RestockAdvisor'
 import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { isDepleted } from '@/lib/utils/accounts'
 import {
   Plus, Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, Zap, RefreshCw,
+  CheckSquare, Square, Zap, RefreshCw, Archive,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { springToggle } from '@/lib/motion'
@@ -34,6 +37,7 @@ export default function AccountsPage() {
   const [modalOpen, setModalOpen]       = useState(false)
   const [editAccount, setEditAccount]   = useState<RobloxAccount | null>(null)
   const [resExpanded, setResExpanded]   = useState(true)
+  const [depletedExpanded, setDepletedExpanded] = useState(false)
   const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 
   // ── Selection state ────────────────────────────────────────────────────────
@@ -169,6 +173,17 @@ export default function AccountsPage() {
     [accounts]
   )
 
+  // Stock lifecycle: accounts at/below the low-stock threshold are "depleted" —
+  // excluded from active inventory views and capital/restock planning.
+  const activeInventoryAccounts = useMemo(
+    () => sortedAccounts.filter(a => !isDepleted(a)),
+    [sortedAccounts]
+  )
+  const depletedInventoryAccounts = useMemo(
+    () => sortedAccounts.filter(a => isDepleted(a)),
+    [sortedAccounts]
+  )
+
   // Accounts used for summary bar (always selection-based)
   const selectedAccounts = useMemo(
     () => accounts.filter(a => selectedIds.has(a.id)),
@@ -236,6 +251,27 @@ export default function AccountsPage() {
           />
         )}
 
+        {/* ── Capital Readiness Tracker ── */}
+        {loading ? (
+          <div className="glass-elevated p-5 h-64 animate-pulse" />
+        ) : (
+          <CapitalReadinessTracker
+            accounts={activeInventoryAccounts}
+            walletBalance={walletBalance}
+          />
+        )}
+
+        {/* ── Restock Advisor ── */}
+        {loading ? (
+          <div className="glass-elevated p-5 h-64 animate-pulse" />
+        ) : (
+          <RestockAdvisor
+            accounts={activeInventoryAccounts}
+            completedOrders={completedOrders}
+            walletBalance={walletBalance}
+          />
+        )}
+
         {/* ── Stats mode toggle + stat cards ── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -295,10 +331,18 @@ export default function AccountsPage() {
 
           {/* Grid header + quick filters */}
           <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>
-                All Accounts ({accounts.length})
-              </p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>
+                  Active Accounts ({activeInventoryAccounts.length})
+                </p>
+                {depletedInventoryAccounts.length > 0 && (
+                  <span className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                    Depleted: <b className="tabular-nums" style={{ color: 'oklch(0.42 0.014 265)' }}>{depletedInventoryAccounts.length}</b>
+                    {' · '}Potential cleanup: <b className="tabular-nums" style={{ color: 'oklch(0.42 0.014 265)' }}>{depletedInventoryAccounts.length} account{depletedInventoryAccounts.length !== 1 ? 's' : ''}</b>
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-3">
                 {accounts.some(a => !a.roblox_user_id) && (
                   <button
@@ -472,9 +516,14 @@ export default function AccountsPage() {
                 <Plus className="w-3.5 h-3.5" /> Add Account
               </Button>
             </div>
+          ) : activeInventoryAccounts.length === 0 ? (
+            <div className="glass-card p-12 text-center" style={{ opacity: 0.75 }}>
+              <Archive className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
+              <p className="text-sm text-muted-foreground">No active inventory — all accounts are depleted.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sortedAccounts.map(account => (
+              {activeInventoryAccounts.map(account => (
                 <AccountCard
                   key={account.id}
                   account={account}
@@ -484,6 +533,54 @@ export default function AccountsPage() {
                   onToggleSelect={() => toggleSelect(account.id)}
                 />
               ))}
+            </div>
+          )}
+
+          {/* ── Depleted Accounts (collapsed by default) ── */}
+          {!loading && depletedInventoryAccounts.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => setDepletedExpanded(p => !p)}
+                className="flex items-center gap-3 w-full text-left"
+              >
+                <Archive className="w-3.5 h-3.5" style={{ color: 'oklch(0.55 0.010 265)' }} />
+                <span className="label-caps">Depleted Accounts</span>
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.50 0.012 265)', border: '1px solid rgba(15,13,42,0.08)' }}
+                >
+                  {depletedInventoryAccounts.length}
+                </span>
+                <ChevronDown
+                  className="w-3.5 h-3.5 ml-auto transition-transform duration-200"
+                  style={{ color: 'oklch(0.48 0.016 265)', transform: depletedExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                />
+              </button>
+
+              <AnimatePresence>
+                {depletedExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                      {depletedInventoryAccounts.map(account => (
+                        <AccountCard
+                          key={account.id}
+                          account={account}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          isSelected={selectedIds.has(account.id)}
+                          onToggleSelect={() => toggleSelect(account.id)}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>

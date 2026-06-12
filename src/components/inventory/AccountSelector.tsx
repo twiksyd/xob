@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { RobloxAccount } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, XCircle, Star } from 'lucide-react'
+import { CheckCircle2, XCircle, Star, Archive, ChevronDown } from 'lucide-react'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
+import { isDepleted } from '@/lib/utils/accounts'
 
 interface AccountSelectorProps {
   accounts: RobloxAccount[]
@@ -14,21 +16,31 @@ interface AccountSelectorProps {
 
 const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
+const COLOR_NEUTRAL   = 'oklch(0.58 0.010 265)'
 
 export default function AccountSelector({ accounts, robuxRequired, selectedId, onSelect }: AccountSelectorProps) {
-  const ranked = accounts
+  const [showDepleted, setShowDepleted] = useState(false)
+
+  const allRanked = accounts
     .filter(a => a.status === 'active')
     .map(a => {
       const available = a.current_robux - a.reserved_robux
       const canAfford = available >= robuxRequired
+      const depleted = isDepleted(a)
+      const hasReservation = (a.reserved_robux ?? 0) > 0
+      // Tiering: best fulfillment candidates first, depleted accounts last.
+      const tier = canAfford ? 1 : hasReservation ? 2 : depleted ? 4 : 3
       const score = canAfford ? available - robuxRequired : -1
-      return { ...a, available, canAfford, score }
+      return { ...a, available, canAfford, depleted, tier, score }
     })
     .sort((a, b) => {
-      if (a.canAfford && !b.canAfford) return -1
-      if (!a.canAfford && b.canAfford) return 1
-      return a.score - b.score
+      if (a.tier !== b.tier) return a.tier - b.tier
+      if (a.tier === 1) return a.score - b.score
+      return b.available - a.available
     })
+
+  const depletedCount = allRanked.filter(a => a.depleted).length
+  const ranked = showDepleted ? allRanked : allRanked.filter(a => !a.depleted)
 
   const best = ranked.find(a => a.canAfford)
 
@@ -47,7 +59,9 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
       </p>
 
       {ranked.length === 0 && (
-        <p className="text-xs text-muted-foreground">No active accounts found.</p>
+        <p className="text-xs text-muted-foreground">
+          {allRanked.length === 0 ? 'No active accounts found.' : 'All active accounts are depleted.'}
+        </p>
       )}
 
       <div className="max-h-[240px] overflow-y-auto overscroll-contain space-y-2 pr-0.5">
@@ -55,7 +69,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
           const isSelected = selectedId === acc.id
           const isBest     = best?.id === acc.id
           const afterRobux = acc.available - robuxRequired
-          const availDisplayColor = acc.available < 200 ? '#f43f5e' : acc.available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
+          const availDisplayColor = acc.depleted ? COLOR_NEUTRAL : acc.available < 200 ? '#f43f5e' : acc.available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
           // Bar dimensions
           const availPct    = acc.current_robux > 0 ? Math.min(100, (acc.available / acc.current_robux) * 100) : 0
@@ -73,7 +87,9 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   ? 'bg-primary/10 border-primary/40'
                   : acc.canAfford
                     ? 'bg-secondary/40 border-border/40 hover:border-primary/25 hover:bg-accent/25 cursor-pointer'
-                    : 'bg-muted/20 border-border/25 opacity-50 cursor-not-allowed'
+                    : acc.depleted
+                      ? 'bg-muted/15 border-border/20 opacity-40 cursor-not-allowed'
+                      : 'bg-muted/20 border-border/25 opacity-50 cursor-not-allowed'
               )}
             >
               {/* Avatar */}
@@ -101,6 +117,14 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   {isBest && (
                     <span className="flex items-center gap-0.5 text-[10px] font-bold flex-shrink-0" style={{ color: COLOR_RESERVED }}>
                       <Star className="w-2.5 h-2.5 fill-current" /> Best
+                    </span>
+                  )}
+                  {acc.depleted && (
+                    <span
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: 'rgba(15,13,42,0.04)', color: COLOR_NEUTRAL, border: '1px solid rgba(15,13,42,0.08)' }}
+                    >
+                      <Archive className="w-2.5 h-2.5" /> Depleted
                     </span>
                   )}
                   {acc.robux_cost_rate > 0 && (
@@ -191,6 +215,8 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   <CheckCircle2 className="w-4 h-4" style={{ color: '#22d3ee' }} />
                 ) : acc.canAfford ? (
                   <CheckCircle2 className="w-4 h-4" style={{ color: 'rgba(52,211,153,0.35)' }} />
+                ) : acc.depleted ? (
+                  <Archive className="w-4 h-4" style={{ color: COLOR_NEUTRAL, opacity: 0.4 }} />
                 ) : (
                   <XCircle className="w-4 h-4 text-red-400/40" />
                 )}
@@ -199,6 +225,21 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
           )
         })}
       </div>
+
+      {depletedCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowDepleted(p => !p)}
+          className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+          style={{ color: 'oklch(0.48 0.016 265)' }}
+        >
+          <ChevronDown
+            className="w-3.5 h-3.5 transition-transform duration-200"
+            style={{ transform: showDepleted ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+          {showDepleted ? 'Hide Depleted Accounts' : `Show Depleted Accounts (${depletedCount})`}
+        </button>
+      )}
     </div>
   )
 }

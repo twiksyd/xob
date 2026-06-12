@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { RobloxAccount } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle, ArrowRight } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { isDepleted } from '@/lib/utils/accounts'
 
 interface AccountCardProps {
   account: RobloxAccount
@@ -23,12 +24,13 @@ const COLOR_CURRENT   = 'oklch(0.10 0.030 272)'
 
 export default function AccountCard({ account, onEdit, onDelete, isSelected = false, onToggleSelect }: AccountCardProps) {
   const available   = account.current_robux - account.reserved_robux
-  const isLow       = available < 500
+  const depleted    = isDepleted(account)
+  const isLow       = available < 500 && !depleted
   const isHigh      = account.current_robux >= 8000
 
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
-  const availDisplayColor = available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
+  const availDisplayColor = depleted ? 'oklch(0.58 0.010 265)' : available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
   const cardStyle = isSelected
     ? {
@@ -42,7 +44,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
   return (
     <div
       className="glass-card p-5 space-y-4 transition-all duration-200 group"
-      style={cardStyle}
+      style={{ ...cardStyle, opacity: depleted && !isSelected ? 0.62 : undefined }}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -73,6 +75,14 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
             </p>
             <div className="flex items-center gap-2 mt-0.5">
               <StatusBadge status={account.status} />
+              {depleted && (
+                <span
+                  className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.55 0.010 265)', border: '1px solid rgba(15,13,42,0.08)' }}
+                >
+                  <Archive className="w-2.5 h-2.5" /> Depleted
+                </span>
+              )}
               {account.robux_cost_rate > 0 && (
                 <span
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"

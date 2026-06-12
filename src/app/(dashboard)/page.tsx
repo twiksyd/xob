@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import SavingsWidget from '@/components/shared/SavingsWidget'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
+import { isDepleted } from '@/lib/utils/accounts'
 import {
   OrderWithDetails, RobloxAccount, ReservationWithDetails, SavingsGoal,
 } from '@/lib/types/database'
@@ -63,6 +64,9 @@ export default function DashboardPage() {
   const totalRobux = accounts.reduce((s, a) => s + (a.current_robux ?? 0), 0)
   const totalProfit = completedOrders.reduce((s, o) => s + (o.profit ?? 0), 0)
 
+  // Depleted accounts (≤98 R$ available) are excluded from fulfillment capacity
+  const activeInventoryAccounts = useMemo(() => accounts.filter(a => !isDepleted(a)), [accounts])
+
   // ── Advance an order's status with one click — same RPC the Orders page uses ──
   const advanceOrder = useCallback(async (order: OrderWithDetails, nextStatus: 'paid' | 'completed') => {
     setAdvancingId(order.id)
@@ -75,9 +79,11 @@ export default function DashboardPage() {
   }, [supabase, fetchData])
 
   // ── The recommendation engine: ranks every "thing worth doing" into one list ──
+  // Depleted accounts (≤98 R$ available) are exhausted inventory — exclude them
+  // so they don't generate "Restock X" suggestions.
   const recommendations = useMemo(() => buildRecommendations({
-    orders, accounts, reservations, onAdvanceOrder: advanceOrder,
-  }), [orders, accounts, reservations, advanceOrder])
+    orders, accounts: activeInventoryAccounts, reservations, onAdvanceOrder: advanceOrder,
+  }), [orders, activeInventoryAccounts, reservations, advanceOrder])
 
   // ── Outstanding orders queue — sorted oldest-first, the literal click-list ──
   const outstandingOrders = useMemo(() =>
@@ -196,7 +202,7 @@ export default function DashboardPage() {
 
           {/* ── 2. Operator framing: capacity + where the money went ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FulfillmentReadiness orders={orders} accounts={accounts} />
+            <FulfillmentReadiness orders={orders} accounts={activeInventoryAccounts} />
             <MoneyFlowSummary orders={orders} savingsGoals={savingsGoals} />
           </div>
 
