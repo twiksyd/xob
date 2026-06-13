@@ -5,7 +5,7 @@ import { RobloxAccount } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, Star, Archive, ChevronDown } from 'lucide-react'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import { isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 
 interface AccountSelectorProps {
   accounts: RobloxAccount[]
@@ -24,7 +24,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
   const allRanked = accounts
     .filter(a => a.status === 'active')
     .map(a => {
-      const available = a.current_robux - a.reserved_robux
+      const available = getAvailableRobux(a)
       const canAfford = available >= robuxRequired
       const depleted = isDepleted(a)
       const hasReservation = (a.reserved_robux ?? 0) > 0

@@ -10,7 +10,10 @@
       "Bash(find \"src/app/\\(dashboard/\\)\" -type f)",
       "Bash(find \"src/app/api/transactions\" -type f)",
       "Bash(echo \"tsc exit: $?\")",
-      "Bash(echo \"eslint exit: $?\")"
+      "Bash(echo \"eslint exit: $?\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/integrity)",
+      "Bash(curl -s -D - -o /dev/null http://localhost:3000/integrity)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/wallet)"
     ]
   }
 }

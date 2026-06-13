@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Receipt, LogOut, Box, Wallet, TrendingUp, Archive,
-  ChevronsLeft, ChevronsRight,
+  ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -19,6 +19,7 @@ const navItems = [
   { href: '/orders',       label: 'Orders',       icon: ShoppingCart    },
   { href: '/transactions', label: 'Transactions', icon: Receipt         },
   { href: '/wallet',       label: 'Wallet',       icon: Wallet          },
+  { href: '/integrity',    label: 'Integrity',    icon: ShieldCheck     },
   { href: '/overall-sales',    label: 'Overall Sales',  icon: TrendingUp },
   { href: '/seller-inventory', label: 'Seller Accts',  icon: Archive    },
 ]

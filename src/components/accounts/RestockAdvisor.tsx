@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { LucideIcon } from 'lucide-react'
 import { RobloxAccount, OrderWithItems } from '@/lib/types/database'
 import { formatRobux } from '@/lib/utils/pricing'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 import { Activity, Package, TrendingDown, Hourglass, Truck, Target, Info } from 'lucide-react'
 import {
   ACCOUNT_ROBUX, ACCOUNT_COST, MAX_ACCOUNTS, MAX_INVENTORY,
@@ -81,7 +82,7 @@ function getReason(status: StatusKey, runwayDays: number, hasVelocity: boolean, 
 export default function RestockAdvisor({ accounts, completedOrders, walletBalance }: RestockAdvisorProps) {
   const a = useMemo(() => {
     const availableInventory = accounts.reduce(
-      (s, acc) => s + Math.max(0, (acc.current_robux ?? 0) - (acc.reserved_robux ?? 0)), 0
+      (s, acc) => s + Math.max(0, getAvailableRobux(acc)), 0
     )
 
     // ── Sales velocity — rolling window of completed orders ────────────────

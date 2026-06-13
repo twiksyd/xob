@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { LucideIcon } from 'lucide-react'
 import { RobloxAccount, OrderWithItems } from '@/lib/types/database'
 import { formatPHP, formatRobux } from '@/lib/utils/pricing'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 import { Sparkles, Wallet, Coins, TrendingUp, Target, Info } from 'lucide-react'
 
 interface LiquidationForecastProps {
@@ -31,7 +32,7 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
     // ── Available inventory per account ──────────────────────────────────
     const accountInventory = scopedAccounts.map(a => ({
       account: a,
-      available: Math.max(0, a.current_robux - a.reserved_robux),
+      available: Math.max(0, getAvailableRobux(a)),
     }))
     const totalAvailable = accountInventory.reduce((s, x) => s + x.available, 0)
 

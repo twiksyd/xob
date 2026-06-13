@@ -1,5 +1,6 @@
 import { OrderWithDetails, RobloxAccount, ReservationWithDetails } from '@/lib/types/database'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 
 export interface Recommendation {
   id: string
@@ -84,7 +85,7 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
   // decision fatigue this list is supposed to prevent.
   const lowAccounts = accounts
     .filter(acc => acc.status === 'active')
-    .map(acc => ({ acc, available: acc.current_robux - (acc.reserved_robux ?? 0) }))
+    .map(acc => ({ acc, available: getAvailableRobux(acc) }))
     .filter(({ available }) => available < LOW_BALANCE_THRESHOLD)
     .sort((a, b) => a.available - b.available)
 
@@ -135,7 +136,7 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
     const reserved = acc.reserved_robux ?? 0
     const ratio = reserved / acc.current_robux
     if (ratio < OVERCOMMIT_RATIO || reserved < 200) continue
-    const available = acc.current_robux - reserved
+    const available = getAvailableRobux(acc)
 
     candidates.push({
       id: `overcommit-${acc.id}`,

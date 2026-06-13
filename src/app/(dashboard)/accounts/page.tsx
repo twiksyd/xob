@@ -14,7 +14,7 @@ import RestockAdvisor from '@/components/accounts/RestockAdvisor'
 import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import {
   Plus, Coins, Wallet, Users, Lock, ChevronDown, X,
@@ -184,9 +184,10 @@ export default function AccountsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this account?')) return
+    if (!confirm('Delete this account? Any remaining Robux balance will be written off with an audit record.')) return
+    const { error } = await supabase.rpc('delete_roblox_account', { p_account_id: id })
+    if (error) { alert(error.message); return }
     setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
-    await supabase.from('roblox_accounts').delete().eq('id', id)
     fetchData()
   }
 
@@ -208,7 +209,7 @@ export default function AccountsPage() {
   function clearAll()        { setSelectedIds(new Set()) }
   function selectActive()    { setSelectedIds(new Set(accounts.filter(a => a.status === 'active').map(a => a.id))) }
   function selectHighBal()   { setSelectedIds(new Set(accounts.filter(a => a.current_robux >= 5000).map(a => a.id))) }
-  function selectAvailable() { setSelectedIds(new Set(accounts.filter(a => (a.current_robux - a.reserved_robux) > 0).map(a => a.id))) }
+  function selectAvailable() { setSelectedIds(new Set(accounts.filter(a => getAvailableRobux(a) > 0).map(a => a.id))) }
   function selectWithRes() {
     const ids = new Set(reservations.map(r => r.account_id))
     setSelectedIds(new Set(accounts.filter(a => ids.has(a.id)).map(a => a.id)))
@@ -238,7 +239,7 @@ export default function AccountsPage() {
   )
   const selTotal     = selectedAccounts.reduce((s, a) => s + a.current_robux, 0)
   const selReserved  = selectedAccounts.reduce((s, a) => s + a.reserved_robux, 0)
-  const selAvailable = selTotal - selReserved
+  const selAvailable = selectedAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
 
   // Accounts used for top stat cards (depends on mode)
   const statsAccounts = useMemo(
@@ -247,7 +248,7 @@ export default function AccountsPage() {
   )
   const totalRobux     = statsAccounts.reduce((s, a) => s + a.current_robux, 0)
   const totalReserved  = statsAccounts.reduce((s, a) => s + a.reserved_robux, 0)
-  const availableRobux = totalRobux - totalReserved
+  const availableRobux = statsAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
   const activeAccounts = statsAccounts.filter(a => a.status === 'active').length
 
   const statAnimKey    = `${statsMode}-${selectedIds.size}-${totalRobux}`

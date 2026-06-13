@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { OrderWithDetails, RobloxAccount } from '@/lib/types/database'
 import { formatRobux } from '@/lib/utils/pricing'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 
 interface Props {
   orders: OrderWithDetails[]
@@ -21,7 +22,7 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
   const [expanded, setExpanded] = useState(false)
 
   const activeAccounts = accounts.filter(a => a.status === 'active')
-  const totalAvailable = activeAccounts.reduce((s, a) => s + (a.current_robux - (a.reserved_robux ?? 0)), 0)
+  const totalAvailable = activeAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
 
   const recentCompleted = orders.filter(o => o.status === 'completed').slice(0, 30)
   const avgRobuxPerOrder = recentCompleted.length
@@ -50,7 +51,7 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
   const style = STATUS_STYLES[status]
 
   const lowAccounts = activeAccounts
-    .map(a => ({ ...a, available: a.current_robux - (a.reserved_robux ?? 0) }))
+    .map(a => ({ ...a, available: getAvailableRobux(a) }))
     .sort((a, b) => a.available - b.available)
     .slice(0, 4)
 

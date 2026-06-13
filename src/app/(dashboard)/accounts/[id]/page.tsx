@@ -17,6 +17,7 @@ import {
 import {
   ArrowLeft, ShoppingCart, Coins, Wallet, TrendingUp, Percent, Gamepad2,
 } from 'lucide-react'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 
 const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
@@ -132,7 +133,7 @@ export default function AccountLedgerPage() {
     )
   }
 
-  const available = account.current_robux - account.reserved_robux
+  const available = getAvailableRobux(account)
 
   return (
     <div>

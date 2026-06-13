@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import SavingsWidget from '@/components/shared/SavingsWidget'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
-import { isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import {
   OrderWithDetails, RobloxAccount, ReservationWithDetails, SavingsGoal,
 } from '@/lib/types/database'
@@ -368,7 +368,7 @@ export default function DashboardPage() {
                         ) : (
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                             {accounts.map((acc) => {
-                              const available = acc.current_robux - (acc.reserved_robux ?? 0)
+                              const available = getAvailableRobux(acc)
                               const dotColor = available < 500 ? '#f43f5e' : available < 2000 ? '#f59e0b' : '#22d3ee'
                               return (
                                 <div key={acc.id} className="flex items-center gap-2.5 py-1">

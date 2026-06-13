@@ -8,7 +8,7 @@ import { MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle, Arr
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 
 interface AccountCardProps {
   account: RobloxAccount
@@ -23,7 +23,7 @@ const COLOR_RESERVED  = '#f59e0b'
 const COLOR_CURRENT   = 'oklch(0.10 0.030 272)'
 
 export default function AccountCard({ account, onEdit, onDelete, isSelected = false, onToggleSelect }: AccountCardProps) {
-  const available   = account.current_robux - account.reserved_robux
+  const available   = getAvailableRobux(account)
   const depleted    = isDepleted(account)
   const isLow       = available < 500 && !depleted
   const isHigh      = account.current_robux >= 8000
