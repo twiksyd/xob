@@ -15,6 +15,7 @@ import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/typ
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { isDepleted } from '@/lib/utils/accounts'
+import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import {
   Plus, Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, Square, Zap, RefreshCw, Archive,
@@ -93,6 +94,7 @@ export default function AccountsPage() {
     username: string; current_robux: number; reserved_robux: number
     robux_cost_rate: number; status: 'active' | 'inactive' | 'banned' | 'low'; notes?: string
     roblox_profile?: string
+    purchase_cost?: number; supplier?: string; purchase_date?: string
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -107,11 +109,34 @@ export default function AccountsPage() {
       } catch {}
     }
 
-    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: data.robux_cost_rate ?? 0, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
+    // A purchase cost on a new account derives its cost basis directly —
+    // Purchase Cost ÷ Robux Acquired × 1,000 — instead of asking for the rate twice.
+    const purchaseCost = data.purchase_cost ?? 0
+    const robuxCostRate = !editAccount && purchaseCost > 0 && data.current_robux > 0
+      ? (purchaseCost / data.current_robux) * 1000
+      : data.robux_cost_rate ?? 0
+
+    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
     if (editAccount) {
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
-      await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id })
+      const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
+
+      // Phase 2: every new stock purchase automatically logs a Capital Event
+      if (inserted && purchaseCost > 0) {
+        const businessValueBefore = calculateBusinessValue(accounts, walletBalance)
+        await supabase.from('capital_events').insert({
+          user_id: user.id,
+          accounts_purchased: 1,
+          robux_acquired: data.current_robux,
+          cost: purchaseCost,
+          business_value_before: businessValueBefore,
+          supplier: data.supplier?.trim() || null,
+          roblox_account_id: inserted.id,
+          created_at: data.purchase_date ? new Date(data.purchase_date).toISOString() : undefined,
+          ...classifyPurchase(businessValueBefore, purchaseCost),
+        })
+      }
     }
     setSaving(false)
     setModalOpen(false)

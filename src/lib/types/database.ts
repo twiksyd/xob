@@ -249,6 +249,43 @@ export type Database = {
         }
         Update: never
       }
+      capital_events: {
+        Row: {
+          id: string
+          user_id: string
+          accounts_purchased: number
+          robux_acquired: number
+          cost: number
+          business_value_before: number
+          business_value_after: number
+          profit_used: number
+          capital_used: number
+          protected_capital_remaining: number
+          funding_source: 'profit' | 'mixed' | 'capital'
+          supplier: string | null
+          roblox_account_id: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          accounts_purchased: number
+          robux_acquired: number
+          cost: number
+          business_value_before: number
+          business_value_after: number
+          profit_used?: number
+          capital_used?: number
+          protected_capital_remaining: number
+          funding_source: 'profit' | 'mixed' | 'capital'
+          supplier?: string | null
+          roblox_account_id?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: never
+      }
     }
   }
 }
@@ -293,6 +330,7 @@ export type OrderWithDetails = Order & {
 }
 export type OrderWithItems = Order & { order_items: OrderItem[] }
 export type WalletTransaction = Database['public']['Tables']['wallet_transactions']['Row']
+export type CapitalEvent = Database['public']['Tables']['capital_events']['Row']
 export type TransactionWithOrder = Transaction & { orders: Order | null }
 
 export type RobloxReservation = {

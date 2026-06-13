@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
+import { formatPHP } from '@/lib/utils/pricing'
 
 const schema = z.object({
   username:        z.string().min(1, 'Username required'),
@@ -25,6 +26,9 @@ const schema = z.object({
   status:          z.enum(['active', 'inactive', 'banned', 'low']),
   notes:           z.string().optional(),
   roblox_profile:  z.string().optional(),
+  purchase_cost:   z.number().min(0).optional(),
+  supplier:        z.string().optional(),
+  purchase_date:   z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -52,6 +56,7 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
     defaultValues: {
       username: '', current_robux: 0, reserved_robux: 0,
       robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
+      purchase_cost: 0, supplier: '', purchase_date: '',
     }
   })
 
@@ -65,9 +70,15 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
         status:          account.status,
         notes:           account.notes ?? '',
         roblox_profile:  account.roblox_user_id ?? '',
+        purchase_cost:   0,
+        supplier:        '',
+        purchase_date:   '',
       })
     } else {
-      reset({ username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '' })
+      reset({
+        username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
+        purchase_cost: 0, supplier: '', purchase_date: new Date().toISOString().slice(0, 10),
+      })
     }
   }, [account, reset])
 
@@ -75,6 +86,9 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
   const usernameValue = watch('username')
   const profileValue = watch('roblox_profile')
   const previewUserId = parseRobloxUserId(profileValue)
+  const purchaseCostValue = watch('purchase_cost') ?? 0
+  const currentRobuxValue = watch('current_robux') ?? 0
+  const derivedRate = currentRobuxValue > 0 ? (purchaseCostValue / currentRobuxValue) * 1000 : 0
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -130,6 +144,40 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
             </div>
           </div>
 
+          {/* Stock purchase — new accounts only, auto-generates a Capital Event */}
+          {!account && (
+            <div className="space-y-3 rounded-xl p-3.5" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.16)' }}>
+              <Label className="text-xs flex items-center gap-2">
+                Stock Purchase
+                <span
+                  className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(52,211,153,0.10)', color: '#047857' }}
+                >
+                  auto-records a Capital Event
+                </span>
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Purchase Cost (₱)</Label>
+                  <Input {...register('purchase_cost', { valueAsNumber: true })} type="number" step="0.01" min="0" placeholder="e.g. 1035" className="bg-input" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Purchase Date</Label>
+                  <Input {...register('purchase_date')} type="date" className="bg-input" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Supplier (optional)</Label>
+                <Input {...register('supplier')} placeholder="e.g. JuanDeals" className="bg-input" />
+              </div>
+              <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+                {purchaseCostValue > 0
+                  ? `Robux Cost Rate will be set to ${formatPHP(derivedRate)} per 1,000 R$, and this purchase will be recorded in the Capital Events Ledger.`
+                  : 'Leave blank if this account isn’t a new supplier purchase — no Capital Event will be recorded.'}
+              </p>
+            </div>
+          )}
+
           {/* Cost rate */}
           <div className="space-y-1.5">
             <Label className="text-xs flex items-center gap-2">
@@ -148,9 +196,12 @@ export default function AccountModal({ open, onClose, onSave, account, loading }
               min="0"
               placeholder="e.g. 240"
               className="bg-input"
+              disabled={!account && purchaseCostValue > 0}
             />
             <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
-              How much PHP you paid per 1,000 Robux on this account
+              {!account && purchaseCostValue > 0
+                ? 'Calculated automatically from Purchase Cost above'
+                : 'How much PHP you paid per 1,000 Robux on this account'}
             </p>
           </div>
 
