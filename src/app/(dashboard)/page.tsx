@@ -33,7 +33,6 @@ export default function DashboardPage() {
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([])
   const [walletBalance, setWalletBalance] = useState(0)
-  const [capitalLedgerKey, setCapitalLedgerKey] = useState(0)
   const [gamepassCount, setGamepassCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -54,14 +53,14 @@ export default function DashboardPage() {
         .select('*, roblox_accounts(username), orders(order_number, buyer_name, status)')
         .eq('status', 'active'),
       supabase.from('savings_goals').select('*').order('priority'),
-      supabase.from('wallet_transactions').select('amount'),
+      supabase.rpc('get_wallet_balance'),
     ])
     if (ordersRes.data) setOrders(ordersRes.data as unknown as OrderWithDetails[])
     if (accountsRes.data) setAccounts(accountsRes.data)
     if (gpRes.data) setGamepassCount(gpRes.data.length)
     if (resRes.data) setReservations(resRes.data as unknown as ReservationWithDetails[])
     if (goalsRes.data) setSavingsGoals(goalsRes.data)
-    if (walletRes.data) setWalletBalance((walletRes.data as { amount: number }[]).reduce((s, t) => s + t.amount, 0))
+    if (walletRes.data != null) setWalletBalance(Number(walletRes.data))
     setLoading(false)
   }, [supabase])
 
@@ -214,11 +213,10 @@ export default function DashboardPage() {
           <CapitalSafety
             accounts={accounts}
             walletBalance={walletBalance}
-            onRecorded={() => setCapitalLedgerKey((k) => k + 1)}
           />
 
           {/* ── 1d. Capital events ledger: history of supplier purchases ── */}
-          <CapitalEventsLedger refreshKey={capitalLedgerKey} />
+          <CapitalEventsLedger refreshKey={0} />
 
           {/* ── 2. Operator framing: capacity + where the money went ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

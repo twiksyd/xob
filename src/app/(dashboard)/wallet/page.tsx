@@ -36,6 +36,9 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [displayBalance, setDisplayBalance] = useState(0)
+  const [balance, setBalance] = useState(0)
+  const [totalIncome, setTotalIncome] = useState(0)
+  const [totalExpenses, setTotalExpenses] = useState(0)
   const [formType, setFormType] = useState<'income' | 'expense'>('income')
   const [formAmount, setFormAmount] = useState('')
   const [formCategory, setFormCategory] = useState('')
@@ -45,29 +48,25 @@ export default function WalletPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('wallet_transactions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (data) setTransactions(data as WalletTransaction[])
+    const [txRes, summaryRes] = await Promise.all([
+      supabase
+        .from('wallet_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500),
+      supabase.rpc('get_wallet_summary').single(),
+    ])
+    if (txRes.data) setTransactions(txRes.data as WalletTransaction[])
+    if (summaryRes.data) {
+      const summary = summaryRes.data as { balance: number; total_income: number; total_expenses: number }
+      setBalance(Number(summary.balance))
+      setTotalIncome(Number(summary.total_income))
+      setTotalExpenses(Number(summary.total_expenses))
+    }
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { fetchData() }, [fetchData])
-
-  const balance = useMemo(
-    () => transactions.reduce((s, t) => s + t.amount, 0),
-    [transactions]
-  )
-  const totalIncome = useMemo(
-    () => transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-    [transactions]
-  )
-  const totalExpenses = useMemo(
-    () => transactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
-    [transactions]
-  )
 
   useEffect(() => {
     if (!balance) { setDisplayBalance(0); return }
@@ -86,11 +85,9 @@ export default function WalletPage() {
   const chartData = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() })
     const cutoff = startOfDay(subDays(new Date(), 30))
-    const priorBalance = transactions
-      .filter(t => new Date(t.created_at) < cutoff)
-      .reduce((s, t) => s + t.amount, 0)
 
     const txsByDay: Record<string, { income: number; expense: number }> = {}
+    let last30DaysSum = 0
     transactions
       .filter(t => new Date(t.created_at) >= cutoff)
       .forEach(t => {
@@ -98,7 +95,13 @@ export default function WalletPage() {
         if (!txsByDay[key]) txsByDay[key] = { income: 0, expense: 0 }
         if (t.amount > 0) txsByDay[key].income += t.amount
         else txsByDay[key].expense += Math.abs(t.amount)
+        last30DaysSum += t.amount
       })
+
+    // Anchor the running total to the all-time balance (not just the
+    // capped/visible transaction list) so the chart always ends at the
+    // same figure shown in the hero balance.
+    const priorBalance = balance - last30DaysSum
 
     let running = priorBalance
     return days.map(day => {
@@ -107,7 +110,7 @@ export default function WalletPage() {
       running += d.income - d.expense
       return { day: key, income: d.income, expense: d.expense, balance: running }
     })
-  }, [transactions])
+  }, [transactions, balance])
 
   async function handleAdd() {
     const amt = parseFloat(formAmount)

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import {
-  LucideIcon, History, Lock, Calendar, ShieldCheck, Trash2,
+  LucideIcon, History, Lock, Calendar, ShieldCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CapitalEvent } from '@/lib/types/database'
@@ -22,7 +22,6 @@ const FUNDING_META: Record<CapitalEvent['funding_source'], { emoji: string; labe
 export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerProps) {
   const [events, setEvents] = useState<CapitalEvent[]>([])
   const [loading, setLoading] = useState(true)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const supabaseRef = useRef(createClient())
 
   useEffect(() => {
@@ -33,13 +32,6 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
     })
     return () => { active = false }
   }, [refreshKey])
-
-  async function handleDelete(id: string) {
-    setDeletingId(id)
-    await supabaseRef.current.from('capital_events').delete().eq('id', id)
-    setEvents((prev) => prev.filter((e) => e.id !== id))
-    setDeletingId(null)
-  }
 
   const totalCapitalUsed = events.reduce((sum, e) => sum + e.capital_used, 0)
   const lastCapitalEvent = events.find((e) => e.capital_used > 0)
@@ -92,7 +84,7 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
         <p className="text-[12px] py-4 text-center" style={{ color: 'oklch(0.55 0.010 265)' }}>Loading…</p>
       ) : events.length === 0 ? (
         <p className="text-[12px] py-4 text-center" style={{ color: 'oklch(0.55 0.010 265)' }}>
-          No capital events recorded yet. Use the Purchase Simulator above and click &quot;Record This Purchase&quot; to start your ledger.
+          No capital events recorded yet. Adding a Roblox account with a purchase cost logs one automatically.
         </p>
       ) : (
         <div className="pt-1">
@@ -108,24 +100,12 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
                     <span className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
                       {format(new Date(e.created_at), 'MMMM d, yyyy')}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}` }}
-                      >
-                        {meta.emoji} {meta.label}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(e.id)}
-                        disabled={deletingId === e.id}
-                        className="cursor-pointer disabled:opacity-50"
-                        style={{ color: 'oklch(0.60 0.014 265)' }}
-                        aria-label="Delete capital event"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <span
+                      className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}` }}
+                    >
+                      {meta.emoji} {meta.label}
+                    </span>
                   </div>
 
                   <p className={`text-[13px] font-semibold ${e.supplier ? 'mb-1' : 'mb-2.5'}`} style={{ color: 'oklch(0.18 0.025 270)' }}>

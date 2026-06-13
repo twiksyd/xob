@@ -78,12 +78,12 @@ export default function AccountsPage() {
         .eq('status', 'active')
         .order('created_at', { ascending: false }),
       supabase.from('orders').select('*, order_items(*)').eq('status', 'completed'),
-      supabase.from('wallet_transactions').select('amount'),
+      supabase.rpc('get_wallet_balance'),
     ])
     if (!accRes.error && accRes.data) setAccounts(accRes.data)
     if (!resRes.error && resRes.data)  setReservations(resRes.data as ReservationWithDetails[])
     if (!ordersRes.error && ordersRes.data) setCompletedOrders(ordersRes.data as OrderWithItems[])
-    if (!walletRes.error && walletRes.data) setWalletBalance((walletRes.data as { amount: number }[]).reduce((s, t) => s + t.amount, 0))
+    if (!walletRes.error && walletRes.data != null) setWalletBalance(Number(walletRes.data))
     setLoading(false)
   }, [supabase])
 
@@ -116,10 +116,14 @@ export default function AccountsPage() {
       ? (purchaseCost / data.current_robux) * 1000
       : data.robux_cost_rate ?? 0
 
-    const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
     if (editAccount) {
+      // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
+      // once an account exists — they can only change via the order financial engine or
+      // adjust_account_field (handleAdjust below), both of which leave an audit trail.
+      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
+      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
       const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
 
       // Phase 2: every new stock purchase automatically logs a Capital Event
@@ -141,6 +145,22 @@ export default function AccountsPage() {
     setSaving(false)
     setModalOpen(false)
     setEditAccount(null)
+    fetchData()
+  }
+
+  // The only path allowed to change current_robux/reserved_robux/robux_cost_rate on an
+  // existing account — adjust_account_field() records who/when/old/new in
+  // account_adjustments (and a transactions row for current_robux changes).
+  async function handleAdjust(field: 'current_robux' | 'reserved_robux' | 'robux_cost_rate', newValue: number, reason: string) {
+    if (!editAccount) return
+    const { error } = await supabase.rpc('adjust_account_field', {
+      p_account_id: editAccount.id,
+      p_field: field,
+      p_new_value: newValue,
+      p_reason: reason,
+    })
+    if (error) throw error
+    setEditAccount(prev => prev ? { ...prev, [field]: newValue } : prev)
     fetchData()
   }
 
@@ -796,6 +816,7 @@ export default function AccountsPage() {
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditAccount(null) }}
         onSave={handleSave}
+        onAdjust={handleAdjust}
         account={editAccount}
         loading={saving}
       />

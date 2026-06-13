@@ -1,30 +1,23 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   LucideIcon, ShieldAlert, ShieldCheck, Lock, Banknote, TrendingUp,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { RobloxAccount } from '@/lib/types/database'
 import { formatPHP } from '@/lib/utils/pricing'
 import { calculateInventoryValue, fmtSigned } from '@/lib/utils/capital'
-import { FIXED_CAPITAL, ACCOUNT_COST, ACCOUNT_ROBUX, MAX_ACCOUNTS } from '@/lib/constants/restock'
+import { FIXED_CAPITAL, ACCOUNT_COST, MAX_ACCOUNTS } from '@/lib/constants/restock'
 
 interface CapitalSafetyProps {
   accounts: RobloxAccount[]
   walletBalance: number
-  onRecorded?: () => void
 }
 
 const PURCHASE_OPTIONS = [1, 2, 3, 4, 5]
 
-export default function CapitalSafety({ accounts, walletBalance, onRecorded }: CapitalSafetyProps) {
+export default function CapitalSafety({ accounts, walletBalance }: CapitalSafetyProps) {
   const [selectedN, setSelectedN] = useState(1)
-  const [recording, setRecording] = useState(false)
-  const [recorded, setRecorded] = useState(false)
-  const [recordError, setRecordError] = useState<string | null>(null)
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
 
   const c = useMemo(() => {
     const inventoryValue = calculateInventoryValue(accounts)
@@ -104,42 +97,6 @@ export default function CapitalSafety({ accounts, walletBalance, onRecorded }: C
   const profitPct = c.purchaseCost > 0 ? (c.profitUsed / c.purchaseCost) * 100 : 0
   const capitalPct = c.purchaseCost > 0 ? (c.capitalUsed / c.purchaseCost) * 100 : 0
 
-  function selectN(n: number) {
-    setSelectedN(n)
-    setRecorded(false)
-    setRecordError(null)
-  }
-
-  async function handleRecord() {
-    setRecording(true)
-    setRecordError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setRecording(false)
-      setRecordError('Not signed in.')
-      return
-    }
-    const { error } = await supabase.from('capital_events').insert({
-      user_id: user.id,
-      accounts_purchased: selectedN,
-      robux_acquired: selectedN * ACCOUNT_ROBUX,
-      cost: c.purchaseCost,
-      business_value_before: c.businessValue,
-      business_value_after: c.remainingBusinessValue,
-      profit_used: c.profitUsed,
-      capital_used: c.capitalUsed,
-      protected_capital_remaining: FIXED_CAPITAL - c.capitalUsed,
-      funding_source: c.tier === 'safe' ? 'profit' : c.tier === 'caution' ? 'mixed' : 'capital',
-    })
-    setRecording(false)
-    if (error) {
-      setRecordError(error.message)
-    } else {
-      setRecorded(true)
-      onRecorded?.()
-    }
-  }
-
   return (
     <div className="glass-elevated p-5 lg:p-6 relative overflow-hidden">
       <div
@@ -194,7 +151,7 @@ export default function CapitalSafety({ accounts, walletBalance, onRecorded }: C
             <button
               key={n}
               type="button"
-              onClick={() => selectN(n)}
+              onClick={() => setSelectedN(n)}
               className="flex-1 rounded-xl py-2 text-[12px] font-bold transition-all cursor-pointer"
               style={selectedN === n
                 ? { background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: '#ffffff', boxShadow: '0 2px 12px rgba(34,211,238,0.30)' }
@@ -231,19 +188,6 @@ export default function CapitalSafety({ accounts, walletBalance, onRecorded }: C
           <p className="text-[12px] leading-relaxed font-semibold" style={{ color: tier.color }}>
             {tier.desc}
           </p>
-
-          <button
-            type="button"
-            onClick={handleRecord}
-            disabled={recording}
-            className="mt-3 w-full rounded-xl py-2.5 text-[12px] font-bold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
-            style={{ background: tier.color, color: '#ffffff' }}
-          >
-            {recording ? 'Recording…' : recorded ? '✓ Recorded in Capital Events Ledger' : 'Record This Purchase'}
-          </button>
-          {recordError && (
-            <p className="text-[11px] mt-1.5 font-semibold" style={{ color: '#be123c' }}>{recordError}</p>
-          )}
         </div>
       </div>
     </div>

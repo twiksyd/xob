@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint *)",
+      "Bash(git stash *)",
+      "Bash(sleep 8 && cat /tmp/nextdev.log)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/accounts)",
+      "Bash(netstat -ano)",
+      "Bash(find \"src/app/\\(dashboard/\\)\" -type f)",
+      "Bash(find \"src/app/api/transactions\" -type f)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(echo \"eslint exit: $?\")"
+    ]
+  }
+}

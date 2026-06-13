@@ -21,8 +21,25 @@ type TransactionWithOrder = Transaction & {
 
 type Period = 'today' | 'overall'
 
+type SalesSummary = { orders_count: number; revenue: number; profit: number; robux: number }
+
+const EMPTY_SUMMARY: SalesSummary = { orders_count: 0, revenue: 0, profit: 0, robux: 0 }
+
+type SalesSummaryRow = { orders_count: number | string; revenue: number | string; profit: number | string; robux: number | string }
+
+// PostgREST returns numeric/bigint columns as strings to avoid precision loss
+function toSummary(row: SalesSummaryRow): SalesSummary {
+  return {
+    orders_count: Number(row.orders_count),
+    revenue:      Number(row.revenue),
+    profit:       Number(row.profit),
+    robux:        Number(row.robux),
+  }
+}
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionWithOrder[]>([])
+  const [summaries, setSummaries]       = useState<Record<Period, SalesSummary>>({ today: EMPTY_SUMMARY, overall: EMPTY_SUMMARY })
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
   const [filterType, setFilterType]     = useState('all')
@@ -32,12 +49,24 @@ export default function TransactionsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('transactions')
-      .select('*, orders(order_number, buyer_name)')
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (data) setTransactions(data as TransactionWithOrder[])
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const [txRes, overallRes, todayRes] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('*, orders(order_number, buyer_name)')
+        .order('created_at', { ascending: false })
+        .limit(500),
+      supabase.rpc('get_sales_summary').single(),
+      supabase.rpc('get_sales_summary', { p_since: startOfToday.toISOString() }).single(),
+    ])
+    if (txRes.data) setTransactions(txRes.data as TransactionWithOrder[])
+    if (overallRes.data || todayRes.data) {
+      setSummaries({
+        overall: overallRes.data ? toSummary(overallRes.data as SalesSummaryRow) : EMPTY_SUMMARY,
+        today:   todayRes.data ? toSummary(todayRes.data as SalesSummaryRow) : EMPTY_SUMMARY,
+      })
+    }
     setLoading(false)
   }, [supabase])
 
@@ -45,21 +74,12 @@ export default function TransactionsPage() {
 
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
 
-  // Sales in the selected period (for metrics)
-  const periodSales = useMemo(() => {
-    const sales = transactions.filter(t => t.type === 'sale')
-    if (period === 'today') {
-      return sales.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr)
-    }
-    return sales
-  }, [transactions, period, todayStr])
-
   const metrics = useMemo(() => ({
-    orders:  new Set(periodSales.map(t => t.order_id).filter(Boolean)).size,
-    revenue: periodSales.reduce((s, t) => s + (t.selling_price ?? 0), 0),
-    profit:  periodSales.reduce((s, t) => s + (t.profit ?? 0), 0),
-    robux:   periodSales.reduce((s, t) => s + Math.abs(t.robux_change), 0),
-  }), [periodSales])
+    orders:  summaries[period].orders_count,
+    revenue: summaries[period].revenue,
+    profit:  summaries[period].profit,
+    robux:   summaries[period].robux,
+  }), [summaries, period])
 
   // Transaction list filtered by period + search + type
   const filtered = useMemo(() => {
