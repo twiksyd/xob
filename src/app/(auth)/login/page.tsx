@@ -4,8 +4,11 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import nextDynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, AlertCircle, Box } from 'lucide-react'
+
+const LiquidEther = nextDynamic(() => import('@/components/shared/LiquidEther'), { ssr: false })
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,11 +33,22 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center p-4 bg-ambient"
       style={{ background: 'oklch(0.974 0.007 256)' }}
     >
-      {/* Ambient glows */}
-      <div className="fixed top-0 left-1/4 w-[600px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(34,211,238,0.06), transparent 70%)', filter: 'blur(40px)' }} />
-      <div className="fixed bottom-0 right-1/4 w-[500px] h-[350px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(232,121,249,0.05), transparent 70%)', filter: 'blur(40px)' }} />
+      {/* Fluid background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <LiquidEther
+          colors={['#22d3ee', '#a78bfa', '#e879f9']}
+          mouseForce={20}
+          cursorSize={100}
+          resolution={0.5}
+          autoDemo={true}
+          autoSpeed={0.5}
+          autoIntensity={2.2}
+          autoResumeDelay={3000}
+          autoRampDuration={0.6}
+        />
+      </div>
 
-      <div className="relative w-full max-w-[380px] space-y-8 z-10">
+      <div className="relative w-full max-w-[380px] space-y-8 z-10" style={{ zIndex: 10 }}>
 
         {/* Brand */}
         <div className="text-center space-y-3">
