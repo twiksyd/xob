@@ -23,6 +23,7 @@ import {
 import SavingsWidget from '@/components/shared/SavingsWidget'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import PageHero from '@/components/shared/PageHero'
 import {
   OrderWithDetails, RobloxAccount, ReservationWithDetails, SavingsGoal,
 } from '@/lib/types/database'
@@ -199,8 +200,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden">
-      <TopBar title="Command Center" subtitle="What should you do next?" />
+      <TopBar title="Command Center" actionLabel={undefined} />
       <div className="flex-1 overflow-auto">
+        <PageHero
+          badge="Live Dashboard"
+          title="Command Center"
+          subtitle="Open orders, capital position, and the highest-value action you can take right now."
+        />
         <div className="p-4 sm:p-5 max-w-[1400px] mx-auto space-y-4">
 
           {/* ── 1. Hero: the single highest-value thing to do right now ── */}

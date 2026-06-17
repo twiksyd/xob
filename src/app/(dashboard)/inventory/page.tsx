@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import GamepassModal from '@/components/inventory/GamepassModal'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Gamepass, Game, RobloxAccount } from '@/lib/types/database'
@@ -93,6 +94,12 @@ export default function InventoryPage() {
         onSearchChange={setSearch}
         actionLabel="+ Add Gamepass"
         onActionClick={() => { setEditGamepass(null); setModalOpen(true) }}
+      />
+      <PageHero
+        badge="Catalog"
+        title="Gamepass Catalog"
+        subtitle="Configure prices, manage listings, and track your complete gamepass portfolio."
+        gradient="linear-gradient(135deg, #a78bfa 0%, #22d3ee 60%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="p-5 space-y-4">

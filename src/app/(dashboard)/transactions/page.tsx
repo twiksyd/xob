@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { Transaction } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -116,6 +117,12 @@ export default function TransactionsPage() {
         searchPlaceholder="Search transactions..."
         searchValue={search}
         onSearchChange={setSearch}
+      />
+      <PageHero
+        badge="Ledger"
+        title="Transaction Ledger"
+        subtitle="Every sale, topup, and adjustment — a complete, server-computed financial audit trail."
+        gradient="linear-gradient(135deg, #34d399 0%, #22d3ee 60%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="p-5 space-y-4">

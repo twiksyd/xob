@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import OrderSummary from '@/components/orders/OrderSummary'
 import OrderForm, { orderFormSchema, OrderFormData, GamepassWithGame } from '@/components/orders/OrderForm'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
@@ -254,7 +255,12 @@ export default function OrdersPage() {
     <div className="flex flex-col lg:h-full">
       <TopBar
         title="Order Workspace"
-        subtitle={isEditMode ? `Editing ${editOrder.order_number ?? 'order'}` : 'Create orders fast — form stays open'}
+      />
+      <PageHero
+        badge="Operations"
+        title="Order Queue"
+        subtitle="Fulfillment pipeline, buyer management, and real-time delivery status."
+        gradient="linear-gradient(135deg, #22d3ee 0%, #38bdf8 60%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="px-4 lg:px-5 pt-4 space-y-2">

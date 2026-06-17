@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
 import { format, isToday, isYesterday } from 'date-fns'
@@ -205,10 +206,15 @@ export default function OverallSalesPage() {
     <div className="flex flex-col" style={{ height: '100vh' }}>
       <TopBar
         title="Overall Sales"
-        subtitle="Simulated marketplace activity feed"
         searchPlaceholder="Search buyer, gamepass…"
         searchValue={search}
         onSearchChange={setSearch}
+      />
+      <PageHero
+        badge="Analytics"
+        title="Sales Analytics"
+        subtitle="Aggregated performance across all games, gamepasses, and time windows."
+        gradient="linear-gradient(135deg, #e879f9 0%, #a78bfa 50%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="flex flex-col flex-1 min-h-0 p-5 gap-4">

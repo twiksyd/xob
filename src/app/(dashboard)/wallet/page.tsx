@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import { WalletTransaction } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -140,7 +141,13 @@ export default function WalletPage() {
 
   return (
     <div>
-      <TopBar title="Cash Wallet" subtitle="Track your PHP cash balance" />
+      <TopBar title="Cash Wallet" />
+      <PageHero
+        badge="Finance"
+        title="Cash Wallet"
+        subtitle="PHP balance, income and expense tracking, savings goals, and balance history."
+        gradient="linear-gradient(135deg, #fbbf24 0%, #34d399 50%, rgba(255,255,255,0.80) 100%)"
+      />
 
       <div className="p-5 space-y-5">
         {/* Hero Balance Card */}

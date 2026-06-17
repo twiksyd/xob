@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountCard from '@/components/accounts/AccountCard'
@@ -283,6 +284,11 @@ export default function AccountsPage() {
         subtitle="Manage your seller accounts and reservations"
         actionLabel="+ Add Account"
         onActionClick={() => { setEditAccount(null); setModalOpen(true) }}
+      />
+      <PageHero
+        badge="Inventory"
+        title="Roblox Accounts"
+        subtitle="Robux inventory, restock tracking, reservation management, and capital allocation."
       />
 
       <div className="p-5 space-y-5">

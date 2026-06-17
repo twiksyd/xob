@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import { createClient } from '@/lib/supabase/client'
 import { formatPHP, formatRobux } from '@/lib/utils/pricing'
 import {
@@ -102,9 +103,12 @@ export default function FinancialIntegrityPage() {
 
   return (
     <div>
-      <TopBar
+      <TopBar title="Financial Integrity" />
+      <PageHero
+        badge="Reconciliation"
         title="Financial Integrity"
-        subtitle="Reconciliation checks across every ledger"
+        subtitle="Live verification that every balance, reservation, and profit figure is internally consistent."
+        gradient="linear-gradient(135deg, #f87171 0%, #fbbf24 50%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="p-5 space-y-4">

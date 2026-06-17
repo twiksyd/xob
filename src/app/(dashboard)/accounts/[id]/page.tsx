@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -137,7 +138,12 @@ export default function AccountLedgerPage() {
 
   return (
     <div>
-      <TopBar title={account.username} subtitle="Account Ledger" />
+      <TopBar title={account.username} />
+      <PageHero
+        badge="Account Detail"
+        title={account.username}
+        subtitle="Robux balance, reservations, purchase history, and full financial timeline for this account."
+      />
 
       <div className="p-5 space-y-5">
 

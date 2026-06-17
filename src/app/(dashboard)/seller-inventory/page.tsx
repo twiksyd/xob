@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
+import PageHero from '@/components/shared/PageHero'
 import StatCard from '@/components/shared/StatCard'
 import { SellerAccountWithVehicles, SellerAccountVehicle } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -451,6 +452,12 @@ export default function SellerInventoryPage() {
         onSearchChange={setSearch}
         actionLabel="+ New Account"
         onActionClick={openNew}
+      />
+      <PageHero
+        badge="Seller Catalog"
+        title="Seller Accounts"
+        subtitle="Public-facing gamepass listings and pricing for your resale channels."
+        gradient="linear-gradient(135deg, #38bdf8 0%, #a78bfa 60%, rgba(255,255,255,0.80) 100%)"
       />
 
       <div className="p-5 space-y-5">
