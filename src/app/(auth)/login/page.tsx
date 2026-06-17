@@ -88,7 +88,7 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full px-3.5 py-[10px] text-[13px] rounded-xl outline-none transition-all"
+                className="w-full px-3.5 py-[10px] text-[13px] rounded-xl outline-none"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.09)',

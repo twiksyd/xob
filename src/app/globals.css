@@ -598,6 +598,31 @@ input:focus, textarea:focus, select:focus {
   transition: box-shadow 0.18s ease;
 }
 
+/* ─── Autofill suppression — eliminates white/blue flash on type ─ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(5, 5, 10, 1) inset !important;
+  -webkit-text-fill-color: oklch(0.88 0.006 265) !important;
+  caret-color: #22d3ee !important;
+  transition: background-color 86400s ease 0s !important;
+}
+
+/* ─── Caret and text selection ───────────────────────────────── */
+input, textarea {
+  caret-color: #22d3ee;
+  color-scheme: dark;
+}
+
+input::selection, textarea::selection {
+  background: rgba(34, 211, 238, 0.22);
+  color: oklch(0.94 0.006 265);
+}
+
 /* ─── Recharts — dark palette ───────────────────────────────── */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
