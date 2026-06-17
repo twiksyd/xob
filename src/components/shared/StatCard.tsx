@@ -25,10 +25,10 @@ export default function StatCard({
     <div
       className={`relative overflow-hidden rounded-2xl p-5 stat-card ${className ?? ''}`}
       style={{
-        background: `rgba(255,255,255,0.82) padding-box, linear-gradient(135deg, ${accentColor}38, rgba(34,211,238,0.22) 50%, rgba(232,121,249,0.14)) border-box`,
+        background: `rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, ${accentColor}38, rgba(34,211,238,0.22) 50%, rgba(232,121,249,0.14)) border-box`,
         border: '1px solid transparent',
         backdropFilter: 'blur(24px) saturate(170%)',
-        boxShadow: `0 2px 16px ${accentColor}14, 0 4px 24px rgba(15,13,42,0.06), inset 0 0 0 1px rgba(255,255,255,0.22)`,
+        boxShadow: `0 2px 16px ${accentColor}14, 0 4px 24px rgba(255,255,255,0.092), inset 0 0 0 1px rgba(255,255,255,0.22)`,
       }}
     >
       <div
@@ -77,7 +77,7 @@ export default function StatCard({
                   animate="animate"
                   exit="exit"
                   className="text-[11px] mt-0.5 leading-snug"
-                  style={{ color: 'oklch(0.55 0.012 265)' }}
+                  style={{ color: 'rgba(255,255,255,0.45)' }}
                 >
                   {subtitle}
                 </motion.p>

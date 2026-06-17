@@ -100,7 +100,7 @@ function InventoryCard({
               </span>
             </div>
             {account.display_name && (
-              <p className="text-[11px] mt-0.5 truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>
+              <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 {account.display_name}
               </p>
             )}
@@ -109,7 +109,7 @@ function InventoryCard({
           <DropdownMenu>
             <DropdownMenuTrigger
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-30 group-hover:opacity-100"
-              style={{ color: 'oklch(0.55 0.012 265)' }}
+              style={{ color: 'rgba(255,255,255,0.45)' }}
             >
               <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
@@ -155,7 +155,7 @@ function InventoryCard({
           </button>
 
           {vehicles.length !== limiteds.length && (
-            <span className="text-[10px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               +{vehicles.length - limiteds.length} non-ltd
             </span>
           )}
@@ -168,25 +168,25 @@ function InventoryCard({
             <span className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
               ₱{Number(account.estimated_price).toLocaleString()}
             </span>
-            <span className="text-[10px]" style={{ color: 'oklch(0.60 0.010 265)' }}>estimated</span>
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>estimated</span>
           </div>
         )}
 
         {/* Notes */}
         {account.notes && (
-          <p className="text-[11px] leading-snug truncate" style={{ color: 'oklch(0.55 0.012 265)' }}>
+          <p className="text-[11px] leading-snug truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {account.notes}
           </p>
         )}
       </div>
 
       {/* Vehicles section */}
-      <div style={{ borderTop: '1px solid rgba(15,13,42,0.055)' }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.088)' }}>
         {/* Expand toggle */}
         <button
           onClick={onToggleExpand}
           className="w-full flex items-center justify-between px-5 py-2.5 text-[11px] font-semibold transition-colors hover:bg-black/[0.02]"
-          style={{ color: 'oklch(0.48 0.016 265)' }}
+          style={{ color: 'rgba(255,255,255,0.47)' }}
         >
           <span className="flex items-center gap-1.5">
             <Car className="w-3.5 h-3.5" />
@@ -219,14 +219,14 @@ function InventoryCard({
                     <div
                       key={v.id}
                       className="flex items-center justify-between gap-2 py-1.5 group/row"
-                      style={{ borderBottom: '1px solid rgba(15,13,42,0.038)' }}
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.065)' }}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div
                           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                           style={{ background: v.is_limited ? '#a78bfa' : 'oklch(0.65 0.010 265)' }}
                         />
-                        <span className="text-[12px] font-medium truncate" style={{ color: 'oklch(0.15 0.028 270)' }}>
+                        <span className="text-[12px] font-medium truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>
                           {v.name}
                         </span>
                         {v.is_limited && (
@@ -264,7 +264,7 @@ function InventoryCard({
                     className="h-8 px-2.5 rounded-lg text-[10px] font-bold flex-shrink-0 transition-all"
                     style={vehicleLimited
                       ? { background: 'rgba(167,139,250,0.12)', color: '#6d28d9', border: '1px solid rgba(167,139,250,0.22)' }
-                      : { background: 'rgba(15,13,42,0.04)', color: 'oklch(0.55 0.010 265)', border: '1px solid rgba(15,13,42,0.08)' }
+                      : { background: 'rgba(255,255,255,0.065)', color: 'rgba(255,255,255,0.44)', border: '1px solid rgba(255,255,255,0.110)' }
                     }
                   >
                     {vehicleLimited ? '◆ Ltd' : '○ Non'}
@@ -507,7 +507,7 @@ export default function SellerInventoryPage() {
             >
               <Archive className="w-6 h-6" style={{ color: '#a78bfa' }} />
             </div>
-            <p className="text-[14px] font-semibold mb-1.5" style={{ color: 'oklch(0.18 0.025 270)' }}>
+            <p className="text-[14px] font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.76)' }}>
               {search || filter !== 'all' ? 'No accounts match your filter' : 'No seller accounts yet'}
             </p>
             <p className="text-[12px] mb-5" style={{ color: 'oklch(0.62 0.010 265)' }}>
@@ -556,7 +556,7 @@ export default function SellerInventoryPage() {
           <div className="space-y-4 py-2">
             {/* Username */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Roblox Username *
               </label>
               <input
@@ -569,7 +569,7 @@ export default function SellerInventoryPage() {
 
             {/* Display Name */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Display Name <span style={{ color: 'oklch(0.62 0.010 265)', fontWeight: 400 }}>(optional)</span>
               </label>
               <input
@@ -583,8 +583,8 @@ export default function SellerInventoryPage() {
             {/* Drag Spec */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.18 0.025 270)' }}>Drag Spec Installed</p>
-                <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>Key selling feature</p>
+                <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.76)' }}>Drag Spec Installed</p>
+                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>Key selling feature</p>
               </div>
               <button
                 type="button"
@@ -592,7 +592,7 @@ export default function SellerInventoryPage() {
                 className="flex items-center gap-2 h-8 px-4 rounded-xl text-[12px] font-bold transition-all"
                 style={fDragSpec
                   ? { background: 'rgba(52,211,153,0.10)', color: '#047857', border: '1px solid rgba(52,211,153,0.26)' }
-                  : { background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)', border: '1px solid rgba(15,13,42,0.10)' }
+                  : { background: 'rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.47)', border: '1px solid rgba(255,255,255,0.130)' }
                 }
               >
                 {fDragSpec ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
@@ -602,7 +602,7 @@ export default function SellerInventoryPage() {
 
             {/* Estimated Price */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Estimated Sale Price (₱) <span style={{ color: 'oklch(0.62 0.010 265)', fontWeight: 400 }}>(optional)</span>
               </label>
               <input
@@ -618,7 +618,7 @@ export default function SellerInventoryPage() {
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Notes <span style={{ color: 'oklch(0.62 0.010 265)', fontWeight: 400 }}>(optional)</span>
               </label>
               <textarea

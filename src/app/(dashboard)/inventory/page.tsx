@@ -116,7 +116,7 @@ export default function InventoryPage() {
                 onClick={() => setFilterGame(isActive ? 'all' : game.id)}
                 className="chip"
                 style={isActive ? {
-                  background: `rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, ${color}55, ${color}28) border-box`,
+                  background: `rgba(255,255,255,0.050) padding-box, linear-gradient(135deg, ${color}55, ${color}28) border-box`,
                   border: '1px solid transparent',
                   color,
                   boxShadow: `0 0 14px ${color}28`,
@@ -152,7 +152,7 @@ export default function InventoryPage() {
               </button>
             ))}
           </div>
-          <p className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{filtered.length} gamepasses</p>
+          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{filtered.length} gamepasses</p>
         </div>
 
         {/* Table */}
@@ -189,19 +189,19 @@ export default function InventoryPage() {
                   {filtered.map(gp => (
                     <tr key={gp.id} className="group">
                       <td>
-                        <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)' }}>{gp.name}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>{gp.games?.name ?? '—'}</p>
+                        <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>{gp.name}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>{gp.games?.name ?? '—'}</p>
                       </td>
                       <td className="text-right">
-                        <span className="text-[12px] font-mono font-semibold" style={{ color: 'oklch(0.18 0.025 270)' }}>{gp.robux_amount.toLocaleString()} R$</span>
+                        <span className="text-[12px] font-mono font-semibold" style={{ color: 'rgba(255,255,255,0.76)' }}>{gp.robux_amount.toLocaleString()} R$</span>
                       </td>
-                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                      <td className="text-right text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                         {gp.competitor_price ? `₱${gp.competitor_price}` : '—'}
                       </td>
                       <td className="text-right">
-                        <span className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{gp.your_price}</span>
+                        <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>₱{gp.your_price}</span>
                       </td>
-                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                      <td className="text-right text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                         ₱{gp.your_cost.toFixed(2)}
                       </td>
                       <td className={cn('text-right text-[13px] font-bold',
@@ -209,7 +209,7 @@ export default function InventoryPage() {
                       )}>
                         ₱{gp.profit.toFixed(2)}
                       </td>
-                      <td className="text-right text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                      <td className="text-right text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                         {gp.suggested_lower_price ? `₱${gp.suggested_lower_price}` : '—'}
                       </td>
                       <td className="text-center">

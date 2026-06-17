@@ -117,7 +117,7 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
       <div className="flex items-center justify-between">
         <span className="label-caps">Purchase History</span>
         {filtered.length > 0 && (
-          <span className="text-[12px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+          <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
             {filtered.length} purchase{filtered.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -126,7 +126,7 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
       {/* ── Filter bar (T4 floating glass) ── */}
       <div className="glass-floating rounded-2xl p-3 flex flex-col sm:flex-row gap-2.5 sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'oklch(0.58 0.010 265)' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'rgba(255,255,255,0.48)' }} />
           <input
             type="text"
             value={search}
@@ -163,7 +163,7 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
       {pageRows.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <Receipt className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-          <p className="text-[14px] font-semibold mb-1" style={{ color: 'oklch(0.40 0.016 265)' }}>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>
             {orders.length === 0 ? 'No purchases yet' : 'No purchases match your search'}
           </p>
           <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>
@@ -190,25 +190,25 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
               <tbody>
                 {pageRows.map(row => (
                   <tr key={row._key}>
-                    <td className="text-[12px] font-semibold max-w-48 truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                    <td className="text-[12px] font-semibold max-w-48 truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {row.gamepassName}
                     </td>
                     <td className="font-mono text-[11px] font-bold" style={{ color: '#22d3ee' }}>
                       {row.orderNumber ?? '—'}
                     </td>
-                    <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                    <td className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                       {row.buyerName ?? '—'}
                     </td>
-                    <td className="text-right text-[12px] tabular-nums" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                    <td className="text-right text-[12px] tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {row.robuxAmount.toLocaleString()} R$
                     </td>
-                    <td className="text-right text-[12px] tabular-nums" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                    <td className="text-right text-[12px] tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       ₱{row.sellingPrice.toFixed(2)}
                     </td>
                     <td className={cn('text-right text-[12px] font-semibold tabular-nums', row.profit >= 0 ? 'text-emerald-500' : 'text-red-400')}>
                       ₱{row.profit.toFixed(2)}
                     </td>
-                    <td className="whitespace-nowrap text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                    <td className="whitespace-nowrap text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                       {format(new Date(row.createdAt), 'MMM dd, yyyy')}
                     </td>
                     <td>
@@ -240,18 +240,18 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
             className="flex items-center gap-1 text-[12px] font-semibold transition-colors disabled:opacity-40"
-            style={{ color: 'oklch(0.48 0.016 265)' }}
+            style={{ color: 'rgba(255,255,255,0.47)' }}
           >
             <ChevronLeft className="w-3.5 h-3.5" /> Prev
           </button>
-          <span className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+          <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
             Page {page} of {totalPages}
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="flex items-center gap-1 text-[12px] font-semibold transition-colors disabled:opacity-40"
-            style={{ color: 'oklch(0.48 0.016 265)' }}
+            style={{ color: 'rgba(255,255,255,0.47)' }}
           >
             Next <ChevronRight className="w-3.5 h-3.5" />
           </button>

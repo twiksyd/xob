@@ -21,7 +21,7 @@ import { getAvailableRobux } from '@/lib/utils/accounts'
 
 const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
-const COLOR_CURRENT   = 'oklch(0.10 0.030 272)'
+const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 
 export default function AccountLedgerPage() {
   const params = useParams<{ id: string }>()
@@ -121,7 +121,7 @@ export default function AccountLedgerPage() {
         <TopBar title="Account Ledger" />
         <div className="p-5">
           <div className="glass-card p-12 text-center">
-            <p className="text-[14px] font-semibold mb-2" style={{ color: 'oklch(0.40 0.016 265)' }}>
+            <p className="text-[14px] font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.40)' }}>
               Account not found
             </p>
             <Link href="/accounts" className="text-[12px] font-semibold" style={{ color: '#22d3ee' }}>
@@ -145,7 +145,7 @@ export default function AccountLedgerPage() {
         <Link
           href="/accounts"
           className="inline-flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
-          style={{ color: 'oklch(0.48 0.016 265)' }}
+          style={{ color: 'rgba(255,255,255,0.47)' }}
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Accounts
         </Link>
@@ -163,7 +163,7 @@ export default function AccountLedgerPage() {
                 glow="0 0 14px rgba(139,92,246,0.20)"
               />
               <div className="min-w-0">
-                <p className="text-[18px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                <p className="text-[18px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                   {account.username}
                 </p>
                 <div className="mt-1">
@@ -176,7 +176,7 @@ export default function AccountLedgerPage() {
             <div className="grid grid-cols-3 gap-2 sm:w-[300px] flex-shrink-0">
               <div
                 className="rounded-xl p-2.5 text-center"
-                style={{ background: 'rgba(15,13,42,0.028)', border: '1px solid rgba(15,13,42,0.048)' }}
+                style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.078)' }}
               >
                 <p className="label-caps mb-1">Current</p>
                 <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: COLOR_CURRENT }}>
@@ -200,12 +200,12 @@ export default function AccountLedgerPage() {
               <div
                 className="rounded-xl p-2.5 text-center"
                 style={{
-                  background: account.reserved_robux > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(15,13,42,0.025)',
-                  border: `1px solid ${account.reserved_robux > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(15,13,42,0.04)'}`,
+                  background: account.reserved_robux > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.045)',
+                  border: `1px solid ${account.reserved_robux > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(255,255,255,0.065)'}`,
                 }}
               >
-                <p className="label-caps mb-1" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.60 0.010 265)', opacity: 0.75 }}>Reserved</p>
-                <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.55 0.010 265)' }}>
+                <p className="label-caps mb-1" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.50)', opacity: 0.75 }}>Reserved</p>
+                <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: account.reserved_robux > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.44)' }}>
                   {account.reserved_robux.toLocaleString()}
                 </p>
                 <p className="text-[9px] font-semibold mt-0.5" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.65 0.010 265)', opacity: 0.65 }}>R$</p>

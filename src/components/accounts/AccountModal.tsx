@@ -157,7 +157,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
               Profile Picture Override
               <span
                 className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
-                style={{ background: 'rgba(34,211,238,0.08)', color: 'oklch(0.50 0.12 220)' }}
+                style={{ background: 'rgba(34,211,238,0.08)', color: 'rgba(34,211,238,0.70)' }}
               >
                 optional
               </span>
@@ -174,7 +174,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
                 className="bg-input flex-1"
               />
             </div>
-            <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               {profileValue && !previewUserId
                 ? 'Could not find a user ID in that link — paste the full profile URL or just the numeric ID'
                 : 'The avatar is looked up automatically from the username on save — only fill this in if you need to point at a different profile'}
@@ -200,7 +200,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
             </div>
           </div>
           {account && (
-            <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               These values are read-only — use Record Adjustment below to change them with an audit trail.
             </p>
           )}
@@ -231,7 +231,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
                 <Label className="text-xs">Supplier (optional)</Label>
                 <Input {...register('supplier')} placeholder="e.g. JuanDeals" className="bg-input" />
               </div>
-              <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+              <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
                 {purchaseCostValue > 0
                   ? `Robux Cost Rate will be set to ${formatPHP(derivedRate)} per 1,000 R$, and this purchase will be recorded in the Capital Events Ledger.`
                   : 'Leave blank if this account isn’t a new supplier purchase — no Capital Event will be recorded.'}
@@ -245,7 +245,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
               Robux Cost Rate (PHP / 1,000 R$)
               <span
                 className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
-                style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}
+                style={{ background: 'rgba(139,92,246,0.08)', color: 'rgba(167,139,250,0.70)' }}
               >
                 cost basis
               </span>
@@ -263,7 +263,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
                 disabled={purchaseCostValue > 0}
               />
             )}
-            <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               {account
                 ? 'Read-only — use Record Adjustment below to change this with an audit trail.'
                 : purchaseCostValue > 0

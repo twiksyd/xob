@@ -54,7 +54,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
             {order && <StatusBadge status={order.status} className="border-slate-300" />}
           </div>
           {order && (
-            <p className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
               Created {format(new Date(order.created_at), 'MMM d, yyyy · h:mm a')}
               {' '}({formatDistanceToNow(new Date(order.created_at), { addSuffix: true })})
             </p>
@@ -67,19 +67,19 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
             <span className="label-caps">Items</span>
             <div className="glass-modal p-3 space-y-2.5 max-h-48 overflow-y-auto">
               {items.length === 0 ? (
-                <p className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>No items recorded</p>
+                <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>No items recorded</p>
               ) : items.map((g, i) => (
                 <div key={i} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                    <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {g.gamepass_name}
                     </p>
-                    <p className="text-[10px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                    <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
                       {g.game_name ? `${g.game_name} · ` : ''}{formatRobux(g.unit_robux)} ea
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-[11px]" style={{ color: 'oklch(0.48 0.016 265)' }}>
+                    <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.47)' }}>
                       ×{g.count} @ {formatPHP(g.unit_price)}
                     </p>
                     <p className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
@@ -97,7 +97,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
             {account ? (
               <div className="glass-modal p-3 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                  <p className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                     {account.username}
                   </p>
                   <div className="flex items-center gap-1.5 mt-1">
@@ -113,7 +113,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Available</p>
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Available</p>
                   <p className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
                     {formatRobux(getAvailableRobux(account))}
                   </p>
@@ -121,7 +121,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
               </div>
             ) : (
               <div className="glass-modal p-3">
-                <p className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>No account assigned</p>
+                <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>No account assigned</p>
               </div>
             )}
           </div>
@@ -129,13 +129,13 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
           {/* Summary */}
           <div className="glass-modal grid grid-cols-3 gap-2 text-center p-3.5">
             <div>
-              <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
+              <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Robux</p>
               <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
                 {formatRobux(order?.robux_amount ?? 0)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total PHP</p>
+              <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total PHP</p>
               <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
                 {formatPHP(order?.selling_price ?? 0)}
               </p>

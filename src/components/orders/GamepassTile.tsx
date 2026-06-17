@@ -60,10 +60,10 @@ export default function GamepassTile({ gamepass, quantity, onAdd, onRemove }: Ga
           {gamepass.name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-bold leading-snug truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
+          <p className="text-[13px] font-bold leading-snug truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
             {gamepass.name}
           </p>
-          <p className="text-[10px] truncate" style={{ color: 'oklch(0.58 0.010 265)' }}>
+          <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.48)' }}>
             {gamepass.games?.name ?? 'No game'}
           </p>
         </div>
@@ -74,8 +74,8 @@ export default function GamepassTile({ gamepass, quantity, onAdd, onRemove }: Ga
         <span className="text-[10px] font-semibold tabular-nums" style={{ color: 'oklch(0.52 0.012 265)' }}>
           {gamepass.robux_amount.toLocaleString()} R$
         </span>
-        <span className="w-px h-3" style={{ background: 'rgba(15,13,42,0.10)' }} />
-        <span className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.14 0.028 272)' }}>
+        <span className="w-px h-3" style={{ background: 'rgba(255,255,255,0.130)' }} />
+        <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.84)' }}>
           ₱{gamepass.your_price}
         </span>
         <span className="ml-auto text-[10px] font-semibold tabular-nums" style={{ color: 'rgba(52,211,153,0.85)' }}>

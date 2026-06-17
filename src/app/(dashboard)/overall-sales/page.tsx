@@ -246,15 +246,15 @@ export default function OverallSalesPage() {
 
         {/* ── Summary Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0">
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Completed Revenue</p>
-            <RevenueValue amount={totalRevenue} color="oklch(0.10 0.030 272)" />
+            <RevenueValue amount={totalRevenue} color="rgba(255,255,255,0.88)" />
           </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Profit</p>
             <p className="stat-value" style={{ color: '#22d3ee', filter: BLUR, userSelect: 'none' }}>₱{totalProfit.toFixed(2)}</p>
           </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Orders</p>
             <p className="stat-value" style={{ color: '#f59e0b' }}>{sales.length}</p>
           </div>
@@ -278,7 +278,7 @@ export default function OverallSalesPage() {
             disabled={refreshing || gpLoading}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all disabled:opacity-50"
             style={{
-              background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(34,211,238,0.28), rgba(167,139,250,0.20)) border-box',
+              background: 'rgba(255,255,255,0.050) padding-box, linear-gradient(135deg, rgba(34,211,238,0.28), rgba(167,139,250,0.20)) border-box',
               border: '1px solid transparent', color: '#22d3ee', boxShadow: '0 2px 8px rgba(34,211,238,0.08)',
             }}
           >
@@ -294,7 +294,7 @@ export default function OverallSalesPage() {
           {gpLoading ? (
             <div className="flex-1 flex items-center justify-center gap-3">
               <div className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
-              <p className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Loading inventory…</p>
+              <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Loading inventory…</p>
             </div>
           ) : pool.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
@@ -320,7 +320,7 @@ export default function OverallSalesPage() {
                         <button
                           onClick={() => setShowAccounts(v => !v)}
                           className="rounded p-0.5 transition-colors"
-                          style={{ color: showAccounts ? '#22d3ee' : 'oklch(0.60 0.010 265)' }}
+                          style={{ color: showAccounts ? '#22d3ee' : 'rgba(255,255,255,0.50)' }}
                           title={showAccounts ? 'Hide accounts' : 'Reveal accounts'}
                         >
                           {showAccounts ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -337,33 +337,33 @@ export default function OverallSalesPage() {
                   {filtered.map(sale => (
                     <tr key={sale.id}>
                       <td className="whitespace-nowrap">
-                        <div className="text-[11px] font-medium" style={{ color: 'oklch(0.45 0.012 270)' }}>{dateLabel(sale.at)}</div>
+                        <div className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>{dateLabel(sale.at)}</div>
                         <div className="text-[10px]" style={{ color: 'oklch(0.65 0.010 265)' }}>{format(sale.at, 'HH:mm')}</div>
                       </td>
                       <td>
-                        <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)', filter: BLUR, transition: BLUR_T, userSelect: 'none' }}>
+                        <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)', filter: BLUR, transition: BLUR_T, userSelect: 'none' }}>
                           {sale.buyer}
                         </p>
                       </td>
                       <td>
-                        <p className="text-[13px] font-semibold" style={{ color: 'oklch(0.10 0.030 272)' }}>{sale.gamepass}</p>
-                        <p className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{sale.game}</p>
+                        <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>{sale.gamepass}</p>
+                        <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{sale.game}</p>
                       </td>
                       <td className="text-center">
                         <span
                           className="inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-bold tabular-nums"
-                          style={{ background: sale.qty > 1 ? 'rgba(34,211,238,0.10)' : 'rgba(15,13,42,0.04)', color: sale.qty > 1 ? '#22d3ee' : 'oklch(0.55 0.010 265)' }}
+                          style={{ background: sale.qty > 1 ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.065)', color: sale.qty > 1 ? '#22d3ee' : 'rgba(255,255,255,0.44)' }}
                         >
                           {sale.qty}
                         </span>
                       </td>
                       <td>
-                        <span className="text-[12px] font-medium" style={{ color: 'oklch(0.55 0.010 265)', filter: showAccounts ? 'none' : BLUR, transition: BLUR_T, userSelect: showAccounts ? 'auto' : 'none' }}>
+                        <span className="text-[12px] font-medium" style={{ color: 'rgba(255,255,255,0.44)', filter: showAccounts ? 'none' : BLUR, transition: BLUR_T, userSelect: showAccounts ? 'auto' : 'none' }}>
                           {sale.account}
                         </span>
                       </td>
                       <td className="text-right">
-                        <span className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{sale.price.toFixed(2)}</span>
+                        <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>₱{sale.price.toFixed(2)}</span>
                       </td>
                       <td className="text-right">
                         <span
@@ -373,7 +373,7 @@ export default function OverallSalesPage() {
                           {sale.status === 'refunded' ? '-' : '+'}₱{sale.profit.toFixed(2)}
                         </span>
                       </td>
-                      <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{sale.method}</td>
+                      <td className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{sale.method}</td>
                       <td className="text-center"><StatusBadge status={sale.status} /></td>
                     </tr>
                   ))}

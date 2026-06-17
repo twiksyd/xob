@@ -57,7 +57,7 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
           <History className="w-5 h-5" style={{ color: '#a78bfa' }} />
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Capital Events Ledger</p>
+          <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Capital Events Ledger</p>
           <p className="label-caps mt-0.5">Every recorded supplier purchase — profit or capital?</p>
         </div>
       </div>
@@ -81,9 +81,9 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
 
       {/* ── Timeline ── */}
       {loading ? (
-        <p className="text-[12px] py-4 text-center" style={{ color: 'oklch(0.55 0.010 265)' }}>Loading…</p>
+        <p className="text-[12px] py-4 text-center" style={{ color: 'rgba(255,255,255,0.44)' }}>Loading…</p>
       ) : events.length === 0 ? (
-        <p className="text-[12px] py-4 text-center" style={{ color: 'oklch(0.55 0.010 265)' }}>
+        <p className="text-[12px] py-4 text-center" style={{ color: 'rgba(255,255,255,0.44)' }}>
           No capital events recorded yet. Adding a Roblox account with a purchase cost logs one automatically.
         </p>
       ) : (
@@ -92,12 +92,12 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
             const meta = FUNDING_META[e.funding_source]
             return (
               <div key={e.id} className="relative pl-6 pb-4 last:pb-0">
-                <div className="absolute left-[4px] top-4 bottom-0 w-px" style={{ background: 'rgba(15,13,42,0.08)' }} />
+                <div className="absolute left-[4px] top-4 bottom-0 w-px" style={{ background: 'rgba(255,255,255,0.110)' }} />
                 <div className="absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full" style={{ background: meta.color }} />
 
                 <div className="rounded-xl p-3.5" style={{ background: meta.bg, border: `1px solid ${meta.border}` }}>
                   <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                    <span className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                    <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {format(new Date(e.created_at), 'MMMM d, yyyy')}
                     </span>
                     <span
@@ -108,12 +108,12 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
                     </span>
                   </div>
 
-                  <p className={`text-[13px] font-semibold ${e.supplier ? 'mb-1' : 'mb-2.5'}`} style={{ color: 'oklch(0.18 0.025 270)' }}>
+                  <p className={`text-[13px] font-semibold ${e.supplier ? 'mb-1' : 'mb-2.5'}`} style={{ color: 'rgba(255,255,255,0.76)' }}>
                     Purchased {e.accounts_purchased} Account{e.accounts_purchased > 1 ? 's' : ''} · {formatRobux(e.robux_acquired)}
                   </p>
 
                   {e.supplier && (
-                    <p className="text-[11px] mb-2.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                    <p className="text-[11px] mb-2.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
                       Supplier: <span className="font-semibold" style={{ color: 'oklch(0.30 0.020 270)' }}>{e.supplier}</span>
                     </p>
                   )}
@@ -125,8 +125,8 @@ export default function CapitalEventsLedger({ refreshKey }: CapitalEventsLedgerP
                     <Field label="Capital Remaining" value={formatPHP(e.protected_capital_remaining)} />
                   </div>
 
-                  <p className="text-[11px] mt-2.5" style={{ color: 'oklch(0.50 0.014 265)' }}>
-                    After purchase, Business Value: <span className="font-bold" style={{ color: 'oklch(0.18 0.025 270)' }}>{formatPHP(e.business_value_after)}</span>
+                  <p className="text-[11px] mt-2.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                    After purchase, Business Value: <span className="font-bold" style={{ color: 'rgba(255,255,255,0.76)' }}>{formatPHP(e.business_value_after)}</span>
                   </p>
                 </div>
               </div>
@@ -142,7 +142,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="label-caps mb-0.5" style={{ opacity: 0.7 }}>{label}</p>
-      <p className="font-bold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }
@@ -154,7 +154,7 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }

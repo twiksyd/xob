@@ -117,7 +117,7 @@ export default function CapitalSafety({ accounts, walletBalance }: CapitalSafety
           <ShieldAlert className="w-5 h-5" style={{ color: '#f43f5e' }} />
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Capital Safety</p>
+          <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Capital Safety</p>
           <p className="label-caps mt-0.5">Can I safely buy supplier stock right now?</p>
         </div>
       </div>
@@ -140,10 +140,10 @@ export default function CapitalSafety({ accounts, walletBalance }: CapitalSafety
       </div>
 
       {/* ── Purchase simulator ── */}
-      <div className="pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="label-caps">Purchase Simulator</span>
-          <span className="text-[11px]" style={{ color: 'oklch(0.50 0.014 265)' }}>{formatPHP(ACCOUNT_COST)} per supplier account</span>
+          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{formatPHP(ACCOUNT_COST)} per supplier account</span>
         </div>
 
         <div className="flex gap-1.5 mb-4">
@@ -155,7 +155,7 @@ export default function CapitalSafety({ accounts, walletBalance }: CapitalSafety
               className="flex-1 rounded-xl py-2 text-[12px] font-bold transition-all cursor-pointer"
               style={selectedN === n
                 ? { background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: '#ffffff', boxShadow: '0 2px 12px rgba(34,211,238,0.30)' }
-                : { background: 'rgba(15,13,42,0.04)', border: '1px solid rgba(15,13,42,0.08)', color: 'oklch(0.45 0.018 268)' }
+                : { background: 'rgba(255,255,255,0.065)', border: '1px solid rgba(255,255,255,0.110)', color: 'rgba(255,255,255,0.45)' }
               }
             >
               +{n} {n === 1 ? 'Account' : 'Accounts'}
@@ -173,7 +173,7 @@ export default function CapitalSafety({ accounts, walletBalance }: CapitalSafety
           </div>
 
           {/* Profit-funded vs. capital-funded split */}
-          <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(15,13,42,0.06)' }}>
+          <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.092)' }}>
             {profitPct > 0 && <div style={{ width: `${profitPct}%`, background: '#34d399' }} />}
             {capitalPct > 0 && <div style={{ width: `${capitalPct}%`, background: '#f43f5e' }} />}
           </div>
@@ -201,7 +201,7 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }

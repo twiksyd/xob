@@ -71,7 +71,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
     <div className="space-y-3">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'oklch(0.58 0.010 265)' }} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'rgba(255,255,255,0.48)' }} />
         <input
           type="text"
           value={search}
@@ -138,7 +138,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
                   className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: group.color, boxShadow: `0 0 6px ${group.color}80` }}
                 />
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'oklch(0.48 0.016 265)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.47)' }}>
                   {group.name}
                 </p>
               </div>

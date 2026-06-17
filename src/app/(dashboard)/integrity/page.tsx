@@ -122,12 +122,12 @@ export default function FinancialIntegrityPage() {
               <ShieldCheck className="w-5 h-5" style={{ color: overallStyle.color }} />
             </div>
             <div>
-              <p className="text-[14px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+              <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {overallStatus === 'PASS'
                   ? 'All reconciliation checks pass'
                   : `${failCount} check${failCount === 1 ? '' : 's'} failing, ${warnCount} with warnings`}
               </p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 {lastChecked ? `Last checked ${lastChecked.toLocaleTimeString()}` : 'Checking...'} — Wallet, Savings, Reserved Robux, Inventory Value, Capital Usage
               </p>
             </div>
@@ -146,9 +146,9 @@ export default function FinancialIntegrityPage() {
               disabled={refreshing}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
               style={{
-                background: 'rgba(255,255,255,0.85) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.20)) border-box',
+                background: 'rgba(255,255,255,0.050) padding-box, linear-gradient(135deg, rgba(139,92,246,0.20), rgba(34,211,238,0.20)) border-box',
                 border: '1px solid transparent',
-                color: 'oklch(0.45 0.014 265)',
+                color: 'rgba(255,255,255,0.38)',
               }}
               title="Re-run checks"
             >
@@ -187,7 +187,7 @@ export default function FinancialIntegrityPage() {
                       >
                         <Icon className="w-4 h-4" style={{ color: style.color }} />
                       </div>
-                      <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                      <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                         {check.check_name}
                       </p>
                     </div>
@@ -203,13 +203,13 @@ export default function FinancialIntegrityPage() {
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     <div>
                       <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'oklch(0.62 0.010 265)' }}>Expected</p>
-                      <p className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
                         {fmtValue(check.expected, meta.unit)}
                       </p>
                     </div>
                     <div>
                       <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'oklch(0.62 0.010 265)' }}>Actual</p>
-                      <p className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                      <p className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
                         {fmtValue(check.actual, meta.unit)}
                       </p>
                     </div>
@@ -221,11 +221,11 @@ export default function FinancialIntegrityPage() {
                     </div>
                   </div>
 
-                  <p className="text-[10px] font-mono mb-2 px-2 py-1.5 rounded-lg" style={{ color: 'oklch(0.48 0.016 265)', background: 'rgba(15,13,42,0.03)' }}>
+                  <p className="text-[10px] font-mono mb-2 px-2 py-1.5 rounded-lg" style={{ color: 'rgba(255,255,255,0.47)', background: 'rgba(15,13,42,0.03)' }}>
                     {check.formula}
                   </p>
 
-                  <p className="text-[11px] leading-relaxed" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                  <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
                     {check.details}
                   </p>
                 </motion.div>

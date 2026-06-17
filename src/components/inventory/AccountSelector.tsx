@@ -16,7 +16,7 @@ interface AccountSelectorProps {
 
 const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
-const COLOR_NEUTRAL   = 'oklch(0.58 0.010 265)'
+const COLOR_NEUTRAL   = 'rgba(255,255,255,0.48)'
 
 export default function AccountSelector({ accounts, robuxRequired, selectedId, onSelect }: AccountSelectorProps) {
   const [showDepleted, setShowDepleted] = useState(false)
@@ -46,12 +46,12 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-semibold" style={{ color: 'oklch(0.48 0.016 265)' }}>
+      <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.47)' }}>
         Select account
         {robuxRequired > 0 && (
           <span style={{ color: 'oklch(0.38 0.016 265)' }}>
             {' '}— need{' '}
-            <span className="font-bold tabular-nums" style={{ color: 'oklch(0.20 0.025 270)' }}>
+            <span className="font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.72)' }}>
               {robuxRequired.toLocaleString()} R$
             </span>
           </span>
@@ -103,7 +103,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                     ? 'linear-gradient(135deg, rgba(52,211,153,0.25), rgba(34,211,238,0.20))'
                     : 'rgba(139,92,246,0.10)'
                 }
-                textColor={isSelected ? '#22d3ee' : 'oklch(0.48 0.090 280)'}
+                textColor={isSelected ? '#22d3ee' : 'rgba(167,139,250,0.60)'}
                 glow="none"
               />
 
@@ -111,7 +111,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
               <div className="flex-1 min-w-0">
                 {/* Username row */}
                 <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                  <p className="text-[12px] font-bold truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                  <p className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                     {acc.username}
                   </p>
                   {isBest && (
@@ -122,7 +122,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   {acc.depleted && (
                     <span
                       className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: 'rgba(15,13,42,0.04)', color: COLOR_NEUTRAL, border: '1px solid rgba(15,13,42,0.08)' }}
+                      style={{ background: 'rgba(255,255,255,0.065)', color: COLOR_NEUTRAL, border: '1px solid rgba(255,255,255,0.110)' }}
                     >
                       <Archive className="w-2.5 h-2.5" /> Depleted
                     </span>
@@ -130,7 +130,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   {acc.robux_cost_rate > 0 && (
                     <span
                       className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: 'rgba(167,139,250,0.08)', color: 'oklch(0.48 0.090 280)', border: '1px solid rgba(167,139,250,0.16)' }}
+                      style={{ background: 'rgba(167,139,250,0.08)', color: 'rgba(167,139,250,0.60)', border: '1px solid rgba(167,139,250,0.16)' }}
                     >
                       ₱{acc.robux_cost_rate}/1k R$
                     </span>
@@ -142,12 +142,12 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   {/* Current */}
                   <div>
                     <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'oklch(0.62 0.010 265)' }}>Current</p>
-                    <p className="text-[11px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                    <p className="text-[11px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
                       {acc.current_robux.toLocaleString()} R$
                     </p>
                   </div>
 
-                  <div className="w-px h-5" style={{ background: 'rgba(15,13,42,0.08)' }} />
+                  <div className="w-px h-5" style={{ background: 'rgba(255,255,255,0.110)' }} />
 
                   {/* Available — green, most prominent */}
                   <div>
@@ -159,7 +159,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
 
                   {acc.reserved_robux > 0 && (
                     <>
-                      <div className="w-px h-5" style={{ background: 'rgba(15,13,42,0.08)' }} />
+                      <div className="w-px h-5" style={{ background: 'rgba(255,255,255,0.110)' }} />
                       {/* Reserved — amber */}
                       <div>
                         <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: COLOR_RESERVED, opacity: 0.75 }}>Reserved</p>
@@ -172,7 +172,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                 </div>
 
                 {/* Segmented bar */}
-                <div className="h-1.5 rounded-full overflow-hidden flex mb-1.5" style={{ background: 'rgba(15,13,42,0.07)' }}>
+                <div className="h-1.5 rounded-full overflow-hidden flex mb-1.5" style={{ background: 'rgba(255,255,255,0.100)' }}>
                   {availPct > 0 && (
                     <div
                       className="h-full"
@@ -199,7 +199,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
 
                 {/* After-order projection */}
                 {acc.canAfford && robuxRequired > 0 && (
-                  <p className="text-[10px] font-medium" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                  <p className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.44)' }}>
                     After order:{' '}
                     <span className="font-bold tabular-nums" style={{ color: afterRobux < 500 ? COLOR_RESERVED : COLOR_AVAILABLE }}>
                       {afterRobux.toLocaleString()} R$
@@ -231,7 +231,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
           type="button"
           onClick={() => setShowDepleted(p => !p)}
           className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-          style={{ color: 'oklch(0.48 0.016 265)' }}
+          style={{ color: 'rgba(255,255,255,0.47)' }}
         >
           <ChevronDown
             className="w-3.5 h-3.5 transition-transform duration-200"

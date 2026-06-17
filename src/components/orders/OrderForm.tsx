@@ -97,7 +97,7 @@ export default function OrderForm({
             <h2 className="text-[14px] font-bold tracking-tight" style={{ color: 'oklch(0.095 0.032 272)' }}>
               {isEditMode ? 'Edit Order' : 'Create Order'}
             </h2>
-            <p className="text-[11px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
+            <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
               {isEditMode
                 ? `${editOrder?.order_number ?? '—'} · ${editOrder?.buyer_name ?? 'No buyer name'}`
                 : 'Resets after submit — ready for the next order immediately'}
@@ -109,7 +109,7 @@ export default function OrderForm({
           <button
             onClick={onCancelEdit}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
-            style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.48 0.016 265)', border: '1px solid rgba(15,13,42,0.08)' }}
+            style={{ background: 'rgba(255,255,255,0.065)', color: 'rgba(255,255,255,0.47)', border: '1px solid rgba(255,255,255,0.110)' }}
           >
             <X className="w-3 h-3" /> Cancel Edit
           </button>
@@ -124,7 +124,7 @@ export default function OrderForm({
           <SectionLabel>Buyer</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <Label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Name / GCash Name
               </Label>
               <Input
@@ -135,7 +135,7 @@ export default function OrderForm({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <Label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Roblox Username
               </Label>
               <Input
@@ -159,7 +159,7 @@ export default function OrderForm({
                 type="button"
                 onClick={onClearCart}
                 className="flex items-center gap-1 text-[10px] font-semibold transition-colors hover:text-red-400"
-                style={{ color: 'oklch(0.55 0.010 265)' }}
+                style={{ color: 'rgba(255,255,255,0.44)' }}
               >
                 <Trash2 className="w-3 h-3" /> Clear ({validItemsCount})
               </button>
@@ -175,13 +175,13 @@ export default function OrderForm({
                 <div
                   key={g.gamepass_id}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                  style={{ background: 'rgba(15,13,42,0.030)', border: '1px solid rgba(15,13,42,0.045)' }}
+                  style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.072)' }}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                    <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {g.gamepass_name}
                     </p>
-                    <p className="text-[10px] truncate" style={{ color: 'oklch(0.58 0.010 265)' }}>
+                    <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.48)' }}>
                       {g.game_name ?? '—'} · {formatRobux(g.robux_amount)} · {formatPHP(g.selling_price)} each
                     </p>
                   </div>
@@ -190,11 +190,11 @@ export default function OrderForm({
                       type="button"
                       onClick={() => onRemoveFromCart(g.gamepass_id)}
                       className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
-                      style={{ background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
+                      style={{ background: 'rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.47)' }}
                     >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="w-6 text-center text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                    <span className="w-6 text-center text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {g.count}
                     </span>
                     <button
@@ -208,7 +208,7 @@ export default function OrderForm({
                   </div>
                   <span
                     className="text-[12px] font-bold tabular-nums flex-shrink-0 text-right"
-                    style={{ color: 'oklch(0.10 0.030 272)', minWidth: '64px' }}
+                    style={{ color: 'rgba(255,255,255,0.88)', minWidth: '64px' }}
                   >
                     {formatPHP(g.selling_price * g.count)}
                   </span>
@@ -223,13 +223,13 @@ export default function OrderForm({
           <div className="space-y-2">
             <div className="totals-bar grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Robux</p>
+                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Robux</p>
                 <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
                   {formatRobux(totals.totalRobux)}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Total Price</p>
+                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Price</p>
                 <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
                   {formatPHP(totals.totalPrice)}
                 </p>
@@ -245,10 +245,10 @@ export default function OrderForm({
                 className="flex items-center justify-between px-3 py-2 rounded-lg text-[11px]"
                 style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.14)' }}
               >
-                <span style={{ color: 'oklch(0.48 0.016 265)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.47)' }}>
                   Rate: {formatPHP(accountRate)}/1k R$ · Cost: {formatPHP(totals.totalCost)}
                 </span>
-                <span style={{ color: 'oklch(0.48 0.016 265)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.47)' }}>
                   Gross {formatPHP(totals.totalPrice)} − Cost {formatPHP(totals.totalCost)} = <span style={{ color: '#34d399', fontWeight: 700 }}>{formatPHP(totals.totalProfit)}</span>
                 </span>
               </div>
@@ -279,7 +279,7 @@ export default function OrderForm({
           <SectionLabel>Order Details</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <Label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Payment Method
               </Label>
               <Select value={payMethod} onValueChange={v => setValue('payment_method', (v ?? 'GCash') as OrderFormData['payment_method'])}>
@@ -294,7 +294,7 @@ export default function OrderForm({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+              <Label className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 Status
               </Label>
               <Select value={statusVal} onValueChange={v => setValue('status', (v ?? 'pending') as OrderFormData['status'])}>

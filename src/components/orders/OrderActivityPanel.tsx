@@ -60,7 +60,7 @@ export default function OrderActivityPanel({
           className="flex items-center justify-between px-4 py-3.5"
           style={{
             background: 'rgba(255,255,255,0.28)',
-            borderBottom: '1px solid rgba(15,13,42,0.048)',
+            borderBottom: '1px solid rgba(255,255,255,0.078)',
           }}
         >
           <div className="flex items-center gap-2">
@@ -107,7 +107,7 @@ export default function OrderActivityPanel({
                   exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
                   transition={{ duration: 0.18 }}
                   className="relative order-row-shimmer group cursor-pointer"
-                  style={{ borderBottom: '1px solid rgba(15,13,42,0.042)' }}
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.068)' }}
                   onClick={() => setInspectOrder(order)}
                 >
                   {/* Left accent */}
@@ -171,7 +171,7 @@ export default function OrderActivityPanel({
                     {/* Buyer */}
                     <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.095 0.032 272)' }}>
                       {order.buyer_name || (
-                        <span style={{ color: 'oklch(0.60 0.010 265)', fontStyle: 'italic', fontWeight: 400, fontSize: '11px' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.50)', fontStyle: 'italic', fontWeight: 400, fontSize: '11px' }}>
                           No buyer name
                         </span>
                       )}
@@ -179,7 +179,7 @@ export default function OrderActivityPanel({
 
                     {/* Gamepass name */}
                     {dispItems.length > 0 && (
-                      <p className="text-[11px] truncate mt-0.5 mb-2.5" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                      <p className="text-[11px] truncate mt-0.5 mb-2.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
                         {dispItems[0].gamepass_name}
                         {dispItems.length > 1 && (
                           <span style={{ color: '#22d3ee' }}> +{dispItems.length - 1}</span>
@@ -208,12 +208,12 @@ export default function OrderActivityPanel({
 
                     {/* Hover preview — quick inspection without opening the dialog */}
                     <div className="max-h-0 group-hover:max-h-40 overflow-hidden transition-all duration-200 ease-out">
-                      <div className="mt-2.5 pt-2.5 space-y-1.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+                      <div className="mt-2.5 pt-2.5 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
                         {itemGroups.slice(0, 3).map((g, i) => (
                           <div key={i} className="flex items-center justify-between gap-2 text-[10px]">
-                            <span className="truncate" style={{ color: 'oklch(0.40 0.020 270)' }}>
+                            <span className="truncate" style={{ color: 'rgba(255,255,255,0.40)' }}>
                               {g.gamepass_name}
-                              <span style={{ color: 'oklch(0.55 0.010 265)' }}> ×{g.count}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.44)' }}> ×{g.count}</span>
                             </span>
                             <span className="font-semibold tabular-nums flex-shrink-0" style={{ color: 'oklch(0.30 0.020 270)' }}>
                               {formatPHP(g.subtotal)}
@@ -221,18 +221,18 @@ export default function OrderActivityPanel({
                           </div>
                         ))}
                         {itemGroups.length > 3 && (
-                          <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                             +{itemGroups.length - 3} more item{itemGroups.length - 3 > 1 ? 's' : ''}
                           </p>
                         )}
                         <div className="flex items-center justify-between gap-2 text-[10px]">
-                          <span style={{ color: 'oklch(0.55 0.010 265)' }}>Account</span>
+                          <span style={{ color: 'rgba(255,255,255,0.44)' }}>Account</span>
                           <span className="font-semibold truncate" style={{ color: 'oklch(0.30 0.020 270)' }}>
                             {order.roblox_accounts?.username ?? '—'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-[10px]">
-                          <span style={{ color: 'oklch(0.55 0.010 265)' }}>Total</span>
+                          <span style={{ color: 'rgba(255,255,255,0.44)' }}>Total</span>
                           <span className="font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
                             {formatRobux(order.robux_amount ?? 0)} · {formatPHP(order.selling_price ?? 0)}
                           </span>
@@ -255,14 +255,14 @@ export default function OrderActivityPanel({
             className="w-full flex items-center justify-between px-4 py-3.5 transition-colors"
             style={{
               background: historyExpanded ? 'rgba(255,255,255,0.28)' : 'transparent',
-              borderBottom: historyExpanded ? '1px solid rgba(15,13,42,0.048)' : 'none',
+              borderBottom: historyExpanded ? '1px solid rgba(255,255,255,0.078)' : 'none',
             }}
           >
             <div className="flex items-center gap-2">
               <span className="label-caps">History</span>
               <span
                 className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{ background: 'rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
+                style={{ background: 'rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.47)' }}
               >
                 {historyOrders.length}
               </span>
@@ -270,7 +270,7 @@ export default function OrderActivityPanel({
             <ChevronDown
               className="w-3.5 h-3.5 transition-transform duration-200"
               style={{
-                color: 'oklch(0.48 0.016 265)',
+                color: 'rgba(255,255,255,0.47)',
                 transform: historyExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
             />
@@ -298,7 +298,7 @@ export default function OrderActivityPanel({
                           <div
                             key={order.id}
                             className="flex items-center gap-2.5 px-4 py-2.5 group order-row-shimmer transition-colors"
-                            style={{ borderBottom: '1px solid rgba(15,13,42,0.038)' }}
+                            style={{ borderBottom: '1px solid rgba(255,255,255,0.065)' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
                             onMouseLeave={e => (e.currentTarget.style.background = '')}
                           >
@@ -309,10 +309,10 @@ export default function OrderActivityPanel({
                                 </span>
                                 <StatusBadge status={order.status} />
                               </div>
-                              <p className="text-[11px] font-medium truncate" style={{ color: 'oklch(0.20 0.025 270)' }}>
+                              <p className="text-[11px] font-medium truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>
                                 {order.buyer_name ?? '—'}
                               </p>
-                              <p className="text-[10px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                              <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
                                 {oi.length > 0 ? oi[0].gamepass_name : (order.gamepasses?.name ?? '—')}
                               </p>
                             </div>
@@ -320,7 +320,7 @@ export default function OrderActivityPanel({
                               <p className="text-[12px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
                                 {order.selling_price ? formatPHP(order.selling_price) : '—'}
                               </p>
-                              <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                                 {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
                               </p>
                             </div>

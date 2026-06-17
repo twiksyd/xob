@@ -6,30 +6,31 @@ import {
 } from 'recharts'
 
 const TT = {
-  backgroundColor: 'rgba(255,255,255,0.90)',
-  border: '1px solid rgba(139,92,246,0.15)',
+  backgroundColor: 'rgba(10, 8, 24, 0.94)',
+  border: '1px solid rgba(255,255,255,0.100)',
   borderRadius: '12px',
-  color: 'oklch(0.10 0.030 272)',
+  color: 'rgba(255,255,255,0.88)',
   fontSize: '12px',
-  boxShadow: '0 8px 32px rgba(139,92,246,0.12)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.60)',
   padding: '8px 12px',
+  backdropFilter: 'blur(20px)',
 }
 
-const AXIS = { fontSize: 11, fill: 'oklch(0.55 0.010 265)' }
+const AXIS = { fontSize: 11, fill: 'rgba(255,255,255,0.44)' }
 
 export function RevenueChart({ data }: { data: { day: string; revenue: number; profit: number }[] }) {
   return (
     <div className="glass-card p-5 h-full">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Revenue & Profit</p>
+          <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Revenue & Profit</p>
           <p className="label-caps mt-0.5">Last 7 days</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
             <span className="w-2 h-2 rounded-full" style={{ background: '#e879f9', boxShadow: '0 0 6px rgba(232,121,249,0.6)' }} /> Revenue
           </span>
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
             <span className="w-2 h-2 rounded-full" style={{ background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.6)' }} /> Profit
           </span>
         </div>
@@ -76,10 +77,10 @@ export function TopGamesChart({ data }: { data: { name: string; sales: number }[
   const COLORS = ['#22d3ee', '#a78bfa', '#e879f9', '#38bdf8', '#34d399']
   return (
     <div className="glass-card p-5">
-      <p className="text-[13px] font-bold mb-0.5" style={{ color: 'oklch(0.10 0.030 272)' }}>Top Games by Sales</p>
+      <p className="text-[13px] font-bold mb-0.5" style={{ color: 'rgba(255,255,255,0.88)' }}>Top Games by Sales</p>
       <p className="label-caps mb-4">Completed orders</p>
       {data.length === 0 ? (
-        <p className="text-[12px] text-center py-8" style={{ color: 'oklch(0.55 0.010 265)' }}>No completed orders yet</p>
+        <p className="text-[12px] text-center py-8" style={{ color: 'rgba(255,255,255,0.44)' }}>No completed orders yet</p>
       ) : (
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={data} layout="vertical" margin={{ left: -8, right: 4 }}>
@@ -112,10 +113,10 @@ export function OrderStatusChart({ data }: { data: { name: string; value: number
 
   return (
     <div className="glass-card p-5 h-full">
-      <p className="text-[13px] font-bold mb-0.5" style={{ color: 'oklch(0.10 0.030 272)' }}>Order Status</p>
+      <p className="text-[13px] font-bold mb-0.5" style={{ color: 'rgba(255,255,255,0.88)' }}>Order Status</p>
       <p className="label-caps mb-3">All time</p>
       {mapped.length === 0 ? (
-        <p className="text-[12px] text-center py-8" style={{ color: 'oklch(0.55 0.010 265)' }}>No orders yet</p>
+        <p className="text-[12px] text-center py-8" style={{ color: 'rgba(255,255,255,0.44)' }}>No orders yet</p>
       ) : (
         <div className="flex items-center gap-5">
           {/* Donut — left */}
@@ -144,8 +145,8 @@ export function OrderStatusChart({ data }: { data: { name: string; value: number
             </ResponsiveContainer>
             {dominant && (
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[22px] font-black leading-none" style={{ color: 'oklch(0.10 0.030 272)' }}>{dominantPct}%</span>
-                <span className="text-[10px] font-semibold mt-0.5 capitalize" style={{ color: 'oklch(0.55 0.010 265)' }}>{dominant.name}</span>
+                <span className="text-[22px] font-black leading-none" style={{ color: 'rgba(255,255,255,0.88)' }}>{dominantPct}%</span>
+                <span className="text-[10px] font-semibold mt-0.5 capitalize" style={{ color: 'rgba(255,255,255,0.44)' }}>{dominant.name}</span>
               </div>
             )}
           </div>
@@ -162,12 +163,12 @@ export function OrderStatusChart({ data }: { data: { name: string; value: number
                   />
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wide flex-1 truncate"
-                    style={{ color: 'oklch(0.25 0.020 265)' }}
+                    style={{ color: 'rgba(255,255,255,0.60)' }}
                   >
                     {e.name}
                   </span>
                   <span className="text-[11px] font-black" style={{ color: e.color }}>{pct}%</span>
-                  <span className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>{e.value}</span>
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{e.value}</span>
                 </div>
               )
             })}

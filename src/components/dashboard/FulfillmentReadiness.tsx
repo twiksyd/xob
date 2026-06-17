@@ -67,7 +67,7 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
               <Package className="w-4 h-4" style={{ color: '#38bdf8' }} />
             </div>
             <div>
-              <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Fulfillment Readiness</p>
+              <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Fulfillment Readiness</p>
               <p className="label-caps mt-0.5">Can you keep selling without interruption?</p>
             </div>
           </div>
@@ -80,15 +80,15 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
         </div>
 
         <div className="flex items-baseline gap-2">
-          <p className="text-[28px] font-extrabold tabular-nums leading-none" style={{ color: 'oklch(0.12 0.028 272)' }}>
+          <p className="text-[28px] font-extrabold tabular-nums leading-none" style={{ color: 'rgba(255,255,255,0.88)' }}>
             {orderCapacity !== null ? `~${orderCapacity}` : formatRobux(totalAvailable)}
           </p>
-          <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+          <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
             {orderCapacity !== null ? 'more typical orders fulfillable' : 'available across active accounts'}
           </p>
         </div>
 
-        <p className="text-[11px] mt-2 leading-relaxed" style={{ color: 'oklch(0.55 0.010 265)' }}>
+        <p className="text-[11px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
           {orderCapacity !== null && daysOfRunway !== null && (
             <>≈ <span className="font-bold" style={{ color: style.color }}>{daysOfRunway < 1 ? 'less than a day' : `${Math.round(daysOfRunway)} day${Math.round(daysOfRunway) === 1 ? '' : 's'}`}</span> of runway at your recent pace (~{dailyPace.toFixed(1)} completed orders/day) — </>
           )}
@@ -100,11 +100,11 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
         type="button"
         onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center justify-between px-5 py-2.5 transition-colors hover:bg-[rgba(56,189,248,0.03)]"
-        style={{ borderTop: '1px solid rgba(15,13,42,0.05)' }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}
       >
-        <span className="text-[11px] font-bold" style={{ color: 'oklch(0.50 0.012 265)' }}>Lowest accounts right now</span>
+        <span className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.44)' }}>Lowest accounts right now</span>
         <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.18 }}>
-          <ChevronDown className="w-3.5 h-3.5" style={{ color: 'oklch(0.55 0.010 265)' }} />
+          <ChevronDown className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.44)' }} />
         </motion.div>
       </button>
       <AnimatePresence initial={false}>
@@ -122,7 +122,7 @@ export default function FulfillmentReadiness({ orders, accounts }: Props) {
                 return (
                   <div key={acc.id} className="flex items-center gap-2.5 py-1">
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dotColor, boxShadow: `0 0 4px ${dotColor}80` }} />
-                    <span className="text-[11px] font-medium flex-1 truncate" style={{ color: 'oklch(0.20 0.025 270)' }}>{acc.username}</span>
+                    <span className="text-[11px] font-medium flex-1 truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>{acc.username}</span>
                     <span className="text-[11px] font-bold tabular-nums" style={{ color: dotColor }}>{formatRobux(acc.available)}</span>
                   </div>
                 )

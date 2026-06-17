@@ -55,8 +55,8 @@ function SecondaryRow({ rec }: { rec: Recommendation }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3 px-1">
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-bold truncate" style={{ color: 'oklch(0.16 0.028 270)' }}>{rec.headline}</p>
-        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>{rec.reasoning}</p>
+        <p className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.80)' }}>{rec.headline}</p>
+        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>{rec.reasoning}</p>
       </div>
       {rec.action.run ? (
         <ActionButtonSmall action={rec.action} />
@@ -64,7 +64,7 @@ function SecondaryRow({ rec }: { rec: Recommendation }) {
         <a
           href={rec.action.href ?? '#'}
           className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold border-border"
-          style={{ background: 'rgba(167,139,250,0.08)', color: 'oklch(0.45 0.090 280)', border: '1px solid rgba(167,139,250,0.20)' }}
+          style={{ background: 'rgba(167,139,250,0.08)', color: 'rgba(167,139,250,0.55)', border: '1px solid rgba(167,139,250,0.20)' }}
         >
           {rec.action.label} <ArrowUpRight className="w-3 h-3" />
         </a>
@@ -84,7 +84,7 @@ function ActionButtonSmall({ action }: { action: Recommendation['action'] }) {
         try { await action.run!() } finally { setBusy(false) }
       }}
       className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-60"
-      style={{ background: 'rgba(34,211,238,0.10)', color: 'oklch(0.42 0.13 200)', border: '1px solid rgba(34,211,238,0.22)' }}
+      style={{ background: 'rgba(34,211,238,0.10)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.22)' }}
     >
       {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
       {busy ? 'Working…' : action.label}
@@ -100,7 +100,7 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
     return (
       <div className="glass-elevated rounded-2xl p-6 flex items-center gap-3" style={{ minHeight: 140 }}>
         <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#22d3ee' }} />
-        <p className="text-[13px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Scanning your operation for the highest-value thing to do next…</p>
+        <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Scanning your operation for the highest-value thing to do next…</p>
       </div>
     )
   }
@@ -118,8 +118,8 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
           <Sparkles className="w-5 h-5" style={{ color: '#34d399' }} />
         </div>
         <div>
-          <p className="text-[15px] font-extrabold" style={{ color: 'oklch(0.10 0.030 272)' }}>All clear — nothing needs your attention right now</p>
-          <p className="text-[12px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>No stalled orders, no accounts running low, no stuck reservations. Good time to focus on growth — restocking ahead of demand or reviewing your top accounts.</p>
+          <p className="text-[15px] font-extrabold" style={{ color: 'rgba(255,255,255,0.88)' }}>All clear — nothing needs your attention right now</p>
+          <p className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>No stalled orders, no accounts running low, no stuck reservations. Good time to focus on growth — restocking ahead of demand or reviewing your top accounts.</p>
         </div>
       </div>
     )
@@ -128,7 +128,7 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
   return (
     <div
       className="glass-elevated rounded-2xl overflow-hidden"
-      style={{ boxShadow: '0 8px 40px rgba(139,92,246,0.14), 0 2px 12px rgba(15,13,42,0.06)' }}
+      style={{ boxShadow: '0 8px 40px rgba(139,92,246,0.14), 0 2px 12px rgba(255,255,255,0.092)' }}
     >
       {/* Hero recommendation */}
       <div className="p-6">
@@ -145,7 +145,7 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="label-caps mb-1.5" style={{ color: 'oklch(0.50 0.18 200)' }}>Next Best Action</p>
+            <p className="label-caps mb-1.5" style={{ color: '#22d3ee' }}>Next Best Action</p>
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={top.id}
@@ -154,7 +154,7 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
                 animate="animate"
                 exit="exit"
                 className="text-[16px] font-extrabold leading-snug"
-                style={{ color: 'oklch(0.10 0.030 272)' }}
+                style={{ color: 'rgba(255,255,255,0.88)' }}
               >
                 {top.headline}
               </motion.p>
@@ -162,16 +162,16 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
 
             <div className="mt-3 space-y-2">
               <p className="text-[12px] leading-relaxed">
-                <span className="font-bold" style={{ color: 'oklch(0.45 0.090 280)' }}>Why: </span>
-                <span style={{ color: 'oklch(0.42 0.014 265)' }}>{top.reasoning}</span>
+                <span className="font-bold" style={{ color: 'rgba(167,139,250,0.55)' }}>Why: </span>
+                <span style={{ color: 'rgba(255,255,255,0.42)' }}>{top.reasoning}</span>
               </p>
               <p className="text-[12px] leading-relaxed">
                 <span className="font-bold" style={{ color: '#0d9488' }}>Impact: </span>
-                <span style={{ color: 'oklch(0.42 0.014 265)' }}>{top.impact}</span>
+                <span style={{ color: 'rgba(255,255,255,0.42)' }}>{top.impact}</span>
               </p>
               <p className="text-[12px] leading-relaxed">
                 <span className="font-bold" style={{ color: '#dc2626' }}>If you do nothing: </span>
-                <span style={{ color: 'oklch(0.42 0.014 265)' }}>{top.ifNothing}</span>
+                <span style={{ color: 'rgba(255,255,255,0.42)' }}>{top.ifNothing}</span>
               </p>
             </div>
           </div>
@@ -184,17 +184,17 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
 
       {/* Collapsible "other things" drawer */}
       {rest.length > 0 && (
-        <div style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
           <button
             type="button"
             onClick={() => setExpanded(e => !e)}
             className="w-full flex items-center justify-between px-6 py-3 transition-colors hover:bg-[rgba(139,92,246,0.03)]"
           >
-            <span className="text-[11px] font-bold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+            <span className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.44)' }}>
               + {rest.length} other thing{rest.length !== 1 ? 's' : ''} worth a look
             </span>
             <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.18 }}>
-              <ChevronDown className="w-4 h-4" style={{ color: 'oklch(0.55 0.010 265)' }} />
+              <ChevronDown className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.44)' }} />
             </motion.div>
           </button>
           <AnimatePresence initial={false}>
@@ -206,7 +206,7 @@ export default function NextBestAction({ recommendations, loading }: NextBestAct
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 style={{ overflow: 'hidden' }}
               >
-                <div className="px-6 pb-3 divide-y" style={{ borderTop: '1px solid rgba(15,13,42,0.04)' }}>
+                <div className="px-6 pb-3 divide-y" style={{ borderTop: '1px solid rgba(255,255,255,0.065)' }}>
                   {rest.map(rec => <SecondaryRow key={rec.id} rec={rec} />)}
                 </div>
               </motion.div>

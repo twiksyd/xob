@@ -61,7 +61,7 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
   if (c.businessValue <= 0) {
     allocation = {
       label: 'No Capital Deployed',
-      bg: 'rgba(15,13,42,0.04)', border: 'rgba(15,13,42,0.10)', color: 'oklch(0.50 0.014 265)',
+      bg: 'rgba(255,255,255,0.065)', border: 'rgba(255,255,255,0.130)', color: 'rgba(255,255,255,0.44)',
       description: 'Business value is currently ₱0 — nothing to allocate yet.',
     }
   } else if (c.cashPct >= 60) {
@@ -104,7 +104,7 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
           <PiggyBank className="w-5 h-5" style={{ color: '#a78bfa' }} />
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Capital Position</p>
+          <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Capital Position</p>
           <p className="label-caps mt-0.5">Wallet + unsold inventory — your real business net worth</p>
         </div>
       </div>
@@ -128,7 +128,7 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
         <p style={{ fontSize: '38px', fontWeight: 900, lineHeight: 1, color: heroColor, textShadow: `0 0 28px ${heroColor}50`, fontVariantNumeric: 'tabular-nums' }}>
           {formatPHP(c.withdrawableProfit)}
         </p>
-        <p className="text-[13px] mt-2 font-bold" style={{ color: 'oklch(0.18 0.025 270)' }}>
+        <p className="text-[13px] mt-2 font-bold" style={{ color: 'rgba(255,255,255,0.76)' }}>
           {c.withdrawableProfit > 0
             ? `Business Value (${formatPHP(c.businessValue)}) exceeds Fixed Capital (${formatPHP(FIXED_CAPITAL)}) — safe to withdraw without touching capital.`
             : c.isRecovered
@@ -149,11 +149,11 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
           <span className="label-caps">Capital Recovery Progress</span>
-          <span className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+          <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
             {formatPHP(c.businessValue)} / {formatPHP(FIXED_CAPITAL)}
           </span>
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
           <div
             className="h-full rounded-full transition-all"
             style={{ width: `${Math.min(100, c.recoveryPct)}%`, background: c.isRecovered ? '#34d399' : '#a78bfa' }}
@@ -162,7 +162,7 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
       </div>
 
       {/* ── Capital Allocation ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="label-caps">Capital Allocation</span>
           <span
@@ -174,7 +174,7 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
         </div>
 
         {/* Cash vs. inventory split bar */}
-        <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(15,13,42,0.06)' }}>
+        <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.092)' }}>
           {c.cashPct > 0 && <div style={{ width: `${c.cashPct}%`, background: '#34d399' }} />}
           {c.inventoryPct > 0 && <div style={{ width: `${c.inventoryPct}%`, background: '#38bdf8' }} />}
         </div>
@@ -186,13 +186,13 @@ export default function CapitalPosition({ accounts, walletBalance }: CapitalPosi
           <MiniStat label="Inventory Allocation" value={`${c.inventoryPct.toFixed(0)}%`} icon={Package} color="#38bdf8" />
         </div>
 
-        <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'oklch(0.45 0.018 268)' }}>
+        <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
           {allocation.description}
         </p>
       </div>
 
       {/* ── Supplier decision panel ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <span className="label-caps">Can I Buy More Stock?</span>
         <div
           className="mt-2 rounded-xl px-4 py-3 flex items-start gap-2.5 text-[12px] leading-relaxed font-semibold"
@@ -213,7 +213,7 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }

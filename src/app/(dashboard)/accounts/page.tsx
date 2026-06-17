@@ -407,13 +407,13 @@ export default function AccountsPage() {
           <div className="space-y-2.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-[12px] font-semibold" style={{ color: 'oklch(0.40 0.020 270)' }}>
+                <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.40)' }}>
                   Active Accounts ({activeInventoryAccounts.length})
                 </p>
                 {depletedInventoryAccounts.length > 0 && (
-                  <span className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
-                    Depleted: <b className="tabular-nums" style={{ color: 'oklch(0.42 0.014 265)' }}>{depletedInventoryAccounts.length}</b>
-                    {' · '}Potential cleanup: <b className="tabular-nums" style={{ color: 'oklch(0.42 0.014 265)' }}>{depletedInventoryAccounts.length} account{depletedInventoryAccounts.length !== 1 ? 's' : ''}</b>
+                  <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                    Depleted: <b className="tabular-nums" style={{ color: 'rgba(255,255,255,0.42)' }}>{depletedInventoryAccounts.length}</b>
+                    {' · '}Potential cleanup: <b className="tabular-nums" style={{ color: 'rgba(255,255,255,0.42)' }}>{depletedInventoryAccounts.length} account{depletedInventoryAccounts.length !== 1 ? 's' : ''}</b>
                   </span>
                 )}
               </div>
@@ -423,7 +423,7 @@ export default function AccountsPage() {
                     onClick={refreshAvatars}
                     disabled={refreshingAvatars}
                     className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                    style={{ color: 'oklch(0.48 0.016 265)' }}
+                    style={{ color: 'rgba(255,255,255,0.47)' }}
                     title="Look up Roblox avatars for accounts that don't have one yet"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} />
@@ -434,7 +434,7 @@ export default function AccountsPage() {
                 <button
                   onClick={allSelected ? clearAll : selectAll}
                   className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: allSelected ? '#22d3ee' : 'oklch(0.48 0.016 265)' }}
+                  style={{ color: allSelected ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
                 >
                   {allSelected
                     ? <CheckSquare className="w-3.5 h-3.5" />
@@ -458,9 +458,9 @@ export default function AccountsPage() {
                   onClick={action}
                   className="flex items-center gap-1 h-[26px] px-2.5 rounded-lg text-[11px] font-semibold transition-all"
                   style={{
-                    background: 'rgba(15,13,42,0.04)',
-                    border: '1px solid rgba(15,13,42,0.07)',
-                    color: 'oklch(0.45 0.018 268)',
+                    background: 'rgba(255,255,255,0.065)',
+                    border: '1px solid rgba(255,255,255,0.100)',
+                    color: 'rgba(255,255,255,0.45)',
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.background = 'rgba(34,211,238,0.07)'
@@ -468,9 +468,9 @@ export default function AccountsPage() {
                     e.currentTarget.style.color = '#0e7490'
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(15,13,42,0.04)'
-                    e.currentTarget.style.borderColor = 'rgba(15,13,42,0.07)'
-                    e.currentTarget.style.color = 'oklch(0.45 0.018 268)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.065)'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.100)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
                   }}
                 >
                   <Zap className="w-3 h-3 opacity-60" />
@@ -514,18 +514,18 @@ export default function AccountsPage() {
                     {/* Count */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <CheckSquare className="w-4 h-4" style={{ color: '#22d3ee' }} />
-                      <span className="text-[13px] font-bold" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                      <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                         {selectedIds.size} account{selectedIds.size !== 1 ? 's' : ''} selected
                       </span>
                     </div>
 
-                    <div className="w-px h-6" style={{ background: 'rgba(15,13,42,0.08)' }} />
+                    <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.110)' }} />
 
                     {/* Totals */}
                     <div className="flex items-center gap-4 flex-1">
                       <div>
                         <p className="label-caps mb-0.5">Total</p>
-                        <p className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>
+                        <p className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                           {selTotal.toLocaleString()} R$
                         </p>
                       </div>
@@ -617,17 +617,17 @@ export default function AccountsPage() {
                 onClick={() => setDepletedExpanded(p => !p)}
                 className="flex items-center gap-3 w-full text-left"
               >
-                <Archive className="w-3.5 h-3.5" style={{ color: 'oklch(0.55 0.010 265)' }} />
+                <Archive className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.44)' }} />
                 <span className="label-caps">Depleted Accounts</span>
                 <span
                   className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.50 0.012 265)', border: '1px solid rgba(15,13,42,0.08)' }}
+                  style={{ background: 'rgba(255,255,255,0.065)', color: 'rgba(255,255,255,0.44)', border: '1px solid rgba(255,255,255,0.110)' }}
                 >
                   {depletedInventoryAccounts.length}
                 </span>
                 <ChevronDown
                   className="w-3.5 h-3.5 ml-auto transition-transform duration-200"
-                  style={{ color: 'oklch(0.48 0.016 265)', transform: depletedExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  style={{ color: 'rgba(255,255,255,0.47)', transform: depletedExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 />
               </button>
 
@@ -683,7 +683,7 @@ export default function AccountsPage() {
               <ChevronDown
                 className="w-3.5 h-3.5 transition-transform duration-200"
                 style={{
-                  color: 'oklch(0.48 0.016 265)',
+                  color: 'rgba(255,255,255,0.47)',
                   transform: resExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                   marginLeft: totalReserved > 0 ? '0' : 'auto',
                 }}
@@ -702,7 +702,7 @@ export default function AccountsPage() {
                   {reservations.length === 0 ? (
                     <div className="glass-secondary rounded-2xl p-10 text-center" style={{ opacity: 0.75 }}>
                       <Lock className="w-8 h-8 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-                      <p className="text-[13px] font-semibold mb-1" style={{ color: 'oklch(0.40 0.016 265)' }}>No active reservations</p>
+                      <p className="text-[13px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>No active reservations</p>
                       <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>Robux is automatically reserved when orders are created</p>
                     </div>
                   ) : (
@@ -711,11 +711,11 @@ export default function AccountsPage() {
                         className="px-5 py-3.5 flex items-center justify-between"
                         style={{ background: 'rgba(245,158,11,0.04)', borderBottom: '1px solid rgba(245,158,11,0.12)' }}
                       >
-                        <p className="text-[11px] font-semibold" style={{ color: 'oklch(0.42 0.016 265)' }}>
+                        <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.42)' }}>
                           Robux reserved for pending and paid orders
                         </p>
                         <div className="text-right">
-                          <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Total locked</p>
+                          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Total locked</p>
                           <p className="text-[13px] font-bold tabular-nums" style={{ color: '#b45309' }}>
                             {reservations.reduce((s, r) => s + r.robux_amount, 0).toLocaleString()} R$
                           </p>
@@ -723,8 +723,8 @@ export default function AccountsPage() {
                       </div>
 
                       {reservationsByAccount.map(({ accountId, username, robloxUserId, reservations: accRes, total }) => (
-                        <div key={accountId} style={{ borderBottom: '1px solid rgba(15,13,42,0.048)' }}>
-                          <div className="flex items-center justify-between px-5 py-2.5" style={{ background: 'rgba(15,13,42,0.020)' }}>
+                        <div key={accountId} style={{ borderBottom: '1px solid rgba(255,255,255,0.078)' }}>
+                          <div className="flex items-center justify-between px-5 py-2.5" style={{ background: 'rgba(255,255,255,0.040)' }}>
                             <div className="flex items-center gap-2">
                               <RobloxAvatar
                                 username={username}
@@ -733,10 +733,10 @@ export default function AccountsPage() {
                                 className="rounded-lg text-[11px] font-black"
                                 glow="none"
                               />
-                              <span className="text-[12px] font-bold" style={{ color: 'oklch(0.18 0.025 270)' }}>{username}</span>
+                              <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.76)' }}>{username}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                                 {accRes.length} reservation{accRes.length !== 1 ? 's' : ''}
                               </span>
                               <span
@@ -752,14 +752,14 @@ export default function AccountsPage() {
                             <div
                               key={res.id}
                               className="flex items-center gap-4 px-5 py-3 order-row-shimmer"
-                              style={{ borderTop: '1px solid rgba(15,13,42,0.032)' }}
+                              style={{ borderTop: '1px solid rgba(255,255,255,0.055)' }}
                             >
                               <div
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                 style={{ background: '#f59e0b', boxShadow: '0 0 5px rgba(245,158,11,0.45)' }}
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-semibold truncate" style={{ color: 'oklch(0.15 0.028 270)' }}>
+                                <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>
                                   {res.gamepass_names || 'Gamepass reservation'}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5">
@@ -769,7 +769,7 @@ export default function AccountsPage() {
                                     </span>
                                   )}
                                   {res.orders?.buyer_name && (
-                                    <span className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                                       · {res.orders.buyer_name}
                                     </span>
                                   )}
@@ -791,7 +791,7 @@ export default function AccountsPage() {
                                 <p className="text-[13px] font-bold tabular-nums" style={{ color: '#b45309' }}>
                                   {res.robux_amount.toLocaleString()} R$
                                 </p>
-                                <p className="text-[10px]" style={{ color: 'oklch(0.60 0.010 265)' }}>
+                                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
                                   {formatDistanceToNow(new Date(res.created_at), { addSuffix: true })}
                                 </p>
                               </div>

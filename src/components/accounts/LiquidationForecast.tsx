@@ -159,7 +159,7 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
           <Sparkles className="w-5 h-5" style={{ color: '#a78bfa' }} />
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Stock Liquidation Forecast</p>
+          <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Stock Liquidation Forecast</p>
           <p className="label-caps mt-0.5">
             {f.hasSelection
               ? `Using ${f.scopedAccounts.length} selected account${f.scopedAccounts.length !== 1 ? 's' : ''}`
@@ -175,7 +175,7 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
             <MiniStat label="Current Wallet" value={formatPHP(walletBalance)} icon={Wallet} color="#34d399" />
             <MiniStat label="Available Robux" value={formatRobux(f.totalAvailable)} icon={Coins} color="#a78bfa" />
           </div>
-          <p className="text-[12px] mt-4" style={{ color: 'oklch(0.55 0.010 265)' }}>
+          <p className="text-[12px] mt-4" style={{ color: 'rgba(255,255,255,0.44)' }}>
             Not enough completed-order history yet to forecast future revenue and profit. Complete a few orders to unlock projections.
           </p>
         </>
@@ -210,7 +210,7 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
             >
               {fmtSigned(f.projectedCash)}
             </p>
-            <p className="text-[11px] mt-2" style={{ color: 'oklch(0.50 0.014 265)' }}>
+            <p className="text-[11px] mt-2" style={{ color: 'rgba(255,255,255,0.44)' }}>
               Wallet ({formatPHP(walletBalance)}) + estimated revenue from selling all available inventory
             </p>
           </div>
@@ -223,24 +223,24 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
           </div>
 
           {/* ── Average sales model ── */}
-          <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+          <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <span className="label-caps">Average Sales Model</span>
-              <div className="flex items-center gap-3 text-[11px]" style={{ color: 'oklch(0.50 0.014 265)' }}>
+              <div className="flex items-center gap-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 <span>
-                  <span className="font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                  <span className="font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
                     {formatPHP(f.avgPricePerRobux * 1000)}
                   </span> / 1k R$
                 </span>
                 <span>
-                  <span className="font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                  <span className="font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
                     {f.avgMarginPct.toFixed(1)}%
                   </span> avg margin
                 </span>
               </div>
             </div>
 
-            <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(15,13,42,0.06)' }}>
+            <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.092)' }}>
               {f.gamepassMix.map((g, i) => (
                 <div
                   key={g.name}
@@ -251,10 +251,10 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
               {f.gamepassMix.map((g, i) => (
-                <span key={g.name} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'oklch(0.45 0.018 268)' }}>
+                <span key={g.name} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>
                   <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ background: GAMEPASS_COLORS[i % GAMEPASS_COLORS.length] }} />
                   {g.name}
-                  <span className="tabular-nums" style={{ color: 'oklch(0.58 0.010 265)' }}>{g.pct.toFixed(0)}%</span>
+                  <span className="tabular-nums" style={{ color: 'rgba(255,255,255,0.48)' }}>{g.pct.toFixed(0)}%</span>
                 </span>
               ))}
             </div>
@@ -262,16 +262,16 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
 
           {/* ── Projected profit by account ── */}
           {f.accountForecasts.length > 1 && (
-            <div className="mt-5 pt-4 space-y-2.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+            <div className="mt-5 pt-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
               <span className="label-caps">Projected Profit by Account</span>
               {f.accountForecasts.slice(0, 5).map(({ account, profit }) => {
                 const pct = f.estProfit !== 0 ? (profit / f.estProfit) * 100 : 0
                 return (
                   <div key={account.id} className="flex items-center gap-3">
-                    <span className="text-[12px] font-semibold w-28 sm:w-36 truncate flex-shrink-0" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                    <span className="text-[12px] font-semibold w-28 sm:w-36 truncate flex-shrink-0" style={{ color: 'rgba(255,255,255,0.76)' }}>
                       {account.username}
                     </span>
-                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: profit >= 0 ? '#34d399' : '#f43f5e' }}
@@ -287,7 +287,7 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
           )}
 
           {/* ── Insights ── */}
-          <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+          <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
             <span className="label-caps">Insights</span>
             <ul className="space-y-1.5 mt-1.5">
               {f.avgOrderRobux > 0 && (
@@ -326,7 +326,7 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }
@@ -342,7 +342,7 @@ function ScenarioCard({ label, color, cash, profit, highlight }: { label: string
       }}
     >
       <p className="label-caps mb-1" style={{ color, opacity: 0.85 }}>{label}</p>
-      <p className="text-[18px] font-extrabold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>{fmtSigned(cash)}</p>
+      <p className="text-[18px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{fmtSigned(cash)}</p>
       <p className="text-[11px] mt-0.5 tabular-nums" style={{ color: profit >= 0 ? '#34d399' : '#f43f5e' }}>
         {fmtSigned(profit)} profit
       </p>
@@ -352,7 +352,7 @@ function ScenarioCard({ label, color, cash, profit, highlight }: { label: string
 
 function InsightLine({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'oklch(0.40 0.018 268)' }}>
+    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
       <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#22d3ee' }} />
       <span>{children}</span>
     </li>

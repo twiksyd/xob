@@ -74,7 +74,7 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
         <div className="space-y-4">
           <div className="glass-secondary p-3">
             <p className="label-caps mb-1">Currently Assigned To</p>
-            <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+            <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
               {currentAccount.username}
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
                   {' '}to <span className="font-semibold">{targetAccount.username}</span>
                 </p>
               </div>
-              <p className="text-[11px] pt-2" style={{ borderTop: '1px solid rgba(15,13,42,0.06)', color: 'oklch(0.55 0.010 265)' }}>
+              <p className="text-[11px] pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.092)', color: 'rgba(255,255,255,0.44)' }}>
                 {isCompleted
                   ? 'This order is completed — real Robux balances will move between accounts.'
                   : 'This order is still active — its Robux reservation will move to the new account.'}
@@ -118,7 +118,7 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
           )}
 
           {targetAccount && robuxAmount === 0 && (
-            <p className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+            <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
               This order has no Robux amount — only the order record will move to {targetAccount.username}.
             </p>
           )}

@@ -38,46 +38,31 @@ export default function RegisterPage() {
   }
 
   const inputStyle = {
-    background: 'rgba(15,13,42,0.025)',
-    border: '1px solid rgba(15,13,42,0.08)',
-    color: 'oklch(0.10 0.030 272)',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.09)',
+    color: 'oklch(0.88 0.006 265)',
   }
 
   if (success) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4 bg-ambient"
-        style={{ background: 'oklch(0.974 0.007 256)' }}
-      >
-        <div
-          className="p-8 text-center max-w-sm w-full space-y-4"
-          style={{
-            background: 'rgba(255,255,255,0.90)',
-            border: '1px solid rgba(15,13,42,0.07)',
-            borderRadius: '20px',
-            boxShadow: '0 4px 24px rgba(15,13,42,0.08), 0 1px 4px rgba(15,13,42,0.05)',
-          }}
-        >
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'rgba(34,211,238,0.10)' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-ambient">
+        <div className="glass-elevated p-8 text-center max-w-sm w-full space-y-4">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto"
+            style={{ background: 'rgba(34,211,238,0.12)', border: '1px solid rgba(34,211,238,0.20)' }}
+          >
             <CheckCircle2 className="w-6 h-6" style={{ color: '#22d3ee' }} />
           </div>
-          <h2 className="text-[17px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Account created!</h2>
-          <p className="text-[13px]" style={{ color: 'oklch(0.50 0.014 265)' }}>Check your email to confirm your account. Redirecting to login…</p>
+          <h2 className="text-[17px] font-bold text-foreground">Account created!</h2>
+          <p className="text-[13px] text-muted-foreground">Check your email to confirm your account. Redirecting to login…</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 bg-ambient"
-      style={{ background: 'oklch(0.974 0.007 256)' }}
-    >
-      {/* Ambient glows */}
-      <div className="fixed top-0 left-1/4 w-[600px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(167,139,250,0.06), transparent 70%)', filter: 'blur(40px)' }} />
-      <div className="fixed bottom-0 right-1/4 w-[500px] h-[350px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(34,211,238,0.05), transparent 70%)', filter: 'blur(40px)' }} />
-
-      <div className="relative w-full max-w-[380px] space-y-8 z-10">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-ambient">
+      <div className="relative w-full max-w-[380px] space-y-8" style={{ zIndex: 10 }}>
 
         {/* Brand */}
         <div className="text-center space-y-3">
@@ -85,36 +70,28 @@ export default function RegisterPage() {
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, #22d3ee, #a78bfa, #e879f9)',
-                boxShadow: '0 0 32px rgba(167,139,250,0.25), 0 8px 24px rgba(15,13,42,0.15)',
+                background: 'linear-gradient(135deg, #a78bfa, #22d3ee)',
+                boxShadow: '0 0 32px rgba(167,139,250,0.30), 0 8px 24px rgba(0,0,0,0.40)',
               }}
             >
               <Box className="w-6 h-6 text-white" />
             </div>
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'oklch(0.10 0.030 272)' }}>XOB</h1>
-            <p className="text-[13px] mt-1" style={{ color: 'oklch(0.50 0.014 265)' }}>Create your seller account</p>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">XOB</h1>
+            <p className="text-[13px] mt-1 text-muted-foreground">Create your seller account</p>
           </div>
         </div>
 
         {/* Card */}
-        <div
-          className="p-7 space-y-5"
-          style={{
-            background: 'rgba(255,255,255,0.90)',
-            border: '1px solid rgba(15,13,42,0.07)',
-            borderRadius: '20px',
-            boxShadow: '0 4px 24px rgba(15,13,42,0.08), 0 1px 4px rgba(15,13,42,0.05)',
-          }}
-        >
+        <div className="glass-elevated p-7 space-y-5">
           {error && (
             <div
               className="flex items-start gap-2.5 p-3.5 rounded-xl"
-              style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)' }}
+              style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.22)' }}
             >
-              <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-              <p className="text-[12px] text-rose-600">{error}</p>
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[12px] text-rose-400">{error}</p>
             </div>
           )}
 
@@ -164,8 +141,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: 'oklch(0.55 0.010 265)' }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors text-muted-foreground hover:text-foreground"
                 >
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -181,16 +157,16 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="text-center text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+          <p className="text-center text-[12px] text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold" style={{ color: 'oklch(0.50 0.18 200)' }}>
+            <Link href="/login" className="font-semibold" style={{ color: '#22d3ee' }}>
               Sign in
             </Link>
           </p>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[11px]" style={{ color: 'oklch(0.60 0.010 265)' }}>
+        <p className="text-center text-[11px] text-muted-foreground opacity-60">
           XOB Gaming Marketplace · Secure seller platform
         </p>
       </div>

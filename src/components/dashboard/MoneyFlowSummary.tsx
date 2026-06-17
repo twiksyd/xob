@@ -63,7 +63,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
             <Wallet className="w-4 h-4" style={{ color: '#a78bfa' }} />
           </div>
           <div>
-            <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Where Today's Money Went</p>
+            <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Where Today's Money Went</p>
             <p className="label-caps mt-0.5">{figures.count} order{figures.count === 1 ? '' : 's'} completed{window === 'week' ? ' this week' : ' today'}</p>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
               key={w}
               onClick={() => setWindow(w)}
               className={cn('metric-toggle-btn', window === w ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive')}
-              style={window === w ? { background: 'rgba(255,255,255,0.85)', boxShadow: '0 1px 4px rgba(15,13,42,0.08)' } : undefined}
+              style={window === w ? { background: 'rgba(255,255,255,0.080)', boxShadow: '0 1px 4px rgba(255,255,255,0.060)' } : undefined}
             >
               <span className="relative z-10 capitalize">{w === 'today' ? 'Today' : 'This Week'}</span>
             </button>
@@ -82,7 +82,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
       </div>
 
       {figures.count === 0 ? (
-        <p className="text-[12px] mt-4 py-3 text-center" style={{ color: 'oklch(0.55 0.010 265)' }}>
+        <p className="text-[12px] mt-4 py-3 text-center" style={{ color: 'rgba(255,255,255,0.44)' }}>
           No completed orders {window === 'week' ? 'this week' : 'today'} yet — once you complete one, this shows exactly where the money goes.
         </p>
       ) : (
@@ -103,7 +103,7 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
                     <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: stage.color }}>
                       {stage.label}
                     </p>
-                    <p className="text-[14px] font-extrabold tabular-nums" style={{ color: 'oklch(0.14 0.028 272)' }}>
+                    <p className="text-[14px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.84)' }}>
                       {isNegativeFlow && v > 0 ? '−' : ''}{formatPHP(Math.abs(v))}
                     </p>
                   </div>
@@ -119,13 +119,13 @@ export default function MoneyFlowSummary({ orders, savingsGoals }: Props) {
             {STAGES.map(stage => (
               <p key={stage.key} className="text-[11px] leading-relaxed">
                 <span className="font-bold" style={{ color: stage.color }}>{stage.label}: </span>
-                <span style={{ color: 'oklch(0.50 0.012 265)' }}>{stage.explain(allocationPct)}</span>
+                <span style={{ color: 'rgba(255,255,255,0.44)' }}>{stage.explain(allocationPct)}</span>
               </p>
             ))}
           </div>
 
           {figures.profit > 0 && figures.savings === 0 && allocationPct === 0 && (
-            <p className="text-[11px] mt-2" style={{ color: 'oklch(0.55 0.010 265)' }}>
+            <p className="text-[11px] mt-2" style={{ color: 'rgba(255,255,255,0.44)' }}>
               No active savings goal is currently allocating — all profit flows straight to your wallet.
             </p>
           )}

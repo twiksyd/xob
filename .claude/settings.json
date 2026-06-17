@@ -13,7 +13,9 @@
       "Bash(echo \"eslint exit: $?\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/integrity)",
       "Bash(curl -s -D - -o /dev/null http://localhost:3000/integrity)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/wallet)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/wallet)",
+      "Bash(git log *)",
+      "Bash(node -e \"require\\('three'\\); console.log\\('three ok'\\)\")"
     ]
   }
 }

@@ -84,7 +84,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
             <PackagePlus className="w-5 h-5" style={{ color: '#34d399' }} />
           </div>
           <div className="min-w-0">
-            <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Capital Readiness Tracker</p>
+            <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Capital Readiness Tracker</p>
             <p className="label-caps mt-0.5">
               Supplier restock · {MAX_ACCOUNTS} accounts × {formatPHP(ACCOUNT_COST)} = {formatPHP(FIXED_CAPITAL)}
             </p>
@@ -98,7 +98,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
           className="flex items-center gap-2 h-8 px-3 rounded-xl text-[11px] font-bold flex-shrink-0 transition-all"
           style={protectedMode
             ? { background: 'rgba(167,139,250,0.10)', color: '#6d28d9', border: '1px solid rgba(167,139,250,0.26)' }
-            : { background: 'rgba(15,13,42,0.04)', color: 'oklch(0.50 0.014 265)', border: '1px solid rgba(15,13,42,0.09)' }
+            : { background: 'rgba(255,255,255,0.065)', color: 'rgba(255,255,255,0.44)', border: '1px solid rgba(255,255,255,0.120)' }
           }
         >
           <ShieldCheck className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
         <p style={{ fontSize: '38px', fontWeight: 900, lineHeight: 1, color: status.color, textShadow: `0 0 28px ${status.color}50`, fontVariantNumeric: 'tabular-nums' }}>
           {c.canBuy} / {MAX_ACCOUNTS}
         </p>
-        <p className="text-[13px] mt-2 font-bold" style={{ color: 'oklch(0.18 0.025 270)' }}>
+        <p className="text-[13px] mt-2 font-bold" style={{ color: 'rgba(255,255,255,0.76)' }}>
           {c.canBuy === MAX_ACCOUNTS
             ? `Can Buy: Full Restock (${formatRobux(MAX_INVENTORY)})`
             : c.canBuy > 0
@@ -142,7 +142,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
           }
         </p>
         {c.canBuy > 0 && c.canBuy < MAX_ACCOUNTS && (
-          <p className="text-[11px] mt-1" style={{ color: 'oklch(0.50 0.014 265)' }}>
+          <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.44)' }}>
             Need {formatPHP(c.neededForNext)} more to unlock Account #{c.canBuy + 1}
           </p>
         )}
@@ -152,7 +152,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
           <span className="label-caps">Account Funding Progress</span>
-          <span className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+          <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
             {c.canBuy} / {MAX_ACCOUNTS} Accounts Ready
           </span>
         </div>
@@ -162,7 +162,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
             const filled = segFill >= 1
             return (
               <div key={i} className="flex-1">
-                <div className="h-3 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
+                <div className="h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
                   <div
                     className="h-full rounded-full transition-all"
                     style={{ width: `${segFill * 100}%`, background: filled ? '#34d399' : '#f59e0b' }}
@@ -185,10 +185,10 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
       </div>
 
       {/* ── Protected Capital Mode breakdown ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="label-caps">Protected Capital Mode</span>
-          <span className="text-[11px]" style={{ color: 'oklch(0.50 0.014 265)' }}>
+          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
             Keeps your {formatPHP(FIXED_CAPITAL)} restock fund separate from profit already earned
           </span>
         </div>
@@ -201,10 +201,10 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
       </div>
 
       {/* ── Inventory capacity ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="label-caps">Inventory Capacity</span>
-          <span className="text-[11px]" style={{ color: 'oklch(0.50 0.014 265)' }}>
+          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
             Helps decide whether restocking is necessary right now
           </span>
         </div>
@@ -213,7 +213,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
           <MiniStat label="Maximum Inventory" value={formatRobux(MAX_INVENTORY)} icon={ShoppingCart} color="#a78bfa" />
           <MiniStat label="Inventory Capacity" value={`${c.inventoryCapacityPct.toFixed(0)}%`} icon={Gauge} color={c.inventoryCapacityPct >= 90 ? '#34d399' : '#f59e0b'} />
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
           <div
             className="h-full rounded-full"
             style={{ width: `${Math.min(100, c.inventoryCapacityPct)}%`, background: c.inventoryCapacityPct >= 90 ? '#34d399' : '#22d3ee' }}
@@ -222,7 +222,7 @@ export default function CapitalReadinessTracker({ accounts, walletBalance }: Cap
       </div>
 
       {/* ── Insights ── */}
-      <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <span className="label-caps">Restock Insights</span>
         <ul className="space-y-1.5 mt-1.5">
           {c.canBuy > 0 && (
@@ -262,14 +262,14 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }
 
 function InsightLine({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'oklch(0.40 0.018 268)' }}>
+    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
       <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#22d3ee' }} />
       <span>{children}</span>
     </li>

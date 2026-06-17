@@ -1,20 +1,17 @@
-import Sidebar from '@/components/shared/Sidebar'
+import FloatingNav from '@/components/shared/FloatingNav'
 import AmbientOrbs from '@/components/shared/AmbientOrbs'
 import MotionMain from '@/components/shared/MotionMain'
 import SplashScreen from '@/components/shared/SplashScreen'
-import { MobileNavProvider } from '@/components/shared/MobileNavContext'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <MobileNavProvider>
-      <div className="flex h-screen overflow-hidden bg-background bg-ambient">
-        <SplashScreen />
-        <AmbientOrbs />
-        <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto relative z-10">
-          <MotionMain>{children}</MotionMain>
-        </main>
-      </div>
-    </MobileNavProvider>
+    <div className="min-h-screen bg-background bg-ambient">
+      <SplashScreen />
+      <AmbientOrbs />
+      <FloatingNav />
+      <main className="pt-20 min-h-screen relative z-10">
+        <MotionMain>{children}</MotionMain>
+      </main>
+    </div>
   )
 }

@@ -22,10 +22,10 @@ const INCOME_CATEGORIES = ['Sale', 'Bonus', 'Deposit', 'Other']
 const EXPENSE_CATEGORIES = ['Robux Purchase', 'Operating Cost', 'Refund Issued', 'Withdrawal', 'Other']
 
 const TT = {
-  backgroundColor: 'rgba(255,255,255,0.90)',
+  backgroundColor: 'rgba(10, 8, 24, 0.94)',
   border: '1px solid rgba(139,92,246,0.15)',
   borderRadius: '12px',
-  color: 'oklch(0.10 0.030 272)',
+  color: 'rgba(255,255,255,0.88)',
   fontSize: '12px',
   boxShadow: '0 8px 32px rgba(139,92,246,0.12)',
   padding: '8px 12px',
@@ -147,7 +147,7 @@ export default function WalletPage() {
         <div
           className="rounded-2xl p-6"
           style={{
-            background: 'rgba(255,255,255,0.82) padding-box, linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.22), rgba(232,121,249,0.14)) border-box',
+            background: 'rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.22), rgba(232,121,249,0.14)) border-box',
             border: '1px solid transparent',
             backdropFilter: 'blur(24px) saturate(170%)',
             boxShadow: '0 4px 32px rgba(34,211,238,0.08), 0 8px 48px rgba(139,92,246,0.05), inset 0 0 0 1px rgba(255,255,255,0.22)',
@@ -168,7 +168,7 @@ export default function WalletPage() {
               >
                 ₱{displayBalance.toFixed(2)}
               </p>
-              <p className="text-xs mt-2" style={{ color: 'oklch(0.55 0.010 265)' }}>
+              <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 PHP Cash Available · {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -227,7 +227,7 @@ export default function WalletPage() {
               key={label}
               className="summary-card"
               style={{
-                background: `rgba(255,255,255,0.72) padding-box, linear-gradient(135deg, ${accent}38, rgba(34,211,238,0.14)) border-box`,
+                background: `rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, ${accent}38, rgba(34,211,238,0.14)) border-box`,
                 border: '1px solid transparent',
               }}
             >
@@ -246,15 +246,15 @@ export default function WalletPage() {
           <div className="col-span-2 glass-card p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Cash Flow</p>
+                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Cash Flow</p>
                 <p className="label-caps mt-0.5">Last 30 days</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
                   <span className="w-2 h-2 rounded-full" style={{ background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.6)' }} />
                   Income
                 </span>
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.012 265)' }}>
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
                   <span className="w-2 h-2 rounded-full" style={{ background: '#f43f5e', boxShadow: '0 0 6px rgba(244,63,94,0.5)' }} />
                   Expenses
                 </span>
@@ -275,11 +275,11 @@ export default function WalletPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(139,92,246,0.06)" />
                 <XAxis
                   dataKey="day"
-                  tick={{ fontSize: 11, fill: 'oklch(0.55 0.010 265)' }}
+                  tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.44)' }}
                   axisLine={false} tickLine={false} interval={4}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: 'oklch(0.55 0.010 265)' }}
+                  tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.44)' }}
                   axisLine={false} tickLine={false}
                 />
                 <Tooltip
@@ -300,7 +300,7 @@ export default function WalletPage() {
 
           {/* Add Entry Form */}
           <div className="glass-card p-5">
-            <p className="text-[13px] font-bold mb-4" style={{ color: 'oklch(0.10 0.030 272)' }}>Add Entry</p>
+            <p className="text-[13px] font-bold mb-4" style={{ color: 'rgba(255,255,255,0.88)' }}>Add Entry</p>
 
             <div
               className="flex rounded-xl overflow-hidden mb-4"
@@ -317,7 +317,7 @@ export default function WalletPage() {
                       ? 'linear-gradient(135deg, rgba(34,211,238,0.12), rgba(167,139,250,0.08))'
                       : 'linear-gradient(135deg, rgba(244,63,94,0.10), rgba(244,63,94,0.04))',
                     color: t === 'income' ? '#22d3ee' : '#f43f5e',
-                  } : { color: 'oklch(0.55 0.010 265)' }}
+                  } : { color: 'rgba(255,255,255,0.44)' }}
                 >
                   {t === 'income' ? '+ Income' : '− Expense'}
                 </button>
@@ -350,7 +350,7 @@ export default function WalletPage() {
                   Description
                   <span
                     className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'rgba(139,92,246,0.08)', color: 'oklch(0.50 0.14 280)' }}
+                    style={{ background: 'rgba(139,92,246,0.08)', color: 'rgba(167,139,250,0.70)' }}
                   >
                     optional
                   </span>
@@ -414,7 +414,7 @@ export default function WalletPage() {
                     return (
                       <tr key={tx.id}>
                         <td className="whitespace-nowrap">
-                          <div className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                          <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                             {format(new Date(tx.created_at), 'MMM dd, yyyy')}
                           </div>
                           <div className="text-[10px]" style={{ color: 'oklch(0.65 0.010 265)' }}>
@@ -435,10 +435,10 @@ export default function WalletPage() {
                             {tx.type}
                           </span>
                         </td>
-                        <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                        <td className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                           {tx.category}
                         </td>
-                        <td className="max-w-48 truncate text-[12px]" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                        <td className="max-w-48 truncate text-[12px]" style={{ color: 'rgba(255,255,255,0.88)' }}>
                           {tx.description ?? '—'}
                         </td>
                         <td className="text-right">

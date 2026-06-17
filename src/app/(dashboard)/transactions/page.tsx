@@ -154,7 +154,7 @@ export default function TransactionsPage() {
                 ? 'rgba(52,211,153,0.07) padding-box, linear-gradient(140deg, rgba(52,211,153,0.28), rgba(34,211,238,0.18) 55%, rgba(52,211,153,0.12)) border-box'
                 : 'rgba(255,255,255,0.74) padding-box, linear-gradient(140deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box',
               boxShadow: metrics.profit > 0
-                ? 'inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(15,13,42,0.04)'
+                ? 'inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(255,255,255,0.065)'
                 : undefined,
             }}
           >
@@ -188,7 +188,7 @@ export default function TransactionsPage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.14 }}
                 className="text-[11px] mt-1.5"
-                style={{ color: 'oklch(0.58 0.010 265)' }}
+                style={{ color: 'rgba(255,255,255,0.48)' }}
               >
                 {metrics.orders} order{metrics.orders !== 1 ? 's' : ''}
               </motion.p>
@@ -216,7 +216,7 @@ export default function TransactionsPage() {
                 ₱{metrics.revenue.toFixed(2)}
               </motion.p>
             </AnimatePresence>
-            <p className="text-[11px] mt-1.5" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
               gross sales
             </p>
           </div>
@@ -242,7 +242,7 @@ export default function TransactionsPage() {
                 {metrics.orders}
               </motion.p>
             </AnimatePresence>
-            <p className="text-[11px] mt-1.5" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
               completed
             </p>
           </div>
@@ -268,7 +268,7 @@ export default function TransactionsPage() {
                 {metrics.robux.toLocaleString()}
               </motion.p>
             </AnimatePresence>
-            <p className="text-[11px] mt-1.5" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
               R$ sold
             </p>
           </div>
@@ -289,7 +289,7 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
           {filtered.length > 0 && (
-            <span className="text-[12px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
               {period === 'today' ? ' today' : ''}
             </span>
@@ -304,7 +304,7 @@ export default function TransactionsPage() {
         ) : filtered.length === 0 ? (
           <div className="glass-card p-12 text-center">
             <Receipt className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-            <p className="text-[14px] font-semibold mb-1" style={{ color: 'oklch(0.40 0.016 265)' }}>
+            <p className="text-[14px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>
               {period === 'today' ? 'No transactions today' : 'No transactions yet'}
             </p>
             <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>
@@ -334,7 +334,7 @@ export default function TransactionsPage() {
                     return (
                       <tr key={tx.id}>
                         <td className="whitespace-nowrap">
-                          <div className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                          <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                             {format(new Date(tx.created_at), 'MMM dd, yyyy')}
                           </div>
                           <div className="text-[10px]" style={{ color: 'oklch(0.65 0.010 265)' }}>
@@ -344,10 +344,10 @@ export default function TransactionsPage() {
                         <td>
                           <StatusBadge status={tx.type} />
                         </td>
-                        <td className="max-w-48 truncate text-[12px]" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                        <td className="max-w-48 truncate text-[12px]" style={{ color: 'rgba(255,255,255,0.88)' }}>
                           {tx.description ?? '—'}
                         </td>
-                        <td className="text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                        <td className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                           {tx.roblox_account_username ?? '—'}
                         </td>
                         <td className="font-mono text-[11px]" style={{ color: '#22d3ee' }}>
@@ -364,10 +364,10 @@ export default function TransactionsPage() {
                             {isDeduction ? '' : '+'}{tx.robux_change.toLocaleString()} R$
                           </div>
                         </td>
-                        <td className="text-right text-[11px] font-mono" style={{ color: 'oklch(0.55 0.010 265)' }}>
+                        <td className="text-right text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.44)' }}>
                           {tx.balance_after?.toLocaleString() ?? '—'} R$
                         </td>
-                        <td className="text-right text-[12px]" style={{ color: 'oklch(0.10 0.030 272)' }}>
+                        <td className="text-right text-[12px]" style={{ color: 'rgba(255,255,255,0.88)' }}>
                           {tx.selling_price ? `₱${tx.selling_price}` : '—'}
                         </td>
                         <td className={cn(

@@ -127,25 +127,25 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
           </div>
 
           {/* Live preview */}
-          <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(15,13,42,0.020)', border: '1px solid rgba(15,13,42,0.06)' }}>
+          <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.040)', border: '1px solid rgba(255,255,255,0.092)' }}>
             <p className="label-caps">Live Calculation Preview</p>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg py-2" style={{ background: 'rgba(255,255,255,0.70)' }}>
-                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Your Cost</p>
-                <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>₱{computed.your_cost.toFixed(2)}</p>
+              <div className="rounded-lg py-2" style={{ background: 'rgba(255,255,255,0.038)' }}>
+                <p className="text-[10px] mb-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>Your Cost</p>
+                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>₱{computed.your_cost.toFixed(2)}</p>
               </div>
               <div className="rounded-lg py-2" style={{ background: computed.profit >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(244,63,94,0.08)' }}>
-                <p className="text-[10px] mb-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>Profit</p>
+                <p className="text-[10px] mb-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>Profit</p>
                 <p className={`text-[13px] font-bold ${computed.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   ₱{computed.profit.toFixed(2)}
                 </p>
               </div>
-              <div className="rounded-lg py-2 flex flex-col items-center justify-center" style={{ background: 'rgba(255,255,255,0.70)' }}>
-                <p className="text-[10px] mb-1" style={{ color: 'oklch(0.55 0.010 265)' }}>Status</p>
+              <div className="rounded-lg py-2 flex flex-col items-center justify-center" style={{ background: 'rgba(255,255,255,0.038)' }}>
+                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Status</p>
                 <StatusBadge status={computed.status} />
               </div>
             </div>
-            <p className="text-[10px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
               Suggested lower price: ₱{computed.suggested_lower_price.toFixed(0)}
             </p>
           </div>

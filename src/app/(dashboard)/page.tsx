@@ -228,27 +228,27 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Outstanding orders — the literal click-list */}
             <div className="lg:col-span-3 glass-card overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(15,13,42,0.05)' }}>
+              <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.082)' }}>
                 <div>
-                  <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Outstanding Orders</p>
+                  <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Outstanding Orders</p>
                   <p className="label-caps mt-0.5">
                     {outstandingOrders.length === 0 ? 'Nothing waiting on you' : `${outstandingOrders.length} need a status push — oldest first`}
                   </p>
                 </div>
-                <a href="/orders" className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.18 200)' }}>
+                <a href="/orders" className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: '#22d3ee' }}>
                   Open Orders <ArrowUpRight className="w-3 h-3" />
                 </a>
               </div>
               {outstandingOrders.length === 0 ? (
                 <div className="py-12 text-center">
                   <CheckCircle2 className="w-7 h-7 mx-auto mb-2" style={{ color: '#34d399', opacity: 0.6 }} />
-                  <p className="text-[13px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Every order is moving — nothing is stuck waiting on you.</p>
+                  <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Every order is moving — nothing is stuck waiting on you.</p>
                 </div>
               ) : (
                 <div>
                   {outstandingOrders.slice(0, 6).map((order) => {
                     const ageHours = (Date.now() - new Date(order.created_at).getTime()) / 3_600_000
-                    const ageColor = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'oklch(0.55 0.010 265)'
+                    const ageColor = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'rgba(255,255,255,0.44)'
                     const nextStatus: 'paid' | 'completed' = order.status === 'pending' ? 'paid' : 'completed'
                     const actionLabel = order.status === 'pending' ? 'Mark Paid' : 'Mark Completed'
                     const isBusy = advancingId === order.id
@@ -256,28 +256,28 @@ export default function DashboardPage() {
                       <div
                         key={order.id}
                         className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-[rgba(34,211,238,0.025)]"
-                        style={{ borderBottom: '1px solid rgba(15,13,42,0.04)' }}
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.065)' }}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-mono font-semibold" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.order_number ?? '—'}</span>
+                            <span className="text-[11px] font-mono font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>{order.order_number ?? '—'}</span>
                             <StatusBadge status={order.status} />
                             <span className="text-[10px] font-bold" style={{ color: ageColor }}>
                               {ageHours < 48 ? `${Math.round(ageHours)}h old` : `${Math.round(ageHours / 24)}d old`}
                             </span>
                           </div>
-                          <p className="text-[13px] font-semibold mt-0.5 truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>{order.buyer_name ?? '—'}</p>
-                          <p className="text-[11px] truncate" style={{ color: 'oklch(0.55 0.010 265)' }}>{order.gamepasses?.games?.name ?? '—'} · {formatRobux(order.robux_amount ?? 0)}</p>
+                          <p className="text-[13px] font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{order.buyer_name ?? '—'}</p>
+                          <p className="text-[11px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>{order.gamepasses?.games?.name ?? '—'} · {formatRobux(order.robux_amount ?? 0)}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>{order.selling_price ? formatPHP(order.selling_price) : '—'}</p>
+                          <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>{order.selling_price ? formatPHP(order.selling_price) : '—'}</p>
                         </div>
                         <button
                           type="button"
                           disabled={isBusy}
                           onClick={() => advanceOrder(order, nextStatus)}
                           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-60"
-                          style={{ background: 'rgba(34,211,238,0.10)', color: 'oklch(0.42 0.13 200)', border: '1px solid rgba(34,211,238,0.22)' }}
+                          style={{ background: 'rgba(34,211,238,0.10)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.22)' }}
                         >
                           {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                           {isBusy ? 'Working…' : actionLabel}
@@ -303,11 +303,11 @@ export default function DashboardPage() {
               className="w-full flex items-center justify-between px-5 py-3.5 transition-colors hover:bg-[rgba(139,92,246,0.025)]"
             >
               <div className="text-left">
-                <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>More detail</p>
+                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>More detail</p>
                 <p className="label-caps mt-0.5">Account balances, top performers, recent activity, trends — open when you want to dig in</p>
               </div>
               <motion.div animate={{ rotate: moreOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
-                <ChevronDown className="w-4 h-4" style={{ color: 'oklch(0.55 0.010 265)' }} />
+                <ChevronDown className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.44)' }} />
               </motion.div>
             </button>
 
@@ -320,33 +320,33 @@ export default function DashboardPage() {
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <div className="p-5 space-y-4" style={{ borderTop: '1px solid rgba(15,13,42,0.05)' }}>
+                  <div className="p-5 space-y-4" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
 
                     {/* Top performing accounts + Account balances */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                       <div className="lg:col-span-2 glass-secondary rounded-2xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Trophy className="w-3.5 h-3.5" style={{ color: '#fbbf24' }} />
-                          <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Top Performing Accounts</p>
+                          <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Top Performing Accounts</p>
                         </div>
-                        <p className="text-[10px] mb-3" style={{ color: 'oklch(0.55 0.010 265)' }}>Ranked by realized profit margin — where your next Robux purchase pays off fastest</p>
+                        <p className="text-[10px] mb-3" style={{ color: 'rgba(255,255,255,0.44)' }}>Ranked by realized profit margin — where your next Robux purchase pays off fastest</p>
                         {topAccounts.length === 0 ? (
-                          <p className="text-[11px] text-center py-3" style={{ color: 'oklch(0.55 0.010 265)' }}>Not enough completed orders yet to rank accounts.</p>
+                          <p className="text-[11px] text-center py-3" style={{ color: 'rgba(255,255,255,0.44)' }}>Not enough completed orders yet to rank accounts.</p>
                         ) : (
                           <div className="space-y-2">
                             {topAccounts.map((acc, i) => (
                               <div key={acc.id} className="flex items-center gap-2.5 py-1">
                                 <span
                                   className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0"
-                                  style={{ background: i === 0 ? 'rgba(251,191,36,0.18)' : 'rgba(15,13,42,0.06)', color: i === 0 ? '#b45309' : 'oklch(0.50 0.012 265)' }}
+                                  style={{ background: i === 0 ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.092)', color: i === 0 ? '#b45309' : 'rgba(255,255,255,0.44)' }}
                                 >
                                   {i + 1}
                                 </span>
-                                <span className="text-[12px] font-semibold flex-1 truncate" style={{ color: 'oklch(0.18 0.025 270)' }}>{acc.username}</span>
+                                <span className="text-[12px] font-semibold flex-1 truncate" style={{ color: 'rgba(255,255,255,0.76)' }}>{acc.username}</span>
                                 <span className="text-[11px] font-bold tabular-nums" style={{ color: '#34d399' }}>
                                   {acc.margin === Infinity ? '∞' : `${acc.margin.toFixed(0)}%`} margin
                                 </span>
-                                <span className="text-[10px] tabular-nums" style={{ color: 'oklch(0.55 0.010 265)' }}>{formatPHP(acc.profit)}</span>
+                                <span className="text-[10px] tabular-nums" style={{ color: 'rgba(255,255,255,0.44)' }}>{formatPHP(acc.profit)}</span>
                               </div>
                             ))}
                           </div>
@@ -357,14 +357,14 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Coins className="w-3.5 h-3.5" style={{ color: '#22d3ee' }} />
-                            <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Account Balances</p>
+                            <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Account Balances</p>
                           </div>
-                          <a href="/accounts" className="flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: 'oklch(0.50 0.18 200)' }}>
+                          <a href="/accounts" className="flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: '#22d3ee' }}>
                             Manage <ArrowUpRight className="w-3 h-3" />
                           </a>
                         </div>
                         {accounts.length === 0 ? (
-                          <p className="text-[12px] text-center py-4" style={{ color: 'oklch(0.55 0.010 265)' }}>No accounts yet.</p>
+                          <p className="text-[12px] text-center py-4" style={{ color: 'rgba(255,255,255,0.44)' }}>No accounts yet.</p>
                         ) : (
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                             {accounts.map((acc) => {
@@ -373,16 +373,16 @@ export default function DashboardPage() {
                               return (
                                 <div key={acc.id} className="flex items-center gap-2.5 py-1">
                                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor, boxShadow: `0 0 4px ${dotColor}60` }} />
-                                  <span className="text-[12px] font-medium flex-1 truncate" style={{ color: 'oklch(0.18 0.025 270)' }}>{acc.username}</span>
+                                  <span className="text-[12px] font-medium flex-1 truncate" style={{ color: 'rgba(255,255,255,0.76)' }}>{acc.username}</span>
                                   <span className="text-[11px] font-semibold flex-shrink-0 tabular-nums" style={{ color: 'oklch(0.50 0.010 265)' }}>{formatRobux(acc.current_robux)}</span>
                                 </div>
                               )
                             })}
                           </div>
                         )}
-                        <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(15,13,42,0.05)' }}>
-                          <span className="text-[11px]" style={{ color: 'oklch(0.55 0.010 265)' }}>Total across {accounts.length} accounts</span>
-                          <span className="text-[13px] font-extrabold tabular-nums" style={{ color: 'oklch(0.12 0.028 272)' }}>{formatRobux(totalRobux)}</span>
+                        <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
+                          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Total across {accounts.length} accounts</span>
+                          <span className="text-[13px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{formatRobux(totalRobux)}</span>
                         </div>
                       </div>
                     </div>
@@ -397,9 +397,9 @@ export default function DashboardPage() {
 
                       {/* Recent activity */}
                       <div className="lg:col-span-3 glass-secondary rounded-2xl p-4">
-                        <p className="text-[12px] font-bold mb-3" style={{ color: 'oklch(0.10 0.030 272)' }}>Recent Activity</p>
+                        <p className="text-[12px] font-bold mb-3" style={{ color: 'rgba(255,255,255,0.88)' }}>Recent Activity</p>
                         {activityFeed.length === 0 ? (
-                          <p className="text-[12px] text-center py-4" style={{ color: 'oklch(0.55 0.010 265)' }}>No activity yet.</p>
+                          <p className="text-[12px] text-center py-4" style={{ color: 'rgba(255,255,255,0.44)' }}>No activity yet.</p>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                             {activityFeed.map((item) => {
@@ -410,10 +410,10 @@ export default function DashboardPage() {
                                     <Icon className="w-3.5 h-3.5" style={{ color: item.iconColor }} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-medium leading-snug truncate" style={{ color: 'oklch(0.18 0.025 270)' }}>{item.text}</p>
+                                    <p className="text-[11px] font-medium leading-snug truncate" style={{ color: 'rgba(255,255,255,0.76)' }}>{item.text}</p>
                                     <div className="flex items-center justify-between gap-2 mt-0.5">
-                                      <p className="text-[10px]" style={{ color: 'oklch(0.60 0.010 265)' }}>{item.time}</p>
-                                      {item.amount && <p className="text-[11px] font-semibold" style={{ color: 'oklch(0.18 0.025 270)' }}>{item.amount}</p>}
+                                      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>{item.time}</p>
+                                      {item.amount && <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.76)' }}>{item.amount}</p>}
                                     </div>
                                   </div>
                                 </div>
@@ -426,7 +426,7 @@ export default function DashboardPage() {
 
                     {/* Quick actions */}
                     <div className="glass-secondary rounded-2xl p-4">
-                      <p className="text-[12px] font-bold mb-3" style={{ color: 'oklch(0.10 0.030 272)' }}>Quick Actions</p>
+                      <p className="text-[12px] font-bold mb-3" style={{ color: 'rgba(255,255,255,0.88)' }}>Quick Actions</p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {quickActions.map(({ label, sub, icon: Icon, href, color }) => (
                           <a
@@ -451,8 +451,8 @@ export default function DashboardPage() {
                               <Icon className="w-4 h-4" style={{ filter: `drop-shadow(0 0 4px ${color}80)` }} />
                             </div>
                             <div className="text-center">
-                              <p className="text-[11px] font-bold leading-tight" style={{ color: 'oklch(0.13 0.028 270)' }}>{label}</p>
-                              <p className="text-[10px] mt-0.5" style={{ color: 'oklch(0.55 0.010 265)' }}>{sub}</p>
+                              <p className="text-[11px] font-bold leading-tight" style={{ color: 'rgba(255,255,255,0.86)' }}>{label}</p>
+                              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>{sub}</p>
                             </div>
                           </a>
                         ))}

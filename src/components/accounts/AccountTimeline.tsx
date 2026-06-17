@@ -112,7 +112,7 @@ export default function AccountTimeline({ accountId, orders, reservations, reass
       <div className="flex items-center justify-between">
         <span className="label-caps">Account Timeline</span>
         {events.length > 0 && (
-          <span className="text-[12px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+          <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
             {events.length} event{events.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -121,7 +121,7 @@ export default function AccountTimeline({ accountId, orders, reservations, reass
       {events.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <History className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-          <p className="text-[14px] font-semibold mb-1" style={{ color: 'oklch(0.40 0.016 265)' }}>No activity yet</p>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>No activity yet</p>
           <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>
             Order completions, refunds, and reassignments will show up here
           </p>
@@ -137,18 +137,18 @@ export default function AccountTimeline({ accountId, orders, reservations, reass
                   style={{ background: event.color, boxShadow: `0 0 6px ${event.color}80` }}
                 />
                 {i < events.length - 1 && (
-                  <div className="w-px flex-1 mt-1" style={{ background: 'rgba(15,13,42,0.08)', minHeight: '24px' }} />
+                  <div className="w-px flex-1 mt-1" style={{ background: 'rgba(255,255,255,0.110)', minHeight: '24px' }} />
                 )}
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0 pb-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'oklch(0.58 0.010 265)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
                   {format(new Date(event.date), 'MMMM d, yyyy')}
                 </p>
-                <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>{event.title}</p>
+                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>{event.title}</p>
                 {event.detail && (
-                  <p className="text-[12px] mt-0.5" style={{ color: 'oklch(0.50 0.014 265)' }}>{event.detail}</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>{event.detail}</p>
                 )}
                 {event.amounts && (
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">

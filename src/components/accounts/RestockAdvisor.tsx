@@ -168,7 +168,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
           <Activity className="w-5 h-5" style={{ color: '#fb923c' }} />
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Restock Advisor</p>
+          <p className="text-[15px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Restock Advisor</p>
           <p className="label-caps mt-0.5">Inventory health &amp; sales velocity</p>
         </div>
       </div>
@@ -189,7 +189,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
 
       {/* ── Forecast bar ── */}
       <div className="mt-4">
-        <div className="relative h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(15,13,42,0.06)' }}>
+        <div className="relative h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.092)' }}>
           <div style={{ width: `${(3 / FORECAST_MAX_DAYS) * 100}%`, background: 'rgba(244,63,94,0.35)' }} />
           <div style={{ width: `${((7 - 3) / FORECAST_MAX_DAYS) * 100}%`, background: 'rgba(251,146,60,0.35)' }} />
           <div style={{ width: `${((14 - 7) / FORECAST_MAX_DAYS) * 100}%`, background: 'rgba(234,179,8,0.35)' }} />
@@ -200,7 +200,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
             style={{ left: `calc(${a.markerPct}% - 1.5px)`, background: meta.color, boxShadow: `0 0 8px ${meta.color}` }}
           />
         </div>
-        <div className="flex justify-between mt-1.5 text-[9px] font-semibold tabular-nums" style={{ color: 'oklch(0.58 0.010 265)' }}>
+        <div className="flex justify-between mt-1.5 text-[9px] font-semibold tabular-nums" style={{ color: 'rgba(255,255,255,0.48)' }}>
           <span>0d</span>
           <span>3d</span>
           <span>7d</span>
@@ -211,7 +211,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
       </div>
 
       {/* ── Insights ── */}
-      <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <span className="label-caps">Runway Forecast</span>
         <ul className="space-y-1.5 mt-1.5">
           <InsightLine>
@@ -239,7 +239,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
       </div>
 
       {/* ── Supplier Decision Panel ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center gap-2 mb-3">
           <Truck className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} />
           <span className="label-caps">Supplier Decision Panel</span>
@@ -249,13 +249,13 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
           <p className="text-[16px] font-extrabold leading-snug mb-2" style={{ color: meta.color }}>
             {actionLabel}
           </p>
-          <p className="text-[12px] leading-relaxed" style={{ color: 'oklch(0.40 0.018 268)' }}>
-            <span className="label-caps" style={{ color: 'oklch(0.50 0.014 265)' }}>Reason: </span>
+          <p className="text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
+            <span className="label-caps" style={{ color: 'rgba(255,255,255,0.44)' }}>Reason: </span>
             {reason}
           </p>
           <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: `1px solid ${meta.color}1a` }}>
             <span className="label-caps">Wallet Affordability</span>
-            <span className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.18 0.025 270)' }}>
+            <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.76)' }}>
               Can Afford {a.canAfford} Account{a.canAfford !== 1 ? 's' : ''}
             </span>
           </div>
@@ -263,7 +263,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
       </div>
 
       {/* ── Smart Restock Target ── */}
-      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(15,13,42,0.06)' }}>
+      <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-3.5 h-3.5" style={{ color: '#22d3ee' }} />
           <span className="label-caps">Smart Restock Target</span>
@@ -273,7 +273,7 @@ export default function RestockAdvisor({ accounts, completedOrders, walletBalanc
           <MiniStat label="Target Inventory" value={formatRobux(Math.round(a.targetInventory))} icon={Target} color="#a78bfa" />
           <MiniStat label="Suggested Purchase" value={`${a.suggestedPurchase} Account${a.suggestedPurchase !== 1 ? 's' : ''}`} icon={Activity} color="#fb923c" />
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,13,42,0.06)' }}>
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
           <div
             className="h-full rounded-full"
             style={{
@@ -294,14 +294,14 @@ function MiniStat({ label, value, icon: Icon, color }: { label: string; value: s
         <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} />
         <span className="label-caps" style={{ color, opacity: 0.85 }}>{label}</span>
       </div>
-      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'oklch(0.12 0.028 272)' }}>{value}</p>
+      <p className="text-[16px] font-extrabold tabular-nums truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{value}</p>
     </div>
   )
 }
 
 function InsightLine({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'oklch(0.40 0.018 268)' }}>
+    <li className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
       <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#22d3ee' }} />
       <span>{children}</span>
     </li>

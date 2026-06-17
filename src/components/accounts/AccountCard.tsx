@@ -20,7 +20,7 @@ interface AccountCardProps {
 
 const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
-const COLOR_CURRENT   = 'oklch(0.10 0.030 272)'
+const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 
 export default function AccountCard({ account, onEdit, onDelete, isSelected = false, onToggleSelect }: AccountCardProps) {
   const available   = getAvailableRobux(account)
@@ -30,15 +30,15 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
 
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
-  const availDisplayColor = depleted ? 'oklch(0.58 0.010 265)' : available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
+  const availDisplayColor = depleted ? 'rgba(255,255,255,0.48)' : available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
   const cardStyle = isSelected
     ? {
         background: 'rgba(34,211,238,0.028) padding-box, linear-gradient(140deg, rgba(34,211,238,0.42), rgba(139,92,246,0.28) 55%, rgba(34,211,238,0.24)) border-box',
-        boxShadow: '0 2px 20px rgba(34,211,238,0.12), 0 4px 24px rgba(15,13,42,0.04), inset 0 1.5px 0 rgba(34,211,238,0.30)',
+        boxShadow: '0 2px 20px rgba(34,211,238,0.12), 0 4px 24px rgba(255,255,255,0.065), inset 0 1.5px 0 rgba(34,211,238,0.30)',
       }
     : isHigh
-    ? { boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(15,13,42,0.04), inset 0 1px 0 rgba(52,211,153,0.14)' }
+    ? { boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(255,255,255,0.065), inset 0 1px 0 rgba(52,211,153,0.14)' }
     : undefined
 
   return (
@@ -70,7 +70,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
             }
           />
           <div className="min-w-0">
-            <p className="text-[13px] font-bold truncate" style={{ color: 'oklch(0.10 0.030 272)' }}>
+            <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
               {account.username}
             </p>
             <div className="flex items-center gap-2 mt-0.5">
@@ -78,7 +78,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
               {depleted && (
                 <span
                   className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'rgba(15,13,42,0.04)', color: 'oklch(0.55 0.010 265)', border: '1px solid rgba(15,13,42,0.08)' }}
+                  style={{ background: 'rgba(255,255,255,0.065)', color: 'rgba(255,255,255,0.44)', border: '1px solid rgba(255,255,255,0.110)' }}
                 >
                   <Archive className="w-2.5 h-2.5" /> Depleted
                 </span>
@@ -86,7 +86,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
               {account.robux_cost_rate > 0 && (
                 <span
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'rgba(167,139,250,0.08)', color: 'oklch(0.48 0.090 280)', border: '1px solid rgba(167,139,250,0.16)' }}
+                  style={{ background: 'rgba(167,139,250,0.08)', color: 'rgba(167,139,250,0.60)', border: '1px solid rgba(167,139,250,0.16)' }}
                 >
                   ₱{account.robux_cost_rate}/1k R$
                 </span>
@@ -102,7 +102,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
             onClick={e => { e.stopPropagation(); onToggleSelect?.() }}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
             style={{
-              color: isSelected ? '#22d3ee' : 'oklch(0.60 0.010 265)',
+              color: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.50)',
               background: isSelected ? 'rgba(34,211,238,0.12)' : 'transparent',
             }}
             title={isSelected ? 'Deselect account' : 'Select account'}
@@ -116,7 +116,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
           <DropdownMenu>
             <DropdownMenuTrigger
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
-              style={{ color: 'oklch(0.55 0.012 265)' }}
+              style={{ color: 'rgba(255,255,255,0.45)' }}
             >
               <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
@@ -139,7 +139,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
       <div className="grid grid-cols-3 gap-2">
         <div
           className="rounded-xl p-2.5 text-center"
-          style={{ background: 'rgba(15,13,42,0.028)', border: '1px solid rgba(15,13,42,0.048)' }}
+          style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.078)' }}
         >
           <p className="label-caps mb-1">Current</p>
           <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: COLOR_CURRENT }}>
@@ -166,12 +166,12 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
         <div
           className="rounded-xl p-2.5 text-center"
           style={{
-            background: account.reserved_robux > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(15,13,42,0.025)',
-            border: `1px solid ${account.reserved_robux > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(15,13,42,0.04)'}`,
+            background: account.reserved_robux > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.045)',
+            border: `1px solid ${account.reserved_robux > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(255,255,255,0.065)'}`,
           }}
         >
-          <p className="label-caps mb-1" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.60 0.010 265)', opacity: 0.75 }}>Reserved</p>
-          <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.55 0.010 265)' }}>
+          <p className="label-caps mb-1" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.50)', opacity: 0.75 }}>Reserved</p>
+          <p className="tabular-nums leading-tight" style={{ fontSize: '14px', fontWeight: 800, color: account.reserved_robux > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.44)' }}>
             {account.reserved_robux.toLocaleString()}
           </p>
           <p className="text-[9px] font-semibold mt-0.5" style={{ color: account.reserved_robux > 0 ? COLOR_RESERVED : 'oklch(0.65 0.010 265)', opacity: 0.65 }}>R$</p>
@@ -196,7 +196,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
           </div>
         </div>
 
-        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(15,13,42,0.07)' }}>
+        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.100)' }}>
           {availPct > 0 && (
             <div
               className="h-full transition-all duration-500"
@@ -231,7 +231,7 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
       {account.notes && (
         <p
           className="text-[11px] leading-snug truncate pt-2"
-          style={{ borderTop: '1px solid rgba(15,13,42,0.05)', color: 'oklch(0.55 0.012 265)' }}
+          style={{ borderTop: '1px solid rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.45)' }}
         >
           {account.notes}
         </p>
@@ -241,9 +241,9 @@ export default function AccountCard({ account, onEdit, onDelete, isSelected = fa
         href={`/accounts/${account.id}`}
         onClick={e => e.stopPropagation()}
         className="flex items-center justify-center gap-1.5 pt-2.5 text-[11px] font-bold transition-colors"
-        style={{ borderTop: '1px solid rgba(15,13,42,0.05)', color: 'oklch(0.48 0.016 265)' }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.47)' }}
         onMouseEnter={e => e.currentTarget.style.color = '#0e7490'}
-        onMouseLeave={e => e.currentTarget.style.color = 'oklch(0.48 0.016 265)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.47)'}
       >
         View Ledger <ArrowRight className="w-3 h-3" />
       </Link>

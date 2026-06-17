@@ -29,10 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 bg-ambient"
-      style={{ background: 'oklch(0.974 0.007 256)' }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4 bg-ambient">
       {/* Fluid background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <LiquidEther
@@ -48,7 +45,7 @@ export default function LoginPage() {
         />
       </div>
 
-      <div className="relative w-full max-w-[380px] space-y-8 z-10" style={{ zIndex: 10 }}>
+      <div className="relative w-full max-w-[380px] space-y-8" style={{ zIndex: 10 }}>
 
         {/* Brand */}
         <div className="text-center space-y-3">
@@ -56,36 +53,28 @@ export default function LoginPage() {
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, #22d3ee, #a78bfa, #e879f9)',
-                boxShadow: '0 0 32px rgba(34,211,238,0.25), 0 8px 24px rgba(15,13,42,0.15)',
+                background: 'linear-gradient(135deg, #22d3ee, #a78bfa)',
+                boxShadow: '0 0 32px rgba(34,211,238,0.30), 0 8px 24px rgba(0,0,0,0.40)',
               }}
             >
               <Box className="w-6 h-6 text-white" />
             </div>
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'oklch(0.10 0.030 272)' }}>XOB</h1>
-            <p className="text-[13px] mt-1" style={{ color: 'oklch(0.50 0.014 265)' }}>Sign in to your seller dashboard</p>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">XOB</h1>
+            <p className="text-[13px] mt-1 text-muted-foreground">Sign in to your seller dashboard</p>
           </div>
         </div>
 
         {/* Card */}
-        <div
-          className="p-7 space-y-5"
-          style={{
-            background: 'rgba(255,255,255,0.90)',
-            border: '1px solid rgba(15,13,42,0.07)',
-            borderRadius: '20px',
-            boxShadow: '0 4px 24px rgba(15,13,42,0.08), 0 1px 4px rgba(15,13,42,0.05)',
-          }}
-        >
+        <div className="glass-elevated p-7 space-y-5">
           {error && (
             <div
               className="flex items-start gap-2.5 p-3.5 rounded-xl"
-              style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)' }}
+              style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.22)' }}
             >
-              <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-              <p className="text-[12px] text-rose-600">{error}</p>
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[12px] text-rose-400">{error}</p>
             </div>
           )}
 
@@ -101,9 +90,9 @@ export default function LoginPage() {
                 required
                 className="w-full px-3.5 py-[10px] text-[13px] rounded-xl outline-none transition-all"
                 style={{
-                  background: 'rgba(15,13,42,0.025)',
-                  border: '1px solid rgba(15,13,42,0.08)',
-                  color: 'oklch(0.10 0.030 272)',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  color: 'oklch(0.88 0.006 265)',
                 }}
               />
             </div>
@@ -120,16 +109,15 @@ export default function LoginPage() {
                   required
                   className="w-full px-3.5 py-[10px] pr-10 text-[13px] rounded-xl outline-none transition-all"
                   style={{
-                    background: 'rgba(15,13,42,0.025)',
-                    border: '1px solid rgba(15,13,42,0.08)',
-                    color: 'oklch(0.10 0.030 272)',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.09)',
+                    color: 'oklch(0.88 0.006 265)',
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: 'oklch(0.55 0.010 265)' }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors text-muted-foreground hover:text-foreground"
                 >
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -145,16 +133,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-[12px]" style={{ color: 'oklch(0.55 0.010 265)' }}>
+          <p className="text-center text-[12px] text-muted-foreground">
             Don&apos;t have an account?{' '}
-            <Link href="/register" className="font-semibold" style={{ color: 'oklch(0.50 0.18 200)' }}>
+            <Link href="/register" className="font-semibold" style={{ color: '#22d3ee' }}>
               Sign up
             </Link>
           </p>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[11px]" style={{ color: 'oklch(0.60 0.010 265)' }}>
+        <p className="text-center text-[11px] text-muted-foreground opacity-60">
           XOB Gaming Marketplace · Secure seller platform
         </p>
       </div>

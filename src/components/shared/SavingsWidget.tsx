@@ -47,14 +47,14 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
           )}
           <p
             className={`font-bold truncate ${compact ? 'text-[11px]' : 'text-[13px]'}`}
-            style={{ color: isLocked ? 'oklch(0.55 0.010 265)' : 'oklch(0.10 0.030 272)' }}
+            style={{ color: isLocked ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.88)' }}
           >
             {goal.name}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {!compact && (
-            <span className="text-[10px] font-semibold" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.48)' }}>
               {goal.allocation_pct}% per order
             </span>
           )}
@@ -82,14 +82,14 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
 
       {/* Amount */}
       <div className="flex items-baseline justify-between gap-2">
-        <p className={`font-bold tabular-nums ${compact ? 'text-[12px]' : 'text-[15px]'}`} style={{ color: isLocked ? 'oklch(0.55 0.010 265)' : 'oklch(0.10 0.030 272)' }}>
+        <p className={`font-bold tabular-nums ${compact ? 'text-[12px]' : 'text-[15px]'}`} style={{ color: isLocked ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.88)' }}>
           ₱{Number(goal.current_amount).toFixed(2)}
-          <span className={`font-normal ml-1 ${compact ? 'text-[10px]' : 'text-[12px]'}`} style={{ color: 'oklch(0.58 0.010 265)' }}>
+          <span className={`font-normal ml-1 ${compact ? 'text-[10px]' : 'text-[12px]'}`} style={{ color: 'rgba(255,255,255,0.48)' }}>
             / ₱{Number(goal.target_amount).toFixed(0)}
           </span>
         </p>
         {!compact && !isCompleted && !isLocked && (
-          <p className="text-[11px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
             ₱{remaining.toFixed(2)} remaining
           </p>
         )}
@@ -98,7 +98,7 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
       {/* Progress bar */}
       <div
         className={`rounded-full overflow-hidden ${compact ? 'h-1.5' : 'h-2'}`}
-        style={{ background: 'rgba(15,13,42,0.07)' }}
+        style={{ background: 'rgba(255,255,255,0.100)' }}
       >
         <motion.div
           className="h-full rounded-full"
@@ -110,7 +110,7 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
               ? 'linear-gradient(90deg, #22d3ee, #a78bfa)'
               : isActive
               ? `linear-gradient(90deg, ${COLOR_ACTIVE}, #22d3ee)`
-              : 'rgba(15,13,42,0.12)',
+              : 'rgba(255,255,255,0.150)',
             boxShadow: isCompleted
               ? '0 0 8px rgba(34,211,238,0.50)'
               : isActive
@@ -129,7 +129,7 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
 
       {/* Forecast — "if you keep going at this pace, here's when this finishes" */}
       {isActive && forecast && (
-        <p className="text-[10px] font-medium" style={{ color: 'oklch(0.50 0.18 200)' }}>
+        <p className="text-[10px] font-medium" style={{ color: '#22d3ee' }}>
           📈 {forecast}
         </p>
       )}
@@ -177,8 +177,8 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
     return (
       <div className={compact ? 'p-3' : 'p-5'}>
         <div className="space-y-2">
-          <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(15,13,42,0.06)', width: '60%' }} />
-          <div className="h-2 rounded-full animate-pulse" style={{ background: 'rgba(15,13,42,0.04)' }} />
+          <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.092)', width: '60%' }} />
+          <div className="h-2 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.065)' }} />
         </div>
       </div>
     )
@@ -196,7 +196,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5">
             <PiggyBank className="w-3.5 h-3.5" style={{ color: '#34d399', filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.5))' }} />
-            <p className="text-[12px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>Savings Goals</p>
+            <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Savings Goals</p>
           </div>
           {allDone && (
             <span className="text-[10px] font-bold" style={{ color: '#0e7490' }}>All done ✓</span>
@@ -209,9 +209,9 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
         </div>
         <div
           className="mt-3 pt-3 flex items-center justify-between"
-          style={{ borderTop: '1px solid rgba(15,13,42,0.055)' }}
+          style={{ borderTop: '1px solid rgba(255,255,255,0.088)' }}
         >
-          <p className="text-[10px]" style={{ color: 'oklch(0.58 0.010 265)' }}>Total saved</p>
+          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.48)' }}>Total saved</p>
           <p className="text-[12px] font-bold tabular-nums" style={{ color: '#34d399' }}>
             ₱{totalSaved.toFixed(2)} / ₱{totalTarget.toFixed(0)}
           </p>
@@ -228,7 +228,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
         className="flex items-center justify-between px-5 py-4"
         style={{
           background: 'linear-gradient(180deg, rgba(52,211,153,0.028) 0%, transparent 100%)',
-          borderBottom: '1px solid rgba(15,13,42,0.055)',
+          borderBottom: '1px solid rgba(255,255,255,0.088)',
         }}
       >
         <div className="flex items-center gap-2">
@@ -239,10 +239,10 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
             <PiggyBank className="w-4 h-4" style={{ color: '#34d399' }} />
           </div>
           <div>
-            <p className="text-[13px] font-bold" style={{ color: 'oklch(0.10 0.030 272)' }}>
+            <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
               Savings Goals
             </p>
-            <p className="text-[10px]" style={{ color: 'oklch(0.58 0.010 265)' }}>
+            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
               Auto-allocated from order profit
             </p>
           </div>
@@ -251,7 +251,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: '#34d399' }}>
             ₱{totalSaved.toFixed(2)}
           </p>
-          <p className="text-[10px]" style={{ color: 'oklch(0.60 0.010 265)' }}>
+          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
             of ₱{totalTarget.toFixed(0)} target
           </p>
         </div>
@@ -264,7 +264,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
             {editingId === goal.id ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <p className="text-[12px] font-bold flex-1" style={{ color: 'oklch(0.18 0.025 270)' }}>
+                  <p className="text-[12px] font-bold flex-1" style={{ color: 'rgba(255,255,255,0.76)' }}>
                     {goal.name}
                   </p>
                   <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -313,7 +313,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
             {goal.priority < goals.length && (
               <div
                 className="mt-5 h-px"
-                style={{ background: 'linear-gradient(90deg, transparent, rgba(15,13,42,0.06) 20%, rgba(15,13,42,0.06) 80%, transparent)' }}
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.092) 20%, rgba(255,255,255,0.092) 80%, transparent)' }}
               />
             )}
           </div>
