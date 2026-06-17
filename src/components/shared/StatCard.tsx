@@ -2,7 +2,7 @@
 
 import { LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { fadeUpVariants } from '@/lib/motion'
+import { fadeUpVariants, hoverLift } from '@/lib/motion'
 
 interface StatCardProps {
   title: string
@@ -22,7 +22,8 @@ export default function StatCard({
   trend, className, animKey,
 }: StatCardProps) {
   return (
-    <div
+    <motion.div
+      {...hoverLift}
       className={`relative overflow-hidden rounded-2xl p-5 stat-card ${className ?? ''}`}
       style={{
         background: `rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, ${accentColor}38, rgba(34,211,238,0.22) 50%, rgba(232,121,249,0.14)) border-box`,
@@ -91,6 +92,6 @@ export default function StatCard({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
