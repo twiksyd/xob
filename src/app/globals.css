@@ -218,40 +218,46 @@
   border-radius: 50%;
 }
 
-/* Ceiling glow — static, very subtle white */
+/* Technique: solid color + heavy blur → organic fog glow (matches reference) */
+
+/* Ceiling glow — static white haze */
 .ambient-orb-4 {
   width: 900px;
-  height: 300px;
-  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.025) 0%, transparent 65%);
-  top: -180px;
+  height: 400px;
+  background: rgba(255, 255, 255, 0.032);
+  filter: blur(100px);
+  top: -200px;
   left: 50%;
   transform: translateX(-50%);
 }
-/* Purple — top left */
+/* Purple — top left, large, slow drift */
 .ambient-orb-1 {
-  width: 900px;
-  height: 900px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.055) 0%, transparent 60%);
-  top: -350px;
-  left: -300px;
+  width: 800px;
+  height: 800px;
+  background: rgba(139, 92, 246, 0.14);
+  filter: blur(130px);
+  top: -320px;
+  left: -250px;
   animation: orb-drift-1 32s ease-in-out infinite;
 }
 /* Purple/indigo — bottom right */
 .ambient-orb-2 {
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.038) 0%, transparent 60%);
-  bottom: -260px;
-  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: rgba(139, 92, 246, 0.09);
+  filter: blur(110px);
+  bottom: -240px;
+  right: -180px;
   animation: orb-drift-2 38s ease-in-out infinite;
 }
-/* Cyan — mid left */
+/* Cyan — mid screen */
 .ambient-orb-3 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.030) 0%, transparent 60%);
-  top: 38%;
-  left: 28%;
+  width: 450px;
+  height: 450px;
+  background: rgba(34, 211, 238, 0.07);
+  filter: blur(90px);
+  top: 40%;
+  left: 30%;
   animation: orb-drift-3 24s ease-in-out infinite;
 }
 
@@ -261,16 +267,12 @@
   background-color: rgb(5, 5, 10);
 }
 
-/* Cinematic spotlights — white/purple/cyan, extremely restrained */
+/* Subtle vignette — only on bg-ambient pages */
 .bg-ambient::before {
   content: '';
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(ellipse 60% 50% at 8%  0%,    rgba(167, 139, 246, 0.060), transparent),
-    radial-gradient(ellipse 50% 40% at 92% 100%,  rgba(167, 139, 246, 0.038), transparent),
-    radial-gradient(ellipse 45% 25% at 50% -4%,   rgba(255, 255, 255, 0.020), transparent),
-    radial-gradient(ellipse 30% 20% at 68%  40%,  rgba( 34, 211, 238, 0.018), transparent);
+  background: radial-gradient(ellipse 100% 80% at 50% 50%, transparent 40%, rgba(0,0,0,0.18) 100%);
   pointer-events: none;
   z-index: 0;
 }
