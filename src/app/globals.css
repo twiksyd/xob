@@ -183,6 +183,30 @@
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* ─── Chapter storytelling layout ───────────────────────────
+   Slideshow scroll: one gesture advances one chapter, via native
+   CSS scroll-snap on the real document scroll root (no nested
+   wrapper, no per-section overflow — exactly one scrolling element,
+   same as it's always been). scroll-snap-type itself is applied via
+   the .dashboard-snap-scroll class toggled on <html> only while the
+   Dashboard is mounted (see DashboardChapters), so every other route
+   is unaffected. Each chapter still sizes to roughly one viewport
+   via min-height — never clipped, never an independent scroll
+   container of its own. Do NOT add overflow-y: auto/scroll to any
+   element inside a chapter — that's the exact anti-pattern that
+   caused the original stuck-scroll bug. ─────────────────────────── */
+.chapter-section {
+  min-height: calc(100svh - 5rem);
+  overflow-x: hidden;
+  overflow-y: visible;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+html.dashboard-snap-scroll {
+  scroll-snap-type: y mandatory;
+}
+
 /* ─── Ambient orb keyframes ─────────────────────────────────── */
 @keyframes orb-drift-1 {
   0%, 100% { transform: translate(0px, 0px) scale(1); }
@@ -394,6 +418,131 @@
 }
 .nav-active-dark {
   color: oklch(0.940 0.006 265);
+}
+
+/* ─── "Realism" glow button — Dashboard New Order CTA ──────────
+   Glossy radial-gradient surface with a cyan blob (bottom-left) and
+   a purple blob (top-right), on a gradient-border "ring" (the 2px
+   padding gap between .realism-btn's own background and .realism-
+   btn-inner) — recolored to the app's cyan/purple identity. ────── */
+.realism-btn {
+  cursor: pointer;
+  border-radius: 16px;
+  border: none;
+  padding: 2px;
+  background: radial-gradient(circle 80px at 80% -10%, #22d3ee, #181b1b);
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.realism-btn::after {
+  content: "";
+  position: absolute;
+  width: 65%;
+  height: 60%;
+  border-radius: 120px;
+  top: 0;
+  right: 0;
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.35);
+  z-index: -1;
+}
+.realism-btn-blob1 {
+  position: absolute;
+  width: 70px;
+  height: 100%;
+  border-radius: 16px;
+  bottom: 0;
+  left: 0;
+  background: radial-gradient(circle 60px at 0% 100%, #3fe9ff, rgba(34, 211, 238, 0.50), transparent);
+  box-shadow: -10px 10px 30px rgba(34, 211, 238, 0.18);
+  pointer-events: none;
+  transition: box-shadow 0.35s ease, filter 0.35s ease;
+}
+.realism-btn-blob2 {
+  position: absolute;
+  width: 70px;
+  height: 100%;
+  border-radius: 16px;
+  top: 0;
+  right: 0;
+  background: radial-gradient(circle 60px at 100% 0%, #c4b5fd, rgba(167, 139, 250, 0.50), transparent);
+  box-shadow: 10px -10px 30px rgba(167, 139, 250, 0.18);
+  pointer-events: none;
+  transition: box-shadow 0.35s ease, filter 0.35s ease;
+}
+/* Hover: blobs glow a touch brighter — the lift/scale is handled by Framer Motion on .realism-btn itself */
+.realism-btn:hover .realism-btn-blob1 {
+  box-shadow: -10px 10px 38px rgba(34, 211, 238, 0.32);
+  filter: brightness(1.15);
+}
+.realism-btn:hover .realism-btn-blob2 {
+  box-shadow: 10px -10px 38px rgba(167, 139, 250, 0.32);
+  filter: brightness(1.15);
+}
+.realism-btn-inner {
+  padding: 18px 28px;
+  border-radius: 14px;
+  color: #fff;
+  z-index: 3;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle 80px at 80% -50%, #3d3a52, #0f1111);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.realism-btn-inner::before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  border-radius: 14px;
+  background: radial-gradient(circle 60px at 0% 100%, rgba(34, 211, 238, 0.10), rgba(167, 139, 250, 0.08), transparent);
+  position: absolute;
+}
+/* Shine sweep — a soft diagonal highlight that glides across on hover */
+.realism-btn-inner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.realism-btn:hover .realism-btn-inner::after {
+  left: 130%;
+}
+
+/* ─── Nav link shine — subtle hover highlight ───────────────────
+   Doesn't touch background/color/border (those are driven inline
+   by active/inactive route state in FloatingNav and would lose to
+   inline-style specificity); just layers a light sweep on top. ── */
+.nav-shine {
+  position: relative;
+  overflow: hidden;
+}
+.nav-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.nav-shine:hover::after {
+  left: 130%;
 }
 
 /* ─── Premium action button ─────────────────────────────────── */
@@ -695,18 +844,22 @@ input::selection, textarea::selection {
 ═══════════════════════════════════════════════════════════════ */
 
 /* ─── T3+ Workspace panel ────────────────────────────────────── */
+/* Solid, opaque dark surface (like .glass-modal) rather than the subtle
+   page-card treatment .glass-elevated/.glass-card use — this sits inside a
+   full-screen overlay, on top of the busy Orders page content behind it, so
+   it needs to read as a real solid panel, not let that content bleed through. */
 .glass-workspace {
-  background: rgba(255, 255, 255, 0.052);
-  border: 1px solid rgba(255, 255, 255, 0.090);
-  backdrop-filter: blur(28px) saturate(130%);
-  -webkit-backdrop-filter: blur(28px) saturate(130%);
+  background: rgba(10, 8, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.110);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
   border-radius: 18px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.065),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.030),
-    0 2px 6px  rgba(0, 0, 0, 0.50),
-    0 10px 40px rgba(0, 0, 0, 0.42),
-    0 0 60px   rgba(167, 139, 246, 0.032);
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.035),
+    0 4px 16px  rgba(0, 0, 0, 0.55),
+    0 16px 56px rgba(0, 0, 0, 0.50),
+    0 0 70px    rgba(167, 139, 246, 0.050);
 }
 
 /* ─── T1 Background Glass — recessed inner sections ──────────── */
@@ -809,6 +962,16 @@ input::selection, textarea::selection {
   opacity: 1;
 }
 
+/* Same slow breathing-glow language as .summary-card, applied to the order
+   history table specifically (not the shared .glass-secondary class, which
+   is also used by unrelated panels) so the table reads as alive at rest,
+   not only on hover. One container-level animation, not per-row — cheap,
+   no risk of the per-element continuous-animation cost this app has
+   deliberately moved away from elsewhere. */
+.order-table-glow {
+  animation: summary-glow-breathe 8s ease-in-out infinite;
+}
+
 /* ─── Form section stagger entry ─────────────────────────────── */
 @keyframes section-enter {
   from { opacity: 0; transform: translateY(6px); }
@@ -848,6 +1011,7 @@ input::selection, textarea::selection {
 [data-slot="dropdown-menu-item"],
 [data-slot="select-item"] {
   color: oklch(0.780 0.008 265) !important;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 [data-slot="dropdown-menu-item"]:hover,
 [data-slot="select-item"]:hover,

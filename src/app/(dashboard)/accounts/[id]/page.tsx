@@ -12,11 +12,14 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import PurchaseHistoryTable from '@/components/accounts/PurchaseHistoryTable'
 import AccountTimeline from '@/components/accounts/AccountTimeline'
 import { createClient } from '@/lib/supabase/client'
+import { SkeletonCard, SkeletonTable } from '@/components/shared/Skeleton'
+import Breadcrumb from '@/components/shared/Breadcrumb'
+import { formatPHP } from '@/lib/utils/pricing'
 import {
   RobloxAccount, RobloxReservation, OrderReassignment, OrderWithItems,
 } from '@/lib/types/database'
 import {
-  ArrowLeft, ShoppingCart, Coins, Wallet, TrendingUp, Percent, Gamepad2,
+  ShoppingCart, Coins, Wallet, TrendingUp, Percent, Gamepad2,
 } from 'lucide-react'
 import { getAvailableRobux } from '@/lib/utils/accounts'
 
@@ -104,13 +107,13 @@ export default function AccountLedgerPage() {
       <div>
         <TopBar title="Account Ledger" subtitle="Loading…" />
         <div className="p-5 space-y-5">
-          <div className="glass-card p-5 h-28 animate-pulse" />
+          <SkeletonCard lines={2} />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-card p-5 h-28 animate-pulse" />
+              <SkeletonCard key={i} />
             ))}
           </div>
-          <div className="glass-card p-12 h-64 animate-pulse" />
+          <SkeletonTable rows={5} cols={5} />
         </div>
       </div>
     )
@@ -147,14 +150,8 @@ export default function AccountLedgerPage() {
 
       <div className="p-5 space-y-5">
 
-        {/* ── Back link ── */}
-        <Link
-          href="/accounts"
-          className="inline-flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
-          style={{ color: 'rgba(255,255,255,0.47)' }}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Accounts
-        </Link>
+        {/* ── Breadcrumb ── */}
+        <Breadcrumb items={[{ label: 'Accounts', href: '/accounts' }, { label: account.username }]} />
 
         {/* ── Account header ── */}
         <div className="glass-card p-5">
@@ -233,15 +230,15 @@ export default function AccountLedgerPage() {
               icon={Coins} iconColor="#f59e0b" accentColor="#f59e0b"
             />
             <StatCard
-              title="Total Revenue" value={`₱${stats.totalRevenue.toFixed(2)}`} subtitle="Completed orders"
+              title="Total Revenue" value={formatPHP(stats.totalRevenue)} subtitle="Completed orders"
               icon={Wallet} iconColor="#22d3ee" accentColor="#22d3ee"
             />
             <StatCard
-              title="Total Profit" value={`₱${stats.totalProfit.toFixed(2)}`} subtitle="Completed orders"
+              title="Total Profit" value={formatPHP(stats.totalProfit)} subtitle="Completed orders"
               icon={TrendingUp} iconColor="#34d399" accentColor="#34d399"
             />
             <StatCard
-              title="Avg Profit / Order" value={`₱${stats.avgProfit.toFixed(2)}`} subtitle="Per completed order"
+              title="Avg Profit / Order" value={formatPHP(stats.avgProfit)} subtitle="Per completed order"
               icon={Percent} iconColor="#e879f9" accentColor="#e879f9"
             />
             <StatCard

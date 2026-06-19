@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { UseFormRegister, UseFormSetValue, UseFormWatch, FieldErrors } from 'react-hook-form'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Gamepass, Game, RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { formatRobux, formatPHP, OrderTotals } from '@/lib/utils/pricing'
+import { rankAccountsForOrder } from '@/lib/utils/accounts'
 import { CartGroup } from '@/hooks/useOrderCart'
 
 export type GamepassWithGame = Gamepass & { games: Game | null }
@@ -75,6 +77,18 @@ export default function OrderForm({
   const payMethod = watch('payment_method')
   const statusVal = watch('status')
 
+  // Auto-pick the best-fit account the moment the cart goes from empty to non-empty,
+  // if nothing's been chosen yet — saves a click on the common path without ever
+  // overriding a deliberate manual pick.
+  const prevValidCount = useRef(0)
+  useEffect(() => {
+    if (prevValidCount.current === 0 && validItemsCount > 0 && !accountId) {
+      const best = rankAccountsForOrder(accounts, totals.totalRobux).find(a => a.canAfford)
+      if (best) setValue('roblox_account_id', best.id, { shouldValidate: true })
+    }
+    prevValidCount.current = validItemsCount
+  }, [validItemsCount, accountId, accounts, totals.totalRobux, setValue])
+
   return (
     <div className="glass-workspace overflow-hidden">
 
@@ -94,7 +108,7 @@ export default function OrderForm({
             exit={{ opacity: 0, y: -5 }}
             transition={{ duration: 0.16 }}
           >
-            <h2 className="text-[14px] font-bold tracking-tight" style={{ color: 'oklch(0.095 0.032 272)' }}>
+            <h2 className="text-[14px] font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.88)' }}>
               {isEditMode ? 'Edit Order' : 'Create Order'}
             </h2>
             <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>
@@ -224,13 +238,13 @@ export default function OrderForm({
             <div className="totals-bar grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Robux</p>
-                <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                <p className="text-[14px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                   {formatRobux(totals.totalRobux)}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Price</p>
-                <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                   {formatPHP(totals.totalPrice)}
                 </p>
               </div>
@@ -302,7 +316,11 @@ export default function OrderForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
-                  {['pending', 'paid', 'completed', 'refunded', 'cancelled'].map(s => (
+                  {/* Refunded/cancelled only make sense for an order that already exists */}
+                  {(isEditMode
+                    ? ['pending', 'paid', 'completed', 'refunded', 'cancelled']
+                    : ['pending', 'paid', 'completed']
+                  ).map(s => (
                     <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
                   ))}
                 </SelectContent>

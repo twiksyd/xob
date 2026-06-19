@@ -82,7 +82,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
                     <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.47)' }}>
                       ×{g.count} @ {formatPHP(g.unit_price)}
                     </p>
-                    <p className="text-[12px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                    <p className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {formatPHP(g.subtotal)}
                     </p>
                   </div>
@@ -114,7 +114,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Available</p>
-                  <p className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+                  <p className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                     {formatRobux(getAvailableRobux(account))}
                   </p>
                 </div>
@@ -130,13 +130,13 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
           <div className="glass-modal grid grid-cols-3 gap-2 text-center p-3.5">
             <div>
               <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Robux</p>
-              <p className="text-[14px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
+              <p className="text-[14px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {formatRobux(order?.robux_amount ?? 0)}
               </p>
             </div>
             <div>
               <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total PHP</p>
-              <p className="text-[14px] font-bold" style={{ color: 'oklch(0.095 0.032 272)' }}>
+              <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {formatPHP(order?.selling_price ?? 0)}
               </p>
             </div>

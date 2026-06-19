@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useDeferredValue } from 'react'
+import { useState, useMemo, useDeferredValue, useEffect, useRef } from 'react'
 import { GamepassWithGame } from '@/lib/types/database'
 import GamepassTile from './GamepassTile'
 import { Search, X } from 'lucide-react'
@@ -17,6 +17,11 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
   const [search, setSearch] = useState('')
   const [filterGame, setFilterGame] = useState('all')
   const deferredSearch = useDeferredValue(search)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  // Land in the search box the moment the workspace opens — an operator who
+  // already knows what the buyer wants shouldn't need a click before typing.
+  useEffect(() => { searchRef.current?.focus() }, [])
 
   const games = useMemo(() => {
     const map = new Map<string, { id: string; name: string; color: string }>()
@@ -73,6 +78,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'rgba(255,255,255,0.48)' }} />
         <input
+          ref={searchRef}
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}

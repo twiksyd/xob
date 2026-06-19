@@ -2,13 +2,34 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
 import StatusBadge from '@/components/shared/StatusBadge'
+import CountUp from '@/components/shared/CountUp'
 import { createClient } from '@/lib/supabase/client'
 import { format, isToday, isYesterday } from 'date-fns'
-import { RefreshCw, AlertOctagon, Eye, EyeOff, Package } from 'lucide-react'
+import { RefreshCw, Eye, EyeOff, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { cardStagger, cardStaggerItem } from '@/lib/motion'
+import { useToast } from '@/components/shared/Toast'
+import { useUrlState } from '@/hooks/useUrlState'
+import { formatPHP } from '@/lib/utils/pricing'
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3 flex-shrink-0"
+      initial={{ opacity: 0, x: -16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 // ─── Static pools (buyers / accounts / methods stay fake) ────────────────────
 
@@ -140,7 +161,7 @@ function RevenueValue({ amount, color }: { amount: number; color: string }) {
       </p>
     )
   }
-  return <p className="stat-value" style={{ color }}>₱{amount.toFixed(2)}</p>
+  return <p className="stat-value" style={{ color }}>{formatPHP(amount)}</p>
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -154,10 +175,11 @@ export default function OverallSalesPage() {
   const [gpLoading,    setGpLoading]    = useState(true)
   const [seed,         setSeed]         = useState(() => Date.now())
   const [refreshing,   setRefreshing]   = useState(false)
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useUrlState<typeof STATUS_CHIPS[number]>('status', 'all', STATUS_CHIPS)
   const [search,       setSearch]       = useState('')
   const [showAccounts, setShowAccounts] = useState(false)
   const supabase = createClient()
+  const toast = useToast()
 
   // Fetch real gamepasses from inventory on mount (all, not just active — this is a simulation)
   useEffect(() => {
@@ -184,8 +206,12 @@ export default function OverallSalesPage() {
 
   const refresh = useCallback(() => {
     setRefreshing(true)
-    setTimeout(() => { setSeed(Date.now()); setRefreshing(false) }, 420)
-  }, [])
+    setTimeout(() => {
+      setSeed(Date.now())
+      setRefreshing(false)
+      toast.success('Sales feed refreshed.')
+    }, 420)
+  }, [toast])
 
   const filtered = useMemo(() => sales.filter(s => {
     const matchStatus = filterStatus === 'all' || s.status === filterStatus
@@ -219,9 +245,15 @@ export default function OverallSalesPage() {
 
       <div className="flex flex-col flex-1 min-h-0 p-5 gap-4">
 
+        {/* ── 01 · Performance Overview ── */}
+        <SectionLabel index="01" label="Performance Overview" />
+
         {/* ── Sold Out Banner ──────────────────────────────────────────── */}
-        <div
+        <motion.div
           className="rounded-xl overflow-hidden flex-shrink-0"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
           style={{
             background: 'linear-gradient(135deg, rgba(244,63,94,0.13) 0%, rgba(244,63,94,0.07) 100%)',
             border: '1px solid rgba(244,63,94,0.38)',
@@ -248,23 +280,39 @@ export default function OverallSalesPage() {
               Action Required
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Summary Cards ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0">
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #a78bfa42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0"
+          variants={cardStagger}
+          initial="initial"
+          animate="animate"
+        >
+          <motion.div
+            variants={cardStaggerItem}
+            className="summary-card"
+            style={{
+              background: 'rgba(255,255,255,0.052) padding-box, linear-gradient(135deg, #a78bfa66, rgba(34,211,238,0.26) 50%, rgba(232,121,249,0.18)) border-box',
+              border: '1px solid transparent',
+              boxShadow: '0 0 28px rgba(167,139,250,0.18)',
+            }}
+          >
             <p className="label-caps mb-1">Completed Revenue</p>
-            <RevenueValue amount={totalRevenue} color="rgba(255,255,255,0.88)" />
-          </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+            <RevenueValue amount={totalRevenue} color="rgba(255,255,255,0.92)" />
+          </motion.div>
+          <motion.div variants={cardStaggerItem} className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #22d3ee42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Profit</p>
-            <p className="stat-value" style={{ color: '#22d3ee', filter: BLUR, userSelect: 'none' }}>₱{totalProfit.toFixed(2)}</p>
-          </div>
-          <div className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
+            <p className="stat-value" style={{ color: '#22d3ee', filter: BLUR, userSelect: 'none' }}>{formatPHP(totalProfit)}</p>
+          </motion.div>
+          <motion.div variants={cardStaggerItem} className="summary-card" style={{ background: 'rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, #f59e0b42, rgba(34,211,238,0.18)) border-box', border: '1px solid transparent' }}>
             <p className="label-caps mb-1">Total Orders</p>
-            <p className="stat-value" style={{ color: '#f59e0b' }}>{sales.length}</p>
-          </div>
-        </div>
+            <CountUp value={sales.length} format={(v) => `${Math.round(v)}`} duration={1.0} className="stat-value block" style={{ color: '#f59e0b' }} />
+          </motion.div>
+        </motion.div>
+
+        {/* ── 02 · Sales Feed ── */}
+        <SectionLabel index="02" label="Sales Feed" />
 
         {/* ── Filter row + Refresh ──────────────────────────────────────── */}
         <div className="flex items-center justify-between flex-shrink-0">
@@ -294,7 +342,12 @@ export default function OverallSalesPage() {
         </div>
 
         {/* ── Table ────────────────────────────────────────────────────── */}
-        <div className="glass-card overflow-hidden flex flex-col flex-1 min-h-0">
+        <motion.div
+          className="glass-card overflow-hidden flex flex-col flex-1 min-h-0"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        >
 
           {/* Loading inventory */}
           {gpLoading ? (
@@ -369,14 +422,14 @@ export default function OverallSalesPage() {
                         </span>
                       </td>
                       <td className="text-right">
-                        <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>₱{sale.price.toFixed(2)}</span>
+                        <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>{formatPHP(sale.price)}</span>
                       </td>
                       <td className="text-right">
                         <span
                           className={cn('text-[13px] font-bold', sale.status === 'refunded' ? 'text-red-400' : 'text-emerald-600')}
                           style={{ filter: BLUR, transition: BLUR_T, userSelect: 'none', display: 'inline-block' }}
                         >
-                          {sale.status === 'refunded' ? '-' : '+'}₱{sale.profit.toFixed(2)}
+                          {sale.status === 'refunded' ? '-' : '+'}{formatPHP(sale.profit)}
                         </span>
                       </td>
                       <td className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{sale.method}</td>
@@ -393,7 +446,7 @@ export default function OverallSalesPage() {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
 
       </div>
     </div>

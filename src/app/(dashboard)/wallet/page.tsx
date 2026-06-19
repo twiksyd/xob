@@ -2,8 +2,10 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
+import CountUp from '@/components/shared/CountUp'
 import { WalletTransaction } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -18,9 +20,29 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { cardStagger, cardStaggerItem } from '@/lib/motion'
+import { SkeletonTable } from '@/components/shared/Skeleton'
+import EmptyState from '@/components/shared/EmptyState'
+import { formatPHP } from '@/lib/utils/pricing'
 
 const INCOME_CATEGORIES = ['Sale', 'Bonus', 'Deposit', 'Other']
 const EXPENSE_CATEGORIES = ['Robux Purchase', 'Operating Cost', 'Refund Issued', 'Withdrawal', 'Other']
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3"
+      initial={{ opacity: 0, x: -16 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 const TT = {
   backgroundColor: 'rgba(10, 8, 24, 0.94)',
@@ -36,7 +58,6 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [displayBalance, setDisplayBalance] = useState(0)
   const [balance, setBalance] = useState(0)
   const [totalIncome, setTotalIncome] = useState(0)
   const [totalExpenses, setTotalExpenses] = useState(0)
@@ -68,20 +89,6 @@ export default function WalletPage() {
   }, [supabase])
 
   useEffect(() => { fetchData() }, [fetchData])
-
-  useEffect(() => {
-    if (!balance) { setDisplayBalance(0); return }
-    const start = Date.now()
-    const duration = 1400
-    const tick = () => {
-      const p = Math.min((Date.now() - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setDisplayBalance(balance * eased)
-      if (p < 1) requestAnimationFrame(tick)
-      else setDisplayBalance(balance)
-    }
-    requestAnimationFrame(tick)
-  }, [balance])
 
   const chartData = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() })
@@ -150,9 +157,14 @@ export default function WalletPage() {
       />
 
       <div className="p-5 space-y-5">
-        {/* Hero Balance Card */}
-        <div
+        {/* ── 01 · Financial Position ── */}
+        <SectionLabel index="01" label="Financial Position" />
+        <motion.div
           className="rounded-2xl p-6"
+          initial={{ opacity: 0, y: 20, scale: 0.97 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           style={{
             background: 'rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.22), rgba(232,121,249,0.14)) border-box',
             border: '1px solid transparent',
@@ -163,7 +175,11 @@ export default function WalletPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="label-caps mb-2">Current Balance</p>
-              <p
+              <CountUp
+                value={balance}
+                format={formatPHP}
+                duration={1.6}
+                className="block"
                 style={{
                   fontSize: '48px', fontWeight: 900, lineHeight: 1,
                   color: balance >= 0 ? '#22d3ee' : '#f43f5e',
@@ -172,9 +188,7 @@ export default function WalletPage() {
                     : '0 0 32px rgba(244,63,94,0.35)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
-              >
-                ₱{displayBalance.toFixed(2)}
-              </p>
+              />
               <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 PHP Cash Available · {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
               </p>
@@ -191,14 +205,16 @@ export default function WalletPage() {
           </div>
 
           <div className="mt-5 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(139,92,246,0.08)' }}>
-            <div
+            <motion.div
               className="h-full rounded-full"
+              initial={{ width: 0 }}
+              whileInView={{ width: balanceBarWidth }}
+              viewport={{ once: true, amount: 0.4 }}
+              transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{
-                width: balanceBarWidth,
                 background: balance >= 0
                   ? 'linear-gradient(90deg, #22d3ee, #a78bfa)'
                   : 'linear-gradient(90deg, #f43f5e, #e879f9)',
-                transition: 'width 1.4s cubic-bezier(0.16,1,0.3,1)',
                 boxShadow: '0 0 8px rgba(34,211,238,0.50)',
               }}
             />
@@ -207,31 +223,39 @@ export default function WalletPage() {
           <div className="mt-3 flex items-center gap-6">
             <div className="flex items-center gap-1.5">
               <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="text-[12px] font-semibold text-emerald-600">+₱{totalIncome.toFixed(2)}</span>
+              <span className="text-[12px] font-semibold text-emerald-600">+{formatPHP(totalIncome)}</span>
               <span className="text-[11px]" style={{ color: 'oklch(0.65 0.010 265)' }}>total in</span>
             </div>
             <div className="flex items-center gap-1.5">
               <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-              <span className="text-[12px] font-semibold text-red-500">-₱{totalExpenses.toFixed(2)}</span>
+              <span className="text-[12px] font-semibold text-red-500">-{formatPHP(totalExpenses)}</span>
               <span className="text-[11px]" style={{ color: 'oklch(0.65 0.010 265)' }}>total out</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        {/* ── 02 · Capital Status ── */}
+        <SectionLabel index="02" label="Capital Status" />
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3.5"
+          variants={cardStagger}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, amount: 0.4 }}
+        >
           {[
-            { label: 'Total Inflow',  value: `₱${totalIncome.toFixed(2)}`,   color: '#22d3ee',  accent: '#22d3ee' },
-            { label: 'Total Outflow', value: `₱${totalExpenses.toFixed(2)}`, color: '#f43f5e',  accent: '#f43f5e' },
+            { label: 'Total Inflow',  value: formatPHP(totalIncome),   color: '#22d3ee',  accent: '#22d3ee' },
+            { label: 'Total Outflow', value: formatPHP(totalExpenses), color: '#f43f5e',  accent: '#f43f5e' },
             {
               label: 'Net Balance',
-              value: `₱${balance.toFixed(2)}`,
+              value: formatPHP(balance),
               color: balance >= 0 ? '#34d399' : '#f43f5e',
               accent: '#a78bfa',
             },
           ].map(({ label, value, color, accent }) => (
-            <div
+            <motion.div
               key={label}
+              variants={cardStaggerItem}
               className="summary-card"
               style={{
                 background: `rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, ${accent}38, rgba(34,211,238,0.14)) border-box`,
@@ -240,17 +264,31 @@ export default function WalletPage() {
             >
               <p className="label-caps mb-1">{label}</p>
               <p className="stat-value" style={{ color }}>{value}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
-        {/* Savings Goals */}
-        <SavingsWidget compact={false} />
+        {/* Savings Goals — part of Capital Status */}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <SavingsWidget compact={false} />
+        </motion.div>
 
-        {/* Chart + Add form */}
+        {/* ── 03 · Cash Flow ── */}
+        <SectionLabel index="03" label="Cash Flow" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Cash Flow Chart */}
-          <div className="col-span-2 glass-card p-5">
+          <motion.div
+            className="col-span-2 glass-card p-5"
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Cash Flow</p>
@@ -291,7 +329,7 @@ export default function WalletPage() {
                 />
                 <Tooltip
                   contentStyle={TT}
-                  formatter={(v: any) => [`₱${Number(v).toFixed(2)}`]}
+                  formatter={(v: any) => [formatPHP(Number(v))]}
                 />
                 <Area
                   type="monotone" dataKey="income" stroke="#22d3ee"
@@ -303,10 +341,16 @@ export default function WalletPage() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </motion.div>
 
           {/* Add Entry Form */}
-          <div className="glass-card p-5">
+          <motion.div
+            className="glass-card p-5"
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          >
             <p className="text-[13px] font-bold mb-4" style={{ color: 'rgba(255,255,255,0.88)' }}>Add Entry</p>
 
             <div
@@ -389,21 +433,27 @@ export default function WalletPage() {
                 {saving ? 'Adding...' : formType === 'income' ? 'Add Income' : 'Add Expense'}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* Transaction History */}
+        {/* ── 04 · Transactions ── */}
+        <SectionLabel index="04" label="Transactions" />
         {loading ? (
-          <div className="glass-card p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          </div>
+          <SkeletonTable rows={5} cols={5} />
         ) : transactions.length === 0 ? (
-          <div className="glass-card p-12 text-center">
-            <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No transactions yet. Complete an order or add one manually.</p>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            title="No transactions yet"
+            description="Completed orders post here automatically. You can also log a manual income or expense using the Add Entry form above."
+          />
         ) : (
-          <div className="glass-card overflow-hidden">
+          <motion.div
+            className="glass-card overflow-hidden"
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full data-table">
                 <thead>
@@ -450,7 +500,7 @@ export default function WalletPage() {
                         </td>
                         <td className="text-right">
                           <span className={cn('text-[13px] font-bold', isIn ? 'text-emerald-500' : 'text-red-400')}>
-                            {isIn ? '+' : ''}₱{Math.abs(tx.amount).toFixed(2)}
+                            {isIn ? '+' : ''}{formatPHP(Math.abs(tx.amount))}
                           </span>
                         </td>
                       </tr>
@@ -459,7 +509,21 @@ export default function WalletPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </motion.div>
+        )}
+
+        {!loading && transactions.length > 0 && (
+          <motion.a
+            href="/transactions"
+            className="inline-flex items-center gap-1.5 text-[12px] font-bold"
+            style={{ color: '#22d3ee' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+          >
+            View Full Ledger <ArrowUpRight className="w-3.5 h-3.5" />
+          </motion.a>
         )}
       </div>
     </div>

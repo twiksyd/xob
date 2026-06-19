@@ -8,6 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { formatPHP } from '@/lib/utils/pricing'
 import { Search, X, Receipt, ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -203,10 +204,10 @@ export default function PurchaseHistoryTable({ orders, accounts, currentAccount,
                       {row.robuxAmount.toLocaleString()} R$
                     </td>
                     <td className="text-right text-[12px] tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                      ₱{row.sellingPrice.toFixed(2)}
+                      {formatPHP(row.sellingPrice)}
                     </td>
                     <td className={cn('text-right text-[12px] font-semibold tabular-nums', row.profit >= 0 ? 'text-emerald-500' : 'text-red-400')}>
-                      ₱{row.profit.toFixed(2)}
+                      {formatPHP(row.profit)}
                     </td>
                     <td className="whitespace-nowrap text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
                       {format(new Date(row.createdAt), 'MMM dd, yyyy')}

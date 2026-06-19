@@ -5,8 +5,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
-import StatCard from '@/components/shared/StatCard'
-import { SellerAccountWithVehicles, SellerAccountVehicle } from '@/lib/types/database'
+import CountUp from '@/components/shared/CountUp'
+import { SellerAccountWithVehicles } from '@/lib/types/database'
+import { formatPHP } from '@/lib/utils/pricing'
 import { createClient } from '@/lib/supabase/client'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -18,8 +19,30 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   Archive, Plus, Check, X, ChevronDown, ChevronUp,
-  Layers, MoreHorizontal, Edit2, Trash2, Car, Wrench, Users, TrendingUp,
+  Layers, MoreHorizontal, Edit2, Trash2, Car, Wrench, TrendingUp,
 } from 'lucide-react'
+import { cardStagger, cardStaggerItem } from '@/lib/motion'
+import { useToast } from '@/components/shared/Toast'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
+import { SkeletonCard } from '@/components/shared/Skeleton'
+import EmptyState from '@/components/shared/EmptyState'
+import { useUrlState } from '@/hooks/useUrlState'
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3"
+      initial={{ opacity: 0, x: -16 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 // ─── Readiness ────────────────────────────────────────────────────────────────
 type Readiness = { label: string; color: string; bg: string; border: string; accent: string }
@@ -89,7 +112,7 @@ function InventoryCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[13px] font-bold truncate" style={{ color: 'oklch(0.095 0.032 272)' }}>
+              <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {account.username}
               </p>
               {/* Readiness badge */}
@@ -166,8 +189,8 @@ function InventoryCard({
         {account.estimated_price != null && (
           <div className="flex items-center gap-1.5">
             <TrendingUp className="w-3 h-3" style={{ color: '#a78bfa' }} />
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: 'oklch(0.095 0.032 272)' }}>
-              ₱{Number(account.estimated_price).toLocaleString()}
+            <span className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
+              {formatPHP(Number(account.estimated_price))}
             </span>
             <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>estimated</span>
           </div>
@@ -289,6 +312,7 @@ function InventoryCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 type FilterKey = 'all' | 'ready' | 'drag_spec' | 'needs_limiteds'
+const FILTER_KEYS: readonly FilterKey[] = ['all', 'ready', 'drag_spec', 'needs_limiteds']
 
 export default function SellerInventoryPage() {
   const [accounts, setAccounts]       = useState<SellerAccountWithVehicles[]>([])
@@ -299,7 +323,7 @@ export default function SellerInventoryPage() {
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [busyId, setBusyId]           = useState<string | null>(null)
   const [search, setSearch]           = useState('')
-  const [filter, setFilter]           = useState<FilterKey>('all')
+  const [filter, setFilter]           = useUrlState<FilterKey>('filter', 'all', FILTER_KEYS)
 
   // Modal form state
   const [fUsername, setFUsername]         = useState('')
@@ -310,6 +334,8 @@ export default function SellerInventoryPage() {
 
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
+  const toast = useToast()
+  const confirm = useConfirm()
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -355,6 +381,7 @@ export default function SellerInventoryPage() {
       notes:           fNotes.trim() || null,
     }
 
+    const wasEdit = !!editAccount
     if (editAccount) {
       await supabase.from('seller_accounts')
         .update({ ...payload, updated_at: new Date().toISOString() })
@@ -367,13 +394,21 @@ export default function SellerInventoryPage() {
     setModalOpen(false)
     setEditAccount(null)
     fetchData()
+    toast.success(wasEdit ? 'Account updated.' : 'Account added.')
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this account and all its vehicles?')) return
+    const ok = await confirm({
+      title: 'Delete this account?',
+      description: 'This permanently removes the account and all of its vehicles from your seller inventory.',
+      confirmLabel: 'Delete Account',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('seller_accounts').delete().eq('id', id)
     if (expandedId === id) setExpandedId(null)
     fetchData()
+    toast.success('Account deleted.')
   }
 
   // ── Drag Spec toggle ──────────────────────────────────────────────────────
@@ -462,29 +497,50 @@ export default function SellerInventoryPage() {
 
       <div className="p-5 space-y-5">
 
-        {/* ── Summary cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {[
-            { title: 'Total Accounts', value: String(totalAccounts), icon: Archive, color: '#a78bfa' },
-            { title: 'Ready For Sale', value: String(readyCount),    icon: Check,   color: '#34d399' },
-            { title: 'Missing Drag Spec', value: String(noDragSpec), icon: Wrench,  color: '#f59e0b' },
-            { title: 'Limited Vehicles', value: String(totalLimiteds), icon: Layers, color: '#22d3ee' },
-            { title: 'Inventory Value', value: `₱${totalValue.toLocaleString()}`, icon: TrendingUp, color: '#e879f9' },
-          ].map(({ title, value, icon: Icon, color }) => (
-            <div key={title} className="summary-card">
+        {/* ── 01 · Catalog Overview ── */}
+        <SectionLabel index="01" label="Catalog Overview" />
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-5 gap-3.5"
+          variants={cardStagger}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          {([
+            { title: 'Total Accounts', value: totalAccounts, format: (v: number) => `${Math.round(v)}`, icon: Archive, color: '#a78bfa', featured: false },
+            { title: 'Ready For Sale', value: readyCount,    format: (v: number) => `${Math.round(v)}`, icon: Check,   color: '#34d399', featured: false },
+            { title: 'Missing Drag Spec', value: noDragSpec, format: (v: number) => `${Math.round(v)}`, icon: Wrench,  color: '#f59e0b', featured: false },
+            { title: 'Limited Vehicles', value: totalLimiteds, format: (v: number) => `${Math.round(v)}`, icon: Layers, color: '#22d3ee', featured: false },
+            { title: 'Inventory Value', value: totalValue, format: (v: number) => formatPHP(v), icon: TrendingUp, color: '#e879f9', featured: true },
+          ] as const).map(({ title, value, format, icon: Icon, color, featured }) => (
+            <motion.div
+              key={title}
+              variants={cardStaggerItem}
+              className="summary-card"
+              style={featured ? { boxShadow: `0 0 28px ${color}22`, border: `1px solid ${color}30` } : undefined}
+            >
               <div className="flex items-center justify-between mb-2">
                 <p className="label-caps">{title}</p>
                 <div
-                  className="w-6 h-6 rounded-lg flex items-center justify-center"
+                  className={featured ? 'w-7 h-7 rounded-lg flex items-center justify-center' : 'w-6 h-6 rounded-lg flex items-center justify-center'}
                   style={{ background: `${color}18` }}
                 >
-                  <Icon className="w-3.5 h-3.5" style={{ color }} />
+                  <Icon className={featured ? 'w-4 h-4' : 'w-3.5 h-3.5'} style={{ color }} />
                 </div>
               </div>
-              <p className="stat-value" style={{ color, fontSize: '22px' }}>{value}</p>
-            </div>
+              <CountUp
+                value={value}
+                format={format}
+                duration={1.2}
+                className="stat-value block"
+                style={featured ? { color, fontSize: '28px', textShadow: `0 0 24px ${color}40, 0 0 48px ${color}18` } : { color, fontSize: '22px' }}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
+
+        {/* ── 02 · Account Inventory ── */}
+        <SectionLabel index="02" label="Account Inventory" />
 
         {/* ── Filter chips ── */}
         <div className="flex flex-wrap gap-1.5">
@@ -503,33 +559,35 @@ export default function SellerInventoryPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="glass-card h-48 animate-pulse" />
+              <SkeletonCard key={i} lines={2} className="h-48" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="glass-card p-14 text-center">
-            <div
-              className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, rgba(167,139,250,0.14), rgba(34,211,238,0.09))' }}
-            >
-              <Archive className="w-6 h-6" style={{ color: '#a78bfa' }} />
-            </div>
-            <p className="text-[14px] font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.76)' }}>
-              {search || filter !== 'all' ? 'No accounts match your filter' : 'No seller accounts yet'}
-            </p>
-            <p className="text-[12px] mb-5" style={{ color: 'oklch(0.62 0.010 265)' }}>
-              {search || filter !== 'all'
-                ? 'Try adjusting your search or filter'
-                : "Add accounts you're preparing for resale"}
-            </p>
-            {!search && filter === 'all' && (
-              <button onClick={openNew} className="btn-primary h-9 px-6 inline-flex items-center gap-2 text-xs mx-auto">
-                <Plus className="w-3.5 h-3.5" /> Add First Account
-              </button>
-            )}
-          </div>
+          search || filter !== 'all' ? (
+            <EmptyState
+              icon={Archive}
+              title="No accounts match your filter"
+              description="Try a different search term, or clear the active filter to see your full seller inventory."
+              actionLabel="Clear Filters"
+              onAction={() => { setSearch(''); setFilter('all') }}
+            />
+          ) : (
+            <EmptyState
+              icon={Archive}
+              title="No seller accounts yet"
+              description="Add accounts you're preparing for resale to start tracking readiness, vehicles, and inventory value."
+              actionLabel="Add First Account"
+              onAction={openNew}
+            />
+          )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.1 }}
+            transition={{ duration: 0.4 }}
+          >
             <AnimatePresence mode="popLayout">
               {filtered.map(account => (
                 <InventoryCard
@@ -546,14 +604,14 @@ export default function SellerInventoryPage() {
                 />
               ))}
             </AnimatePresence>
-          </div>
+          </motion.div>
         )}
 
       </div>
 
       {/* ── Add / Edit modal ── */}
       <Dialog open={modalOpen} onOpenChange={o => !o && setModalOpen(false)}>
-        <DialogContent className="glass-elevated sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-bold">
               {editAccount ? 'Edit Account' : 'Add Seller Account'}
@@ -645,7 +703,7 @@ export default function SellerInventoryPage() {
             <Button
               onClick={handleSave}
               disabled={saving || !fUsername.trim()}
-              className="bg-primary text-primary-foreground"
+              className="btn-primary px-5"
             >
               {saving ? 'Saving...' : editAccount ? 'Save Changes' : 'Add Account'}
             </Button>

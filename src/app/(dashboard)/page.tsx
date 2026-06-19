@@ -1,146 +1,272 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, memo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { format, formatDistanceToNow, addDays } from 'date-fns'
-import StatusBadge from '@/components/shared/StatusBadge'
-import { RevenueChart, TopGamesChart, OrderStatusChart } from '@/components/dashboard/DashboardCharts'
+import { format, addDays } from 'date-fns'
+import { RevenueChart } from '@/components/dashboard/DashboardCharts'
 import NextBestAction from '@/components/dashboard/NextBestAction'
-import FulfillmentReadiness from '@/components/dashboard/FulfillmentReadiness'
-import MoneyFlowSummary from '@/components/dashboard/MoneyFlowSummary'
-import CapitalPosition from '@/components/dashboard/CapitalPosition'
-import CapitalSafety from '@/components/dashboard/CapitalSafety'
-import CapitalEventsLedger from '@/components/dashboard/CapitalEventsLedger'
 import { buildRecommendations } from '@/lib/recommendations'
-import { motion } from 'framer-motion'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { motion, useScroll, useTransform, useMotionValueEvent, type Variants, type MotionValue } from 'framer-motion'
+import { ambientFloat, ambientDrift } from '@/lib/motion'
 import {
-  Package, ShoppingCart, Users, BarChart2, ArrowUpRight,
-  CheckCircle2, Loader2, Trophy, Coins, ChevronDown, TrendingUp, Wallet,
+  ShoppingCart, ArrowUpRight, Coins, TrendingUp, Wallet,
+  PiggyBank, Trophy, ShieldCheck, ChevronDown,
 } from 'lucide-react'
-import SavingsWidget from '@/components/shared/SavingsWidget'
 import CountUp from '@/components/shared/CountUp'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
-import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import {
+  getAvailableRobux, classifyAccountHealth, estimateRunwayOrders, type AccountHealthTier,
+} from '@/lib/utils/accounts'
+import { calculateAvgRobuxPerOrder, calculateWeeklyRobuxVelocity } from '@/lib/utils/velocity'
+import { getOperationalStatus, getSupplierDecision, type StatusLevel } from '@/lib/utils/operationalStatus'
+import { calculateBusinessValue } from '@/lib/utils/capital'
+import { FIXED_CAPITAL } from '@/lib/constants/restock'
 import type { CSSProperties } from 'react'
 import {
   OrderWithDetails, RobloxAccount, ReservationWithDetails, SavingsGoal,
 } from '@/lib/types/database'
 
-// ── Floating chip — positioned around hero headline ───────────────────────────
+const CHAPTER_COUNT = 5
 
-interface ChipProps {
-  label: string
-  value: string
-  color: string
-  icon: React.ElementType
-  delay?: number
-  style?: CSSProperties
+// "Focus pull" reveal — blur + scale settle, slower and more cinematic than a plain fade-up
+const EASE = [0.16, 1, 0.3, 1] as const
+
+// Shared input/output curves for the per-chapter scroll-progress dominance effect:
+// fades in over the first 15% of the chapter's transit through the viewport,
+// holds full dominance through the middle, fades out over the last 15% as
+// the next chapter starts arriving underneath it — a continuous cross-dissolve,
+// driven entirely by scroll position (no snapping, no scroll interception).
+// Opacity-only (no scale): animating scale forces the browser to manage the
+// whole section as a continuously-resizing layer every scroll frame, which is
+// dramatically more expensive than an opacity blend across 5 concurrent
+// instances — this was the largest remaining scroll-jank contributor.
+const DOMINANCE_INPUT: number[] = [0, 0.15, 0.85, 1]
+const OPACITY_OUTPUT: number[] = [0, 1, 1, 0]
+
+// Piecewise-linear interpolation, clamped at the ends — replicates exactly what
+// Framer Motion's array-based useTransform(value, inputRange, outputRange)
+// does internally. Used because the consolidated single-scroll-source approach
+// derives each chapter's curve via a custom function rather than a direct
+// array-based useTransform, but must produce identical visual output.
+function piecewiseLerp(t: number, input: number[], output: number[]): number {
+  if (t <= input[0]) return output[0]
+  const last = input.length - 1
+  if (t >= input[last]) return output[last]
+  for (let i = 0; i < last; i++) {
+    if (t >= input[i] && t <= input[i + 1]) {
+      const localT = (t - input[i]) / (input[i + 1] - input[i])
+      return output[i] + localT * (output[i + 1] - output[i])
+    }
+  }
+  return output[last]
 }
 
-function FloatingChip({ label, value, color, icon: Icon, delay = 0, style }: ChipProps) {
+const chapterStagger: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.11, delayChildren: 0.15 } },
+}
+
+const chapterItem: Variants = {
+  initial: { opacity: 0, y: 20, scale: 0.92 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.7, ease: EASE } },
+}
+
+// ── Ambient blob (decorative, looping — never affects layout) ────────────────
+// Outer div carries the scroll-driven parallax offset (a plain reactive MotionValue,
+// no animation loop); inner div carries the existing infinite float/drift loop.
+// Kept on separate elements so the two motion systems never fight over the same
+// transform channel.
+//
+// `opacity` is the chapter's own dominance motion value, already 0 whenever
+// that chapter is outside its active transit window (clamped by the dominance
+// curve) — i.e. it's already a free, zero-extra-cost signal for "this chapter
+// is the active one, or an immediate neighbor mid cross-fade." We piggyback on
+// it (via a local boolean, not a prop the parent re-renders for) to stop the
+// infinite float/drift loop for every blob that isn't currently relevant,
+// instead of all 6 blobs animating continuously regardless of scroll position.
+
+function Blob({ color, width, height, style, drift, parallax, opacity }: {
+  color: string; width: number; height: number; style?: CSSProperties; drift?: boolean
+  parallax?: MotionValue<number>
+  opacity: MotionValue<number>
+}) {
+  const [isNearActive, setIsNearActive] = useState(true)
+  useMotionValueEvent(opacity, 'change', (latest) => {
+    const next = latest > 0
+    if (next !== isNearActive) setIsNearActive(next)
+  })
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.92 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+      aria-hidden
       style={{
-        position: 'absolute',
-        zIndex: 20,
-        minWidth: 130,
-        padding: '10px 14px',
-        borderRadius: '16px',
-        background: 'rgba(255,255,255,0.038)',
-        border: '1px solid rgba(255,255,255,0.082)',
-        backdropFilter: 'blur(28px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(160%)',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.055), 0 0 0 1px ${color}14`,
-        pointerEvents: 'none',
+        position: 'absolute', width, height, pointerEvents: 'none',
+        y: parallax, willChange: 'transform',
         ...style,
       }}
     >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <div
-          style={{
-            width: 20, height: 20, borderRadius: 6,
-            background: `${color}1c`, border: `1px solid ${color}28`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}
-        >
-          <Icon style={{ width: 10, height: 10, color }} />
-        </div>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.32)' }}>
-          {label}
-        </span>
-      </div>
-      <p style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1, tabularNums: true } as CSSProperties}>
-        {value}
-      </p>
+      <motion.div
+        variants={drift ? ambientDrift : ambientFloat}
+        animate={isNearActive ? 'animate' : false}
+        style={{
+          width: '100%', height: '100%', background: color, borderRadius: '50%',
+          filter: `blur(${Math.round(Math.max(width, height) * 0.18)}px)`,
+        }}
+      />
     </motion.div>
   )
 }
 
-// ── Blurred section glow blob ─────────────────────────────────────────────────
+// ── Chapter chrome ─────────────────────────────────────────────────────────
 
-function Blob({ color, width, height, style }: { color: string; width: number; height: number; style?: CSSProperties }) {
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: 'absolute',
-        width, height,
-        background: color,
-        borderRadius: '50%',
-        filter: `blur(${Math.round(Math.max(width, height) * 0.18)}px)`,
-        pointerEvents: 'none',
-        ...style,
-      }}
-    />
-  )
-}
-
-// ── Section scaffolding ───────────────────────────────────────────────────────
-
-function SectionLabel({ index, label }: { index: string; label: string }) {
+function ChapterEyebrow({ index, label }: { index: number; label: string }) {
   return (
     <motion.div
-      className="flex items-center gap-3 mb-6"
-      initial={{ opacity: 0, x: -16 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="flex items-center justify-center gap-3 mb-5"
+      initial={{ opacity: 0, scale: 0.85, letterSpacing: '0.3em' }}
+      whileInView={{ opacity: 1, scale: 1, letterSpacing: '0em' }}
+      viewport={{ once: false, amount: 0.5 }}
+      transition={{ duration: 0.75, ease: EASE }}
     >
-      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.18)' }}>§ {index}</span>
-      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>
+        Chapter {String(index).padStart(2, '0')} / {String(CHAPTER_COUNT).padStart(2, '0')}
+      </span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.14)', display: 'inline-block', flexShrink: 0 }} />
       <span className="label-caps">{label}</span>
     </motion.div>
   )
 }
 
-function SectionDivider() {
+function ChapterDots({ active, onJump }: { active: number; onJump: (i: number) => void }) {
   return (
-    <div className="max-w-[1200px] mx-auto px-6 sm:px-8">
-      <div className="h-px" style={{
-        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%, transparent 100%)',
-      }} />
+    <div className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-30 flex-col items-center gap-4">
+      {Array.from({ length: CHAPTER_COUNT }).map((_, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onJump(i)}
+          aria-label={`Go to chapter ${i + 1}`}
+          className="rounded-full transition-all duration-300"
+          style={{
+            width: active === i ? 9 : 6,
+            height: active === i ? 9 : 6,
+            background: active === i ? '#22d3ee' : 'rgba(255,255,255,0.22)',
+            boxShadow: active === i ? '0 0 10px rgba(34,211,238,0.75)' : 'none',
+          }}
+        />
+      ))}
     </div>
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function FooterLink({ href, label }: { href: string; label: string }) {
+  return (
+    <motion.a
+      href={href}
+      className="inline-flex items-center gap-1.5 text-[12px] font-bold mt-6"
+      style={{ color: '#22d3ee' }}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, amount: 0.5 }}
+      transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
+    >
+      {label} <ArrowUpRight className="w-3.5 h-3.5" />
+    </motion.a>
+  )
+}
+
+// Bottom-center "scroll to next chapter" affordance — purely additive, doesn't
+// touch the scroll-snap mechanics. Gives people an obvious, clickable way to
+// advance instead of having to discover that a scroll/swipe gesture does it.
+function NextChapterButton({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.div
+      className="absolute z-20 flex items-center justify-center"
+      style={{ bottom: 28, left: '50%', x: '-50%' }}
+      animate={{ y: [0, 7, 0] }}
+      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      <motion.button
+        type="button"
+        onClick={onClick}
+        aria-label="Scroll to next chapter"
+        whileHover={{ scale: 1.12, borderColor: 'rgba(34,211,238,0.45)' }}
+        whileTap={{ scale: 0.9 }}
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 42, height: 42,
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.16)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        }}
+      >
+        <ChevronDown style={{ width: 18, height: 18, color: 'rgba(255,255,255,0.70)' }} />
+      </motion.button>
+    </motion.div>
+  )
+}
+
+// ── Status / decision cards (Command Center) ────────────────────────────────
+
+const STATUS_COLORS: Record<StatusLevel, { bg: string; border: string; icon: string }> = {
+  green:  { bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.24)', icon: '🟢' },
+  yellow: { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.24)', icon: '🟡' },
+  red:    { bg: 'rgba(244,63,94,0.08)',  border: 'rgba(244,63,94,0.24)',  icon: '🔴' },
+}
+
+function StatusCard({ level, message }: { level: StatusLevel; message: string }) {
+  const c = STATUS_COLORS[level]
+  return (
+    <motion.div
+      variants={chapterItem}
+      className="rounded-xl px-4 py-3.5 flex items-center gap-3 text-left"
+      style={{ background: c.bg, border: `1px solid ${c.border}` }}
+    >
+      <span style={{ fontSize: 17, flexShrink: 0 }}>{c.icon}</span>
+      <div>
+        <p className="label-caps mb-0.5">Operational Status</p>
+        <p className="text-[12.5px] font-semibold leading-snug" style={{ color: 'rgba(255,255,255,0.85)' }}>{message}</p>
+      </div>
+    </motion.div>
+  )
+}
+
+function SupplierDecisionCard({ verdict, message }: { verdict: string; message: string }) {
+  return (
+    <motion.div
+      variants={chapterItem}
+      className="rounded-xl px-4 py-3.5 text-left"
+      style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.22)' }}
+    >
+      <p className="label-caps mb-1" style={{ color: '#a78bfa' }}>Supplier Decision</p>
+      <p className="text-[14px] font-extrabold mb-1" style={{ color: 'rgba(255,255,255,0.92)' }}>{verdict}</p>
+      <p className="text-[12px] leading-snug" style={{ color: 'rgba(255,255,255,0.55)' }}>{message}</p>
+    </motion.div>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+// Data-fetching shell only. The chapters (and everything ref/scroll-driven —
+// useScroll needs its target ref to be attached to a real, mounted DOM node
+// from the moment it's set up, or it throws "ref is defined but not hydrated").
+// While loading=true this returns a totally different tree (just a spinner),
+// so the chapter sections — and their refs — don't exist yet. Mounting the
+// scroll-driven chapters in their own child component means their refs and
+// useScroll() always initialize together with the real DOM nodes, never before.
 
 export default function DashboardPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
   const [accounts, setAccounts] = useState<RobloxAccount[]>([])
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([])
+  const [, setSavingsGoals] = useState<SavingsGoal[]>([])
   const [walletBalance, setWalletBalance] = useState(0)
-  const [gamepassCount, setGamepassCount] = useState(0)
+  const [, setGamepassCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [advancingId, setAdvancingId] = useState<string | null>(null)
-  const supabaseRef = useRef(createClient())
-  const supabase = supabaseRef.current
+  const supabase = useMemo(() => createClient(), [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -171,76 +297,66 @@ export default function DashboardPage() {
   const completedOrders = useMemo(() => orders.filter(o => o.status === 'completed'), [orders])
   const totalRobux = accounts.reduce((s, a) => s + (a.current_robux ?? 0), 0)
   const totalProfit = completedOrders.reduce((s, o) => s + (o.profit ?? 0), 0)
-  const activeInventoryAccounts = useMemo(() => accounts.filter(a => !isDepleted(a)), [accounts])
+  const activeAccounts = useMemo(() => accounts.filter(a => a.status === 'active'), [accounts])
 
   const advanceOrder = useCallback(async (order: OrderWithDetails, nextStatus: 'paid' | 'completed') => {
-    setAdvancingId(order.id)
-    try {
-      await supabase.rpc('transition_order', { p_order_id: order.id, p_new_status: nextStatus })
-      await fetchData()
-    } finally { setAdvancingId(null) }
+    await supabase.rpc('transition_order', { p_order_id: order.id, p_new_status: nextStatus })
+    await fetchData()
   }, [supabase, fetchData])
 
   const recommendations = useMemo(() => buildRecommendations({
-    orders, accounts: activeInventoryAccounts, reservations, onAdvanceOrder: advanceOrder,
-  }), [orders, activeInventoryAccounts, reservations, advanceOrder])
+    orders, accounts: activeAccounts, reservations, onAdvanceOrder: advanceOrder,
+  }), [orders, activeAccounts, reservations, advanceOrder])
 
-  const outstandingOrders = useMemo(() =>
-    orders
-      .filter(o => o.status === 'pending' || o.status === 'paid')
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+  const outstandingCount = useMemo(() =>
+    orders.filter(o => o.status === 'pending' || o.status === 'paid').length,
     [orders])
 
-  const savingsForecasts = useMemo(() => {
-    const out: Record<string, string> = {}
-    const activeGoal = savingsGoals.find(g => g.status === 'active')
-    if (!activeGoal) return out
-    const fourteenDaysAgo = Date.now() - 14 * 24 * 3_600_000
-    const recentProfit = orders
-      .filter(o => o.status === 'completed' && o.completed_at && new Date(o.completed_at).getTime() >= fourteenDaysAgo)
-      .reduce((s, o) => s + (o.profit ?? 0), 0)
-    const dailyAllocation = (recentProfit / 14) * (activeGoal.allocation_pct / 100)
-    const remaining = Math.max(0, activeGoal.target_amount - activeGoal.current_amount)
-    if (dailyAllocation > 0.5) {
-      const daysLeft = Math.ceil(remaining / dailyAllocation)
-      const projected = addDays(new Date(), daysLeft)
-      out[activeGoal.id] = daysLeft <= 1
-        ? `At your current pace, this completes within a day.`
-        : `At your current pace (~${formatPHP(dailyAllocation)}/day), this completes around ${format(projected, 'MMM d')} — ${daysLeft} days away.`
-    } else {
-      out[activeGoal.id] = `Not enough recent activity to project a date yet — keep selling.`
+  // ── Inventory Health — single source of truth for account tiering, shared
+  //    by the Inventory Health chapter and the Supplier Decision card ────────
+  const accountHealth = useMemo(() => {
+    let healthy = 0, low = 0, depleted = 0
+    for (const a of activeAccounts) {
+      const tier = classifyAccountHealth(a)
+      if (tier === 'healthy') healthy++
+      else if (tier === 'low') low++
+      else depleted++
     }
-    return out
-  }, [savingsGoals, orders])
+    return { healthy, low, depleted }
+  }, [activeAccounts])
 
-  const topAccounts = useMemo(() => {
-    const byAccount = new Map<string, { username: string; revenue: number; cost: number; profit: number; count: number }>()
-    for (const o of completedOrders) {
-      if (!o.roblox_account_id) continue
-      const username = o.roblox_accounts?.username ?? accounts.find(a => a.id === o.roblox_account_id)?.username ?? 'Unknown'
-      const entry = byAccount.get(o.roblox_account_id) ?? { username, revenue: 0, cost: 0, profit: 0, count: 0 }
-      entry.revenue += o.selling_price ?? 0
-      entry.cost += o.cost ?? 0
-      entry.profit += o.profit ?? 0
-      entry.count += 1
-      byAccount.set(o.roblox_account_id, entry)
-    }
-    return Array.from(byAccount.entries())
-      .map(([id, v]) => ({ id, ...v, margin: v.cost > 0 ? (v.profit / v.cost) * 100 : (v.profit > 0 ? Infinity : 0) }))
-      .filter(a => a.count > 0)
-      .sort((a, b) => b.margin - a.margin)
-      .slice(0, 3)
-  }, [completedOrders, accounts])
+  const criticalAccounts = accountHealth.low + accountHealth.depleted
 
-  const activityFeed = useMemo(() => orders.slice(0, 8).map(o => ({
-    id: o.id,
-    icon: o.status === 'completed' ? CheckCircle2 : ShoppingCart,
-    iconColor: o.status === 'completed' ? '#22d3ee' : '#38bdf8',
-    iconBg: o.status === 'completed' ? 'rgba(34,211,238,0.10)' : 'rgba(56,189,248,0.10)',
-    text: o.status === 'completed' ? `Order ${o.order_number ?? ''} completed` : `Order from ${o.buyer_name ?? '—'}`,
-    time: formatDistanceToNow(new Date(o.created_at), { addSuffix: true }),
-    amount: o.selling_price ? formatPHP(o.selling_price) : null,
-  })), [orders])
+  const avgRobuxPerOrder = useMemo(() => calculateAvgRobuxPerOrder(orders), [orders])
+
+  const atRiskAccounts = useMemo(() =>
+    activeAccounts
+      .map(a => ({
+        id: a.id,
+        username: a.username,
+        available: getAvailableRobux(a),
+        tier: classifyAccountHealth(a) as AccountHealthTier,
+      }))
+      .filter(a => a.tier !== 'healthy')
+      .sort((a, b) => a.available - b.available)
+      .slice(0, 5)
+      .map(a => ({ ...a, runway: estimateRunwayOrders(a.available, avgRobuxPerOrder) })),
+    [activeAccounts, avgRobuxPerOrder])
+
+  // ── Operational Status + Supplier Decision — "am I safe today" and "what do
+  //    I tell my supplier," both driven by available Robux vs. recent burn
+  //    rate, never by wallet balance ───────────────────────────────────────
+  const totalAvailableRobux = useMemo(() => accounts.reduce((s, a) => s + getAvailableRobux(a), 0), [accounts])
+  const weeklyVelocity = useMemo(() => calculateWeeklyRobuxVelocity(orders), [orders])
+  const runwayDays = weeklyVelocity > 0 ? totalAvailableRobux / weeklyVelocity : null
+
+  const operationalStatus = useMemo(
+    () => getOperationalStatus(totalAvailableRobux, weeklyVelocity),
+    [totalAvailableRobux, weeklyVelocity])
+
+  const supplierDecision = useMemo(
+    () => getSupplierDecision(criticalAccounts, runwayDays),
+    [criticalAccounts, runwayDays])
 
   const revenueData = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const date = addDays(new Date(), i - 6)
@@ -250,25 +366,19 @@ export default function DashboardPage() {
       day: format(date, 'EEE'),
       revenue: dayOrders.reduce((s, o) => s + (o.selling_price ?? 0), 0),
       profit: dayOrders.reduce((s, o) => s + (o.profit ?? 0), 0),
+      orders: dayOrders.length,
     }
   }), [completedOrders])
 
-  const topGamesData = useMemo(() => {
+  const topGame = useMemo(() => {
     const counts: Record<string, number> = {}
     completedOrders.forEach(o => {
-      const name = o.gamepasses?.games?.name ?? 'Unknown'
-      counts[name] = (counts[name] ?? 0) + 1
+      const name = o.gamepasses?.games?.name
+      if (name) counts[name] = (counts[name] ?? 0) + 1
     })
-    return Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 5).map(([name, sales]) => ({ name, sales }))
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
+    return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1] } : null
   }, [completedOrders])
-
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    orders.forEach(o => { counts[o.status] = (counts[o.status] ?? 0) + 1 })
-    return Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1), value, color: '#6b7280',
-    }))
-  }, [orders])
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const todayProfit = useMemo(() =>
@@ -278,13 +388,14 @@ export default function DashboardPage() {
     [completedOrders, todayStr])
 
   const weekRevenue = useMemo(() => revenueData.reduce((s, d) => s + d.revenue, 0), [revenueData])
+  const ordersThisWeek = useMemo(() => revenueData.reduce((s, d) => s + d.orders, 0), [revenueData])
+  const avgOrderValue = ordersThisWeek > 0 ? weekRevenue / ordersThisWeek : 0
 
-  const quickActions = [
-    { label: 'Add Gamepass', sub: 'Create new',     icon: Package,      href: '/inventory',    color: '#e879f9' },
-    { label: 'New Order',    sub: 'Create order',   icon: ShoppingCart, href: '/orders',       color: '#22d3ee' },
-    { label: 'Accounts',     sub: 'View accounts',  icon: Users,        href: '/accounts',     color: '#38bdf8' },
-    { label: 'Analytics',    sub: 'Detailed stats', icon: BarChart2,    href: '/transactions', color: '#a78bfa' },
-  ]
+  // Capital position — same formulas as the Capital Position card, reused as-is
+  const businessValue = useMemo(() => calculateBusinessValue(accounts, walletBalance), [accounts, walletBalance])
+  const isCapitalRecovered = businessValue >= FIXED_CAPITAL
+  const capitalRecoveryPct = (businessValue / FIXED_CAPITAL) * 100
+  const withdrawableProfit = Math.max(0, businessValue - FIXED_CAPITAL)
 
   if (loading) {
     return (
@@ -295,650 +406,688 @@ export default function DashboardPage() {
   }
 
   return (
+    <DashboardChapters
+      totalRobux={totalRobux}
+      walletBalance={walletBalance}
+      todayProfit={todayProfit}
+      totalProfit={totalProfit}
+      operationalStatus={operationalStatus}
+      supplierDecision={supplierDecision}
+      recommendations={recommendations}
+      outstandingCount={outstandingCount}
+      weekRevenue={weekRevenue}
+      revenueData={revenueData}
+      ordersThisWeek={ordersThisWeek}
+      avgOrderValue={avgOrderValue}
+      topGame={topGame}
+      totalActiveAccounts={activeAccounts.length}
+      criticalAccounts={criticalAccounts}
+      accountHealth={accountHealth}
+      atRiskAccounts={atRiskAccounts}
+      businessValue={businessValue}
+      isCapitalRecovered={isCapitalRecovered}
+      capitalRecoveryPct={capitalRecoveryPct}
+      withdrawableProfit={withdrawableProfit}
+    />
+  )
+}
+
+// ── Chapters — mounts only once data has loaded, so every chapterNRef below is
+//    guaranteed to attach to a real DOM node in the same pass useScroll() is
+//    set up in. ─────────────────────────────────────────────────────────────
+
+interface AtRiskAccount {
+  id: string
+  username: string
+  available: number
+  tier: AccountHealthTier
+  runway: number | null
+}
+
+interface DashboardChaptersProps {
+  totalRobux: number
+  walletBalance: number
+  todayProfit: number
+  totalProfit: number
+  operationalStatus: { level: StatusLevel; message: string }
+  supplierDecision: { verdict: string; message: string }
+  recommendations: ReturnType<typeof buildRecommendations>
+  outstandingCount: number
+  weekRevenue: number
+  revenueData: { day: string; revenue: number; profit: number }[]
+  ordersThisWeek: number
+  avgOrderValue: number
+  topGame: { name: string; count: number } | null
+  totalActiveAccounts: number
+  criticalAccounts: number
+  accountHealth: { healthy: number; low: number; depleted: number }
+  atRiskAccounts: AtRiskAccount[]
+  businessValue: number
+  isCapitalRecovered: boolean
+  capitalRecoveryPct: number
+  withdrawableProfit: number
+}
+
+function DashboardChapters(props: DashboardChaptersProps) {
+  const [activeChapter, setActiveChapter] = useState(0)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // jumpToChapter calls router.replace() to set ?chapter=N, which changes
+  // searchParams' identity on every single jump — so depending on searchParams
+  // directly would still recreate jumpToChapter (and bust ChapterSections'
+  // memo) on every click, just no longer on every scroll-driven activeChapter
+  // change. Capturing the latest value in a ref (kept in sync below) lets
+  // jumpToChapter read current params without ever needing to change identity.
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => { searchParamsRef.current = searchParams }, [searchParams])
+
+  // ── Slideshow scroll-snap — scoped to this route only ───────────────────
+  // Toggles scroll-snap-type on the real <html> scroll root (no nested
+  // wrapper) for as long as the Dashboard is mounted, so every other route
+  // keeps its normal, unsnapped scrolling untouched.
+  useEffect(() => {
+    document.documentElement.classList.add('dashboard-snap-scroll')
+    return () => { document.documentElement.classList.remove('dashboard-snap-scroll') }
+  }, [])
+
+  // One ref per chapter (fixed count, not a dynamically-sized array) — needed so
+  // each chapter can scope its own useScroll() to its own viewport transit instead
+  // of tracking whole-page scroll progress. This component only ever mounts with
+  // its full JSX tree present, so these attach immediately — no hydration gap.
+  const chapter0Ref = useRef<HTMLElement>(null)
+  const chapter1Ref = useRef<HTMLElement>(null)
+  const chapter2Ref = useRef<HTMLElement>(null)
+  const chapter3Ref = useRef<HTMLElement>(null)
+  const chapter4Ref = useRef<HTMLElement>(null)
+  // Memoized so its identity stays stable across re-renders — refs themselves
+  // never change identity, so this array can safely be a dependency without
+  // ever forcing jumpToChapter (below) to be recreated.
+  const sectionRefs = useMemo(
+    () => [chapter0Ref, chapter1Ref, chapter2Ref, chapter3Ref, chapter4Ref],
+    [],
+  )
+
+  // ── Single page-level scroll source ───────────────────────────────────────
+  // Previously each chapter ran its own useScroll({ target }) — 5 independent
+  // scroll subscriptions, each tracking its own element's bounding-rect
+  // position on every scroll frame. Consolidated into one: a single window
+  // scroll-position motion value, with each chapter's local dominance progress
+  // derived from it via useTransform. Chapter positions/heights are measured
+  // once (mount + resize + a ResizeObserver per section, since Inventory
+  // Health's height varies with the at-risk-accounts list) rather than read
+  // from the DOM on every scroll frame — the expensive part moved out of the
+  // scroll hot path entirely. Still tracks native window/document scroll;
+  // nothing here intercepts or alters scrolling.
+  const { scrollY } = useScroll()
+
+  const [layout, setLayout] = useState<{ tops: number[]; heights: number[]; viewportHeight: number }>({
+    tops: [0, 0, 0, 0, 0], heights: [0, 0, 0, 0, 0], viewportHeight: 0,
+  })
+
+  useLayoutEffect(() => {
+    function measure() {
+      setLayout({
+        tops: sectionRefs.map((r) => {
+          const el = r.current
+          return el ? el.getBoundingClientRect().top + window.scrollY : 0
+        }),
+        heights: sectionRefs.map((r) => r.current?.getBoundingClientRect().height ?? 0),
+        viewportHeight: window.innerHeight,
+      })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    const ro = new ResizeObserver(measure)
+    sectionRefs.forEach((r) => { if (r.current) ro.observe(r.current) })
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // A chapter's local progress: 0 when its top reaches the bottom of the
+  // viewport, 1 when its bottom reaches the top — identical semantics to the
+  // old per-target useScroll offset of ['start end', 'end start'].
+  function localProgress(i: number, y: number): number {
+    const top = layout.tops[i]
+    const vh = layout.viewportHeight
+    const range = layout.heights[i] + vh
+    if (range <= 0) return 0
+    return Math.min(1, Math.max(0, (y - (top - vh)) / range))
+  }
+
+  const chapter0Opacity = useTransform(scrollY, (y) => piecewiseLerp(localProgress(0, y), DOMINANCE_INPUT, OPACITY_OUTPUT))
+  const chapter0ParallaxA = useTransform(scrollY, (y) => piecewiseLerp(localProgress(0, y), [0, 1], [-30, 30]))
+  const chapter0ParallaxB = useTransform(scrollY, (y) => piecewiseLerp(localProgress(0, y), [0, 1], [-55, 55]))
+
+  const chapter1Opacity = useTransform(scrollY, (y) => piecewiseLerp(localProgress(1, y), DOMINANCE_INPUT, OPACITY_OUTPUT))
+  const chapter1Parallax = useTransform(scrollY, (y) => piecewiseLerp(localProgress(1, y), [0, 1], [-35, 35]))
+
+  const chapter2Opacity = useTransform(scrollY, (y) => piecewiseLerp(localProgress(2, y), DOMINANCE_INPUT, OPACITY_OUTPUT))
+  const chapter2Parallax = useTransform(scrollY, (y) => piecewiseLerp(localProgress(2, y), [0, 1], [-35, 35]))
+
+  const chapter3Opacity = useTransform(scrollY, (y) => piecewiseLerp(localProgress(3, y), DOMINANCE_INPUT, OPACITY_OUTPUT))
+  const chapter3Parallax = useTransform(scrollY, (y) => piecewiseLerp(localProgress(3, y), [0, 1], [-35, 35]))
+
+  const chapter4Opacity = useTransform(scrollY, (y) => piecewiseLerp(localProgress(4, y), DOMINANCE_INPUT, OPACITY_OUTPUT))
+  const chapter4Parallax = useTransform(scrollY, (y) => piecewiseLerp(localProgress(4, y), [0, 1], [-35, 35]))
+
+  // ── Chapter visibility tracking — tracks against the window, since the
+  //    page scrolls naturally instead of through a custom container ──────────
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const idx = Number(entry.target.getAttribute('data-chapter'))
+            if (!Number.isNaN(idx)) setActiveChapter(idx)
+          }
+        })
+      },
+      { root: null, threshold: [0.5, 0.6, 0.75] }
+    )
+    sectionRefs.forEach((r) => { if (r.current) observer.observe(r.current) })
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Truly stable identity (useCallback, never recreated) — passed down to the
+  // memoized ChapterSections (for the per-chapter "next" button) and to
+  // ChapterDots. Reads searchParamsRef.current instead of searchParams
+  // directly so calling it doesn't recreate it.
+  const jumpToChapter = useCallback((i: number, behavior: ScrollBehavior = 'smooth') => {
+    sectionRefs[i]?.current?.scrollIntoView({ behavior, block: 'start' })
+    const params = new URLSearchParams(searchParamsRef.current.toString())
+    const humanIndex = String(i + 1)
+    if (i === 0) params.delete('chapter')
+    else params.set('chapter', humanIndex)
+    const qs = params.toString()
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false })
+  }, [sectionRefs, router])
+
+  // ── Deep link: ?chapter=3 lands directly on that chapter, no animated scroll ──
+  useEffect(() => {
+    const raw = Number(searchParams.get('chapter'))
+    if (Number.isInteger(raw) && raw >= 1 && raw <= CHAPTER_COUNT) {
+      jumpToChapter(raw - 1, 'auto')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
     <div className="relative overflow-x-hidden">
+      <ChapterDots active={activeChapter} onJump={jumpToChapter} />
+      <ChapterSections
+        {...props}
+        onJump={jumpToChapter}
+        chapter0Ref={chapter0Ref} chapter1Ref={chapter1Ref} chapter2Ref={chapter2Ref}
+        chapter3Ref={chapter3Ref} chapter4Ref={chapter4Ref}
+        chapter0Opacity={chapter0Opacity}
+        chapter0ParallaxA={chapter0ParallaxA} chapter0ParallaxB={chapter0ParallaxB}
+        chapter1Opacity={chapter1Opacity} chapter1Parallax={chapter1Parallax}
+        chapter2Opacity={chapter2Opacity} chapter2Parallax={chapter2Parallax}
+        chapter3Opacity={chapter3Opacity} chapter3Parallax={chapter3Parallax}
+        chapter4Opacity={chapter4Opacity} chapter4Parallax={chapter4Parallax}
+      />
+    </div>
+  )
+}
 
+// ── ChapterSections — the actual chapter content. Memoized so that activeChapter
+//    updates (which fire on every chapter-boundary crossing while scrolling) only
+//    re-render DashboardChapters + ChapterDots, not this entire heavy tree (the
+//    Recharts chart, every CountUp counter, NextBestAction). None of this
+//    component's props change on a chapter-boundary crossing — the business-data
+//    props are memoized in DashboardPage (untouched by activeChapter, which lives
+//    one level below it), the refs are stable by definition, and the motion
+//    values returned by useTransform keep a stable identity across re-renders —
+//    so memo correctly skips re-rendering this on every scroll-driven activeChapter
+//    change, which is what was causing the scroll-stutter at chapter boundaries. ──
+
+interface ChapterSectionsProps extends DashboardChaptersProps {
+  onJump: (i: number, behavior?: ScrollBehavior) => void
+  chapter0Ref: React.RefObject<HTMLElement | null>
+  chapter1Ref: React.RefObject<HTMLElement | null>
+  chapter2Ref: React.RefObject<HTMLElement | null>
+  chapter3Ref: React.RefObject<HTMLElement | null>
+  chapter4Ref: React.RefObject<HTMLElement | null>
+  chapter0Opacity: MotionValue<number>
+  chapter0ParallaxA: MotionValue<number>
+  chapter0ParallaxB: MotionValue<number>
+  chapter1Opacity: MotionValue<number>
+  chapter1Parallax: MotionValue<number>
+  chapter2Opacity: MotionValue<number>
+  chapter2Parallax: MotionValue<number>
+  chapter3Opacity: MotionValue<number>
+  chapter3Parallax: MotionValue<number>
+  chapter4Opacity: MotionValue<number>
+  chapter4Parallax: MotionValue<number>
+}
+
+const ChapterSections = memo(function ChapterSections({
+  totalRobux, walletBalance, todayProfit, totalProfit,
+  operationalStatus, supplierDecision, recommendations, outstandingCount,
+  weekRevenue, revenueData, ordersThisWeek, avgOrderValue, topGame,
+  totalActiveAccounts, criticalAccounts, accountHealth, atRiskAccounts,
+  businessValue, isCapitalRecovered, capitalRecoveryPct, withdrawableProfit,
+  onJump,
+  chapter0Ref, chapter1Ref, chapter2Ref, chapter3Ref, chapter4Ref,
+  chapter0Opacity, chapter0ParallaxA, chapter0ParallaxB,
+  chapter1Opacity, chapter1Parallax,
+  chapter2Opacity, chapter2Parallax,
+  chapter3Opacity, chapter3Parallax,
+  chapter4Opacity, chapter4Parallax,
+}: ChapterSectionsProps) {
+  return (
+    <>
       {/* ══════════════════════════════════════════════════════════════
-          § 01 · HERO
-          Full-screen opening — floating chips orbiting the headline
+          CHAPTER 01 · OVERVIEW — Is the business healthy?
       ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative flex flex-col items-center justify-center text-center overflow-hidden"
-        style={{ minHeight: 'calc(100svh - 5rem)', padding: '5rem 1.5rem 7rem' }}
+      <motion.section
+        ref={chapter0Ref}
+        data-chapter={0}
+        className="chapter-section relative flex items-center justify-center px-6 sm:px-10"
+        style={{ opacity: chapter0Opacity, willChange: 'opacity' }}
       >
-        {/* Focal blob glow — deep purple, centered overhead */}
-        <Blob
-          color="rgba(139,92,246,0.18)"
-          width={900} height={900}
-          style={{ top: -400, left: '50%', transform: 'translateX(-50%)' }}
-        />
-        {/* Secondary cyan blob — lower right */}
-        <Blob
-          color="rgba(34,211,238,0.10)"
-          width={500} height={500}
-          style={{ bottom: -180, right: '-8%' }}
-        />
+        <Blob color="rgba(139,92,246,0.16)" width={760} height={760} style={{ top: '-22%', left: '50%', x: '-50%' }} parallax={chapter0ParallaxA} opacity={chapter0Opacity} />
+        <Blob color="rgba(34,211,238,0.09)" width={420} height={420} style={{ bottom: '-12%', right: '4%' }} drift parallax={chapter0ParallaxB} opacity={chapter0Opacity} />
+        <NextChapterButton onClick={() => onJump(1)} />
 
-        {/* ── Floating chips — xl only (need horizontal space) ── */}
-        <FloatingChip
-          label="Robux Inventory"
-          value={formatRobux(totalRobux)}
-          color="#22d3ee"
-          icon={Coins}
-          delay={0.65}
-          style={{ top: '18%', left: '2%' }}
-        />
-        <div className="hidden xl:block">
-          <FloatingChip
-            label="Wallet Balance"
-            value={formatPHP(walletBalance)}
-            color="#34d399"
-            icon={Wallet}
-            delay={0.80}
-            style={{ top: '38%', right: '2%' }}
-          />
-        </div>
-        <div className="hidden xl:block">
-          <FloatingChip
-            label="Today's Profit"
-            value={formatPHP(todayProfit)}
-            color="#a78bfa"
-            icon={TrendingUp}
-            delay={0.92}
-            style={{ bottom: '32%', left: '1%' }}
-          />
-        </div>
-        <div className="hidden xl:block">
-          <FloatingChip
-            label="Outstanding"
-            value={`${outstandingOrders.length} orders`}
-            color="#f59e0b"
-            icon={ShoppingCart}
-            delay={1.05}
-            style={{ bottom: '28%', right: '1.5%' }}
-          />
-        </div>
+        <div className="relative z-10 w-full max-w-[980px] mx-auto text-center">
+          <ChapterEyebrow index={1} label="Overview" />
 
-        {/* ── Main hero content ── */}
-        <div className="relative z-10 max-w-3xl mx-auto w-full">
-
-          {/* Live badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center mb-8"
-          >
-            <span
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-bold tracking-widest uppercase"
-              style={{
-                background: 'rgba(34,211,238,0.08)',
-                border: '1px solid rgba(34,211,238,0.22)',
-                color: '#22d3ee',
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse" />
-              Live Dashboard
-            </span>
-          </motion.div>
-
-          {/* Headline */}
           <motion.h1
-            className="font-black tracking-tight leading-[0.95] mb-6"
-            style={{ fontSize: 'clamp(2.8rem, 7vw, 5.2rem)' }}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="font-black tracking-tight leading-[1.02] mb-4"
+            style={{ fontSize: 'clamp(2rem, 4.8vw, 3.8rem)' }}
+            initial={{ opacity: 0, y: 34, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.95, ease: EASE }}
           >
-            Your Robux Business<br />
-            <span style={{
-              background: 'linear-gradient(135deg, #22d3ee 0%, #a78bfa 50%, rgba(255,255,255,0.88) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>
+            Your Robux Business{' '}
+            <span style={{ background: 'linear-gradient(135deg, #22d3ee 0%, #a78bfa 60%, rgba(255,255,255,0.88) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               At a Glance
             </span>
           </motion.h1>
 
-          {/* Subtext */}
           <motion.p
-            className="text-[16px] leading-relaxed max-w-lg mx-auto mb-14"
+            className="text-[14px] mb-9"
             style={{ color: 'rgba(255,255,255,0.40)' }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.28 }}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.7, delay: 0.25, ease: EASE }}
           >
-            Command center for your Roblox gamepass operation.<br />Scroll to explore every layer of your business.
+            Scroll for what needs you, how sales are going, and where your capital stands.
           </motion.p>
 
-          {/* Mobile KPIs — shown when floating chips are hidden */}
           <motion.div
-            className="grid grid-cols-2 gap-3 xl:hidden"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.42 }}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+            variants={chapterStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: false, amount: 0.5 }}
           >
             {([
-              { label: 'Robux Inventory', value: totalRobux,            fmt: (v: number) => `${Math.round(v).toLocaleString()} R$`, color: '#22d3ee', icon: Coins },
-              { label: 'Wallet Balance',  value: walletBalance,         fmt: (v: number) => `₱${v.toFixed(2)}`,                     color: '#34d399', icon: Wallet },
-              { label: "Today's Profit",  value: todayProfit,           fmt: (v: number) => `₱${v.toFixed(2)}`,                     color: '#a78bfa', icon: TrendingUp },
-              { label: 'Outstanding',     value: outstandingOrders.length, fmt: (v: number) => `${Math.round(v)} orders`,           color: '#f59e0b', icon: ShoppingCart },
+              { label: 'Robux Inventory', value: totalRobux,    fmt: (v: number) => formatRobux(v), color: '#22d3ee', icon: Coins },
+              { label: 'Wallet Balance',  value: walletBalance, fmt: (v: number) => formatPHP(v),   color: '#34d399', icon: Wallet },
+              { label: "Today's Profit",  value: todayProfit,   fmt: (v: number) => formatPHP(v),   color: '#a78bfa', icon: TrendingUp },
+              { label: 'Lifetime Profit', value: totalProfit,   fmt: (v: number) => formatPHP(v),   color: '#f59e0b', icon: ShoppingCart },
             ] as const).map(({ label, value, fmt, color, icon: Icon }) => (
-              <div
+              <motion.div
                 key={label}
-                className="rounded-xl p-4 text-left"
-                style={{
-                  background: 'rgba(255,255,255,0.032)',
-                  border: `1px solid ${color}20`,
-                  backdropFilter: 'blur(20px)',
-                }}
+                variants={chapterItem}
+                className="rounded-2xl p-4 text-left"
+                style={{ background: 'rgba(255,255,255,0.032)', border: `1px solid ${color}20` }}
               >
                 <div className="flex items-center gap-1.5 mb-2">
                   <Icon style={{ width: 12, height: 12, color }} />
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.30)' }}>{label}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.30)' }}>{label}</span>
                 </div>
-                <CountUp value={value} format={fmt} duration={1.6}
-                  className="text-lg font-black tabular-nums block" style={{ color }} />
-              </div>
+                <CountUp value={value} format={fmt} duration={2.0} className="text-[20px] font-black tabular-nums block leading-none" style={{ color }} />
+              </motion.div>
             ))}
           </motion.div>
-        </div>
 
-        {/* Scroll cue */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.4 }}
-        >
+          {/* ── New Order — the primary action of the business, composed into the hero ── */}
           <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ color: 'rgba(255,255,255,0.18)' }}
+            className="flex justify-center mt-8"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
           >
-            <ChevronDown className="w-5 h-5" />
+            <Link href="/orders?create=1" className="w-full" style={{ maxWidth: 400 }} aria-label="Create a new order">
+              <motion.div
+                whileHover={{ y: -3, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="realism-btn"
+              >
+                <div className="realism-btn-blob1" />
+                <div className="realism-btn-blob2" />
+                <div className="realism-btn-inner">New Order</div>
+              </motion.div>
+            </Link>
           </motion.div>
-        </motion.div>
-      </section>
-
-      <SectionDivider />
+        </div>
+      </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════
-          § 02 · INVENTORY INTELLIGENCE
+          CHAPTER 02 · COMMAND CENTER — What should I do next?
       ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative px-6 sm:px-8 overflow-hidden"
-        style={{ paddingTop: '8rem', paddingBottom: '8rem' }}
+      <motion.section
+        ref={chapter1Ref}
+        data-chapter={1}
+        className="chapter-section relative flex items-center justify-center px-6 sm:px-10"
+        style={{ opacity: chapter1Opacity, willChange: 'opacity' }}
       >
-        <Blob color="rgba(34,211,238,0.09)" width={600} height={600} style={{ top: '-100px', left: '-150px' }} />
+        <Blob color="rgba(34,211,238,0.10)" width={600} height={600} style={{ bottom: '-18%', left: '50%', x: '-50%' }} drift parallax={chapter1Parallax} opacity={chapter1Opacity} />
+        <NextChapterButton onClick={() => onJump(2)} />
 
-        <div className="relative z-10 max-w-[1200px] mx-auto">
-          <SectionLabel index="02" label="Inventory Intelligence" />
+        <div className="relative z-10 w-full max-w-[820px] mx-auto text-center">
+          <ChapterEyebrow index={2} label="Command Center" />
 
-          {/* Focal headline */}
-          <motion.div
-            className="mb-14 max-w-2xl"
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          <motion.h2
+            className="font-black leading-tight mb-6"
+            style={{ fontSize: 'clamp(1.8rem, 4.2vw, 3.2rem)' }}
+            initial={{ opacity: 0, y: 32, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.9, ease: EASE }}
           >
-            {accounts.length > 0 ? (
+            {outstandingCount > 0 ? (
               <>
-                <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)' }}>
-                  <CountUp
-                    value={totalRobux}
-                    format={(v) => Math.round(v).toLocaleString()}
-                    duration={1.6}
-                    style={{ color: '#22d3ee' }}
-                  />
-                  <span style={{ color: 'rgba(255,255,255,0.88)' }}> R$ across </span>
-                  <span style={{ color: '#22d3ee' }}>{accounts.length} accounts</span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-                  Stock distribution, reservation depth, and fulfillment capacity.
-                </p>
+                <span style={{ color: '#f59e0b' }}>{outstandingCount}</span>
+                <span style={{ color: 'rgba(255,255,255,0.88)' }}> order{outstandingCount !== 1 ? 's' : ''} waiting on you</span>
               </>
             ) : (
-              <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)', color: 'rgba(255,255,255,0.88)' }}>
-                Your Inventory
-              </h2>
+              <>
+                <span style={{ color: '#34d399' }}>All clear</span>
+                <span style={{ color: 'rgba(255,255,255,0.88)' }}> — nothing needs action</span>
+              </>
             )}
+          </motion.h2>
+
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
+            variants={chapterStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: false, amount: 0.5 }}
+          >
+            <StatusCard level={operationalStatus.level} message={operationalStatus.message} />
+            <SupplierDecisionCard verdict={supplierDecision.verdict} message={supplierDecision.message} />
           </motion.div>
 
-          {/* Account cards — staggered */}
-          {accounts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 26, scale: 0.97 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.4 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
+            className="text-left"
+          >
+            <NextBestAction recommendations={recommendations} />
+          </motion.div>
+
+          <div className="flex items-center justify-center gap-1.5 mt-3">
+            <ShoppingCart style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.30)' }} />
+            <span className="label-caps">{outstandingCount} outstanding</span>
+          </div>
+
+          <div><FooterLink href="/orders" label="Go to Orders" /></div>
+        </div>
+      </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          CHAPTER 03 · SALES PERFORMANCE — How are sales performing?
+      ══════════════════════════════════════════════════════════════ */}
+      <motion.section
+        ref={chapter2Ref}
+        data-chapter={2}
+        className="chapter-section relative flex items-center justify-center px-6 sm:px-10"
+        style={{ opacity: chapter2Opacity, willChange: 'opacity' }}
+      >
+        <Blob color="rgba(52,211,153,0.09)" width={520} height={520} style={{ top: '-10%', right: '-8%' }} drift parallax={chapter2Parallax} opacity={chapter2Opacity} />
+        <NextChapterButton onClick={() => onJump(3)} />
+
+        <div className="relative z-10 w-full max-w-[760px] mx-auto text-center">
+          <ChapterEyebrow index={3} label="Sales Performance" />
+
+          <motion.h2
+            className="font-black leading-tight mb-6"
+            style={{ fontSize: 'clamp(1.8rem, 4.2vw, 3.2rem)' }}
+            initial={{ opacity: 0, y: 32, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.9, ease: EASE }}
+          >
+            <CountUp value={weekRevenue} format={formatPHP} duration={2.0} style={{ color: '#34d399' }} />
+            <span style={{ color: 'rgba(255,255,255,0.88)' }}> earned this week</span>
+          </motion.h2>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
+          >
+            <RevenueChart data={revenueData} />
+          </motion.div>
+
+          <motion.div
+            className="grid grid-cols-3 gap-3 mt-5"
+            variants={chapterStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: false, amount: 0.5 }}
+          >
+            <motion.div variants={chapterItem} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}>
+              <p className="label-caps mb-1">Orders This Week</p>
+              <p className="text-[16px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{ordersThisWeek}</p>
+            </motion.div>
+            <motion.div variants={chapterItem} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}>
+              <p className="label-caps mb-1">Avg Order Value</p>
+              <p className="text-[16px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{formatPHP(avgOrderValue)}</p>
+            </motion.div>
+            <motion.div variants={chapterItem} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}>
+              <p className="label-caps mb-1 flex items-center justify-center gap-1"><Trophy className="w-2.5 h-2.5" style={{ color: '#fbbf24' }} /> Best Seller</p>
+              <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{topGame ? topGame.name : '—'}</p>
+            </motion.div>
+          </motion.div>
+
+          <div><FooterLink href="/overall-sales" label="View Full Sales Report" /></div>
+        </div>
+      </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          CHAPTER 04 · INVENTORY HEALTH — Is inventory becoming a problem?
+      ══════════════════════════════════════════════════════════════ */}
+      <motion.section
+        ref={chapter3Ref}
+        data-chapter={3}
+        className="chapter-section relative flex items-center justify-center px-6 sm:px-10"
+        style={{ opacity: chapter3Opacity, willChange: 'opacity' }}
+      >
+        <Blob color="rgba(34,211,238,0.10)" width={560} height={560} style={{ top: '-15%', left: '-10%' }} parallax={chapter3Parallax} opacity={chapter3Opacity} />
+        <NextChapterButton onClick={() => onJump(4)} />
+
+        <div className="relative z-10 w-full max-w-[860px] mx-auto text-center">
+          <ChapterEyebrow index={4} label="Inventory Health" />
+
+          <motion.h2
+            className="font-black leading-tight mb-6"
+            style={{ fontSize: 'clamp(1.8rem, 4.2vw, 3.2rem)' }}
+            initial={{ opacity: 0, y: 32, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.9, ease: EASE }}
+          >
+            {criticalAccounts > 0 ? (
+              <>
+                <span style={{ color: '#f59e0b' }}>{criticalAccounts}</span>
+                <span style={{ color: 'rgba(255,255,255,0.88)' }}> of {totalActiveAccounts} account{totalActiveAccounts !== 1 ? 's' : ''} need attention</span>
+              </>
+            ) : (
+              <span style={{ color: '#34d399' }}>All accounts healthy</span>
+            )}
+          </motion.h2>
+
+          <motion.div
+            className="grid grid-cols-3 gap-3 mb-6"
+            variants={chapterStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: false, amount: 0.5 }}
+          >
+            {([
+              { label: 'Healthy',  value: accountHealth.healthy,  color: '#34d399' },
+              { label: 'Low',      value: accountHealth.low,      color: '#f59e0b' },
+              { label: 'Depleted', value: accountHealth.depleted, color: '#f87171' },
+            ] as const).map(({ label, value, color }) => (
+              <motion.div key={label} variants={chapterItem} className="rounded-xl p-3" style={{ background: `${color}0a`, border: `1px solid ${color}22` }}>
+                <p className="label-caps mb-1" style={{ color, opacity: 0.85 }}>{label}</p>
+                <p className="text-[18px] font-black tabular-nums" style={{ color }}>{value}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {atRiskAccounts.length > 0 ? (
             <motion.div
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-8"
-              variants={staggerContainer}
+              className="space-y-2"
+              variants={chapterStagger}
               initial="initial"
               whileInView="animate"
-              viewport={{ once: true, margin: '-60px' }}
+              viewport={{ once: false, amount: 0.3 }}
             >
-              {accounts.map((acc) => {
-                const available = getAvailableRobux(acc)
-                const depleted = isDepleted(acc)
-                const utilPct = acc.current_robux > 0 && acc.reserved_robux > 0
-                  ? Math.min(100, (acc.reserved_robux / acc.current_robux) * 100) : 0
-                const accentColor = depleted ? '#f43f5e' : available < 2000 ? '#f59e0b' : '#22d3ee'
-
-                return (
-                  <motion.div
-                    key={acc.id}
-                    variants={staggerItem}
-                    className="rounded-2xl p-4"
-                    style={{
-                      background: depleted ? 'rgba(244,63,94,0.04)' : 'rgba(255,255,255,0.032)',
-                      border: `1px solid ${depleted ? 'rgba(244,63,94,0.18)' : 'rgba(255,255,255,0.065)'}`,
-                    }}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: accentColor, boxShadow: `0 0 6px ${accentColor}` }} />
-                      <span className="text-[11px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.75)' }}>{acc.username}</span>
-                    </div>
-                    <p className="text-[19px] font-black tabular-nums leading-none mb-1" style={{ color: accentColor }}>
-                      {formatRobux(acc.current_robux)}
-                    </p>
-                    <p className="label-caps">{depleted ? 'Depleted' : `${formatRobux(available)} free`}</p>
-                    {utilPct > 0 && (
-                      <div className="mt-2 h-0.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ background: '#f59e0b' }}
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${utilPct}%` }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-                )
-              })}
-            </motion.div>
-          )}
-
-          {/* Fulfillment readiness */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <FulfillmentReadiness orders={orders} accounts={activeInventoryAccounts} />
-          </motion.div>
-        </div>
-      </section>
-
-      <SectionDivider />
-
-      {/* ══════════════════════════════════════════════════════════════
-          § 03 · SALES PERFORMANCE
-      ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative px-6 sm:px-8 overflow-hidden"
-        style={{ paddingTop: '8rem', paddingBottom: '8rem' }}
-      >
-        <Blob color="rgba(52,211,153,0.09)" width={650} height={650} style={{ top: '-80px', right: '-150px' }} />
-
-        <div className="relative z-10 max-w-[1200px] mx-auto">
-          <SectionLabel index="03" label="Sales Performance" />
-
-          <motion.div
-            className="mb-14 max-w-2xl"
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {weekRevenue > 0 ? (
-              <>
-                <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)' }}>
-                  <CountUp value={weekRevenue} format={(v) => `₱${v.toFixed(2)}`} duration={1.6} style={{ color: '#34d399' }} />
-                  <span style={{ color: 'rgba(255,255,255,0.88)' }}> earned this week</span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-                  Weekly trends, best-selling games, and order pipeline breakdown.
-                </p>
-              </>
-            ) : (
-              <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)', color: 'rgba(255,255,255,0.88)' }}>
-                Sales Performance
-              </h2>
-            )}
-          </motion.div>
-
-          <motion.div
-            className="space-y-4"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-60px' }}
-          >
-            <motion.div variants={staggerItem}>
-              <RevenueChart data={revenueData} />
-            </motion.div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-              <motion.div variants={staggerItem} className="lg:col-span-2">
-                <TopGamesChart data={topGamesData} />
-              </motion.div>
-              <motion.div variants={staggerItem} className="lg:col-span-3">
-                <OrderStatusChart data={statusData} />
-              </motion.div>
-            </div>
-
-            {topAccounts.length > 0 && (
-              <motion.div
-                variants={staggerItem}
-                className="rounded-2xl p-5"
-                style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.060)' }}
-              >
-                <div className="flex items-center gap-2.5 mb-4">
-                  <Trophy className="w-4 h-4" style={{ color: '#fbbf24' }} />
-                  <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Top Performing Accounts</p>
-                  <span className="ml-auto label-caps">by margin</span>
-                </div>
-                <div className="space-y-2.5">
-                  {topAccounts.map((acc, i) => (
-                    <div key={acc.id} className="flex items-center gap-3">
-                      <span
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0"
-                        style={{ background: i === 0 ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.07)', color: i === 0 ? '#fbbf24' : 'rgba(255,255,255,0.35)' }}
-                      >{i + 1}</span>
-                      <span className="text-[12px] font-semibold flex-1 truncate" style={{ color: 'rgba(255,255,255,0.76)' }}>{acc.username}</span>
-                      <span className="text-[12px] font-bold tabular-nums" style={{ color: '#34d399' }}>
-                        {acc.margin === Infinity ? '∞%' : `${acc.margin.toFixed(0)}%`}
-                      </span>
-                      <span className="text-[11px] tabular-nums" style={{ color: 'rgba(255,255,255,0.38)' }}>{formatPHP(acc.profit)}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      <SectionDivider />
-
-      {/* ══════════════════════════════════════════════════════════════
-          § 04 · CAPITAL & BUSINESS HEALTH
-      ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative px-6 sm:px-8 overflow-hidden"
-        style={{ paddingTop: '8rem', paddingBottom: '8rem' }}
-      >
-        <Blob color="rgba(245,158,11,0.08)" width={600} height={600} style={{ top: '0px', left: '-100px' }} />
-
-        <div className="relative z-10 max-w-[1200px] mx-auto">
-          <SectionLabel index="04" label="Capital & Business Health" />
-
-          <motion.div
-            className="mb-14 max-w-2xl"
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)', color: 'rgba(255,255,255,0.88)' }}>
-              Where the money is<br />
-              <span style={{
-                background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              }}>right now</span>
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-              Capital position, purchasing capacity, savings progress, and acquisition history.
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="space-y-4"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-60px' }}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <motion.div variants={staggerItem}><CapitalPosition accounts={accounts} walletBalance={walletBalance} /></motion.div>
-              <motion.div variants={staggerItem}><CapitalSafety accounts={accounts} walletBalance={walletBalance} /></motion.div>
-            </div>
-            <motion.div variants={staggerItem}><SavingsWidget compact={false} forecasts={savingsForecasts} /></motion.div>
-            <motion.div variants={staggerItem}><CapitalEventsLedger refreshKey={0} /></motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      <SectionDivider />
-
-      {/* ══════════════════════════════════════════════════════════════
-          § 05 · MONEY FLOW & ACTIVITY
-      ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative px-6 sm:px-8 overflow-hidden"
-        style={{ paddingTop: '8rem', paddingBottom: '8rem' }}
-      >
-        <Blob color="rgba(139,92,246,0.10)" width={550} height={550} style={{ bottom: '-80px', right: '-80px' }} />
-
-        <div className="relative z-10 max-w-[1200px] mx-auto">
-          <SectionLabel index="05" label="Money Flow & Activity" />
-
-          <motion.div
-            className="mb-14 max-w-2xl"
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)' }}>
-              <CountUp value={totalProfit} format={(v) => `₱${v.toFixed(2)}`} duration={1.6} style={{ color: '#a78bfa' }} />
-              <span style={{ color: 'rgba(255,255,255,0.88)' }}> total profit</span>
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-              Where every peso came from, where it went, and what happened recently.
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="grid grid-cols-1 lg:grid-cols-5 gap-4"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-60px' }}
-          >
-            <motion.div variants={staggerItem} className="lg:col-span-3">
-              <MoneyFlowSummary orders={orders} savingsGoals={savingsGoals} />
-            </motion.div>
-            <motion.div
-              variants={staggerItem}
-              className="lg:col-span-2 rounded-2xl p-5"
-              style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.060)' }}
-            >
-              <p className="text-[12px] font-bold mb-4" style={{ color: 'rgba(255,255,255,0.88)' }}>Recent Activity</p>
-              {activityFeed.length === 0 ? (
-                <p className="text-[12px] text-center py-6" style={{ color: 'rgba(255,255,255,0.30)' }}>No activity yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {activityFeed.map((item) => {
-                    const Icon = item.icon
-                    return (
-                      <div key={item.id} className="flex items-start gap-2.5">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: item.iconBg }}>
-                          <Icon className="w-3.5 h-3.5" style={{ color: item.iconColor }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-medium leading-snug truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>{item.text}</p>
-                          <div className="flex items-center justify-between gap-2 mt-0.5">
-                            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.time}</p>
-                            {item.amount && <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.60)' }}>{item.amount}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      <SectionDivider />
-
-      {/* ══════════════════════════════════════════════════════════════
-          § 06 · COMMAND CENTER
-      ══════════════════════════════════════════════════════════════ */}
-      <section
-        className="relative px-6 sm:px-8 overflow-hidden"
-        style={{ paddingTop: '8rem', paddingBottom: '10rem' }}
-      >
-        <Blob color="rgba(34,211,238,0.07)" width={700} height={700} style={{ bottom: '-200px', left: '50%', transform: 'translateX(-50%)' }} />
-
-        <div className="relative z-10 max-w-[1200px] mx-auto">
-          <SectionLabel index="06" label="Command Center" />
-
-          <motion.div
-            className="mb-14 max-w-2xl"
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {outstandingOrders.length > 0 ? (
-              <>
-                <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)' }}>
-                  <span style={{ color: '#f59e0b' }}>{outstandingOrders.length} order{outstandingOrders.length !== 1 ? 's' : ''}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.88)' }}> waiting on you</span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-                  The highest-value action, your active order queue, and quick navigation.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.6rem)' }}>
-                  <span style={{ color: '#34d399' }}>All clear</span>
-                  <span style={{ color: 'rgba(255,255,255,0.88)' }}> — nothing needs action</span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
-                  Recommended actions, quick navigation, and your recent pipeline.
-                </p>
-              </>
-            )}
-          </motion.div>
-
-          <motion.div
-            className="space-y-4"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true, margin: '-60px' }}
-          >
-            {/* Next best action */}
-            <motion.div variants={staggerItem}>
-              <NextBestAction recommendations={recommendations} />
-            </motion.div>
-
-            {/* Outstanding orders queue */}
-            <motion.div
-              variants={staggerItem}
-              className="rounded-2xl overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.026)', border: '1px solid rgba(255,255,255,0.058)' }}
-            >
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.058)' }}>
-                <div>
-                  <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>Outstanding Orders</p>
-                  <p className="label-caps mt-0.5">
-                    {outstandingOrders.length === 0 ? 'Nothing waiting' : `${outstandingOrders.length} need a push — oldest first`}
-                  </p>
-                </div>
-                <a href="/orders" className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: '#22d3ee' }}>
-                  All Orders <ArrowUpRight className="w-3 h-3" />
-                </a>
-              </div>
-
-              {outstandingOrders.length === 0 ? (
-                <div className="py-12 text-center">
-                  <CheckCircle2 className="w-7 h-7 mx-auto mb-2" style={{ color: '#34d399', opacity: 0.5 }} />
-                  <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>Every order is moving.</p>
-                </div>
-              ) : (
-                <motion.div variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true }}>
-                  {outstandingOrders.slice(0, 8).map((order) => {
-                    const ageHours = (Date.now() - new Date(order.created_at).getTime()) / 3_600_000
-                    const ageColor = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'rgba(255,255,255,0.35)'
-                    const nextStatus: 'paid' | 'completed' = order.status === 'pending' ? 'paid' : 'completed'
-                    const isBusy = advancingId === order.id
-                    return (
-                      <motion.div
-                        key={order.id}
-                        variants={staggerItem}
-                        className="flex items-center gap-4 px-5 py-3"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.042)' }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.30)' }}>{order.order_number ?? '—'}</span>
-                            <StatusBadge status={order.status} />
-                            <span className="text-[10px] font-bold" style={{ color: ageColor }}>
-                              {ageHours < 48 ? `${Math.round(ageHours)}h` : `${Math.round(ageHours / 24)}d`}
-                            </span>
-                          </div>
-                          <p className="text-[13px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>{order.buyer_name ?? '—'}</p>
-                          <p className="text-[11px] truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                            {order.gamepasses?.games?.name ?? '—'} · {formatRobux(order.robux_amount ?? 0)}
-                          </p>
-                        </div>
-                        <p className="text-[13px] font-bold flex-shrink-0" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                          {order.selling_price ? formatPHP(order.selling_price) : '—'}
-                        </p>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => advanceOrder(order, nextStatus)}
-                          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50 transition-opacity"
-                          style={{ background: 'rgba(34,211,238,0.08)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.18)' }}
-                        >
-                          {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                          {isBusy ? '…' : order.status === 'pending' ? 'Mark Paid' : 'Mark Done'}
-                        </button>
-                      </motion.div>
-                    )
-                  })}
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Quick nav grid */}
-            <motion.div variants={staggerItem} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {quickActions.map(({ label, sub, icon: Icon, href, color }) => (
-                <a
-                  key={label}
-                  href={href}
-                  className="rounded-2xl p-4 flex flex-col items-center gap-3 text-center"
-                  style={{ background: 'rgba(255,255,255,0.026)', border: `1px solid ${color}1e` }}
+              <p className="label-caps mb-1 text-left">Accounts Needing Attention</p>
+              {atRiskAccounts.map((a) => (
+                <motion.div
+                  key={a.id}
+                  variants={chapterItem}
+                  className="flex items-center justify-between gap-3 rounded-xl px-4 py-2.5 text-left"
+                  style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}
                 >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}16`, border: `1px solid ${color}28` }}>
-                    <Icon className="w-5 h-5" style={{ color }} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={a.tier === 'depleted'
+                        ? { background: 'rgba(244,63,94,0.12)', color: '#f87171' }
+                        : { background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                    >
+                      {a.tier === 'depleted' ? 'Depleted' : 'Low'}
+                    </span>
+                    <span className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.80)' }}>{a.username}</span>
                   </div>
-                  <div>
-                    <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.78)' }}>{label}</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.32)' }}>{sub}</p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-[12px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.85)' }}>{formatRobux(a.available)}</p>
+                    <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                      {a.runway !== null ? `~${a.runway} order${a.runway === 1 ? '' : 's'} left` : 'no runway data'}
+                    </p>
                   </div>
-                </a>
+                </motion.div>
               ))}
             </motion.div>
-          </motion.div>
+          ) : (
+            <motion.p
+              className="text-[12px] font-semibold"
+              style={{ color: '#34d399' }}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false, amount: 0.5 }}
+              transition={{ duration: 0.6, delay: 0.3, ease: EASE }}
+            >
+              No accounts running low — inventory is fully covered.
+            </motion.p>
+          )}
+
+          <div><FooterLink href="/accounts" label="View Full Inventory" /></div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Footer */}
-      <div className="px-6 pb-16 text-center">
-        <p style={{ color: 'rgba(255,255,255,0.16)', fontSize: 11 }}>
-          {gamepassCount} gamepasses · {completedOrders.length} completed · {formatPHP(totalProfit)} lifetime profit
-        </p>
-      </div>
+      {/* ══════════════════════════════════════════════════════════════
+          CHAPTER 05 · CAPITAL POSITION — Is my capital protected?
+      ══════════════════════════════════════════════════════════════ */}
+      <motion.section
+        ref={chapter4Ref}
+        data-chapter={4}
+        className="chapter-section relative flex items-center justify-center px-6 sm:px-10"
+        style={{ opacity: chapter4Opacity, willChange: 'opacity' }}
+      >
+        <Blob color="rgba(167,139,250,0.10)" width={540} height={540} style={{ top: '-12%', left: '-8%' }} parallax={chapter4Parallax} opacity={chapter4Opacity} />
 
-    </div>
+        <div className="relative z-10 w-full max-w-[760px] mx-auto text-center">
+          <ChapterEyebrow index={5} label="Capital Position" />
+
+          <motion.div
+            initial={{ opacity: 0, y: 32, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.9, ease: EASE }}
+            className="mb-6"
+          >
+            <h2 className="font-black leading-tight mb-3" style={{ fontSize: 'clamp(1.8rem, 4.2vw, 3.2rem)' }}>
+              <CountUp value={businessValue} format={(v) => formatPHP(v)} duration={2.0} style={{ color: '#a78bfa' }} />
+              <span style={{ color: 'rgba(255,255,255,0.88)' }}> business value</span>
+            </h2>
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
+              style={isCapitalRecovered
+                ? { background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.26)' }
+                : { background: 'rgba(244,63,94,0.08)', color: '#f87171', border: '1px solid rgba(244,63,94,0.22)' }}
+            >
+              {isCapitalRecovered ? '🟢 Capital Fully Recovered' : `🔴 ${capitalRecoveryPct.toFixed(0)}% of Capital Recovered`}
+            </span>
+          </motion.div>
+
+          <motion.div
+            className="grid grid-cols-2 gap-3 mb-5"
+            variants={chapterStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: false, amount: 0.5 }}
+          >
+            <motion.div variants={chapterItem} className="rounded-xl p-3.5" style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.22)' }}>
+              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                <PiggyBank style={{ width: 12, height: 12, color: '#a78bfa' }} />
+                <span className="label-caps" style={{ color: '#a78bfa', opacity: 0.85 }}>Withdrawable Profit</span>
+              </div>
+              <CountUp value={withdrawableProfit} format={(v) => formatPHP(v)} duration={2.0} className="text-[15px] font-black tabular-nums block" style={{ color: 'rgba(255,255,255,0.88)' }} />
+            </motion.div>
+            <motion.div variants={chapterItem} className="rounded-xl p-3.5" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.22)' }}>
+              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                <ShieldCheck style={{ width: 12, height: 12, color: '#34d399' }} />
+                <span className="label-caps" style={{ color: '#34d399', opacity: 0.85 }}>Protected Capital</span>
+              </div>
+              <p className="text-[15px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>{formatPHP(FIXED_CAPITAL)}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: isCapitalRecovered ? '#34d399' : '#f59e0b' }}>
+                {isCapitalRecovered ? 'Fully covered' : `${capitalRecoveryPct.toFixed(0)}% covered`}
+              </p>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            className="h-2 rounded-full overflow-hidden max-w-[420px] mx-auto"
+            style={{ background: 'rgba(255,255,255,0.092)' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: false, amount: 0.5 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: isCapitalRecovered ? '#34d399' : '#a78bfa' }}
+              initial={{ width: 0 }}
+              whileInView={{ width: `${Math.min(100, capitalRecoveryPct)}%` }}
+              viewport={{ once: false, amount: 0.5 }}
+              transition={{ duration: 1.2, delay: 0.45, ease: EASE }}
+            />
+          </motion.div>
+
+          <div><FooterLink href="/accounts" label="View Full Capital Breakdown" /></div>
+        </div>
+      </motion.section>
+    </>
   )
-}
+})

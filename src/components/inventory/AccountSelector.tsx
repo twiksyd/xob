@@ -5,7 +5,7 @@ import { RobloxAccount } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, Star, Archive, ChevronDown } from 'lucide-react'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import { rankAccountsForOrder } from '@/lib/utils/accounts'
 
 interface AccountSelectorProps {
   accounts: RobloxAccount[]
@@ -21,23 +21,7 @@ const COLOR_NEUTRAL   = 'rgba(255,255,255,0.48)'
 export default function AccountSelector({ accounts, robuxRequired, selectedId, onSelect }: AccountSelectorProps) {
   const [showDepleted, setShowDepleted] = useState(false)
 
-  const allRanked = accounts
-    .filter(a => a.status === 'active')
-    .map(a => {
-      const available = getAvailableRobux(a)
-      const canAfford = available >= robuxRequired
-      const depleted = isDepleted(a)
-      const hasReservation = (a.reserved_robux ?? 0) > 0
-      // Tiering: best fulfillment candidates first, depleted accounts last.
-      const tier = canAfford ? 1 : hasReservation ? 2 : depleted ? 4 : 3
-      const score = canAfford ? available - robuxRequired : -1
-      return { ...a, available, canAfford, depleted, tier, score }
-    })
-    .sort((a, b) => {
-      if (a.tier !== b.tier) return a.tier - b.tier
-      if (a.tier === 1) return a.score - b.score
-      return b.available - a.available
-    })
+  const allRanked = rankAccountsForOrder(accounts, robuxRequired)
 
   const depletedCount = allRanked.filter(a => a.depleted).length
   const ranked = showDepleted ? allRanked : allRanked.filter(a => !a.depleted)

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { SavingsGoal } from '@/lib/types/database'
 import { PiggyBank, CheckCircle2, Lock, Edit2, X, Check } from 'lucide-react'
+import { Skeleton } from '@/components/shared/Skeleton'
+import { formatPHP } from '@/lib/utils/pricing'
 
 interface SavingsWidgetProps {
   compact?: boolean
@@ -83,14 +85,14 @@ function GoalBar({ goal, compact, forecast }: { goal: SavingsGoal; compact: bool
       {/* Amount */}
       <div className="flex items-baseline justify-between gap-2">
         <p className={`font-bold tabular-nums ${compact ? 'text-[12px]' : 'text-[15px]'}`} style={{ color: isLocked ? 'rgba(255,255,255,0.44)' : 'rgba(255,255,255,0.88)' }}>
-          ₱{Number(goal.current_amount).toFixed(2)}
+          {formatPHP(Number(goal.current_amount))}
           <span className={`font-normal ml-1 ${compact ? 'text-[10px]' : 'text-[12px]'}`} style={{ color: 'rgba(255,255,255,0.48)' }}>
-            / ₱{Number(goal.target_amount).toFixed(0)}
+            / {formatPHP(Number(goal.target_amount))}
           </span>
         </p>
         {!compact && !isCompleted && !isLocked && (
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-            ₱{remaining.toFixed(2)} remaining
+            {formatPHP(remaining)} remaining
           </p>
         )}
       </div>
@@ -177,8 +179,8 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
     return (
       <div className={compact ? 'p-3' : 'p-5'}>
         <div className="space-y-2">
-          <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.092)', width: '60%' }} />
-          <div className="h-2 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.065)' }} />
+          <Skeleton className="h-3 w-3/5" />
+          <Skeleton className="h-2 w-full" />
         </div>
       </div>
     )
@@ -213,7 +215,7 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
         >
           <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.48)' }}>Total saved</p>
           <p className="text-[12px] font-bold tabular-nums" style={{ color: '#34d399' }}>
-            ₱{totalSaved.toFixed(2)} / ₱{totalTarget.toFixed(0)}
+            {formatPHP(totalSaved)} / {formatPHP(totalTarget)}
           </p>
         </div>
       </div>
@@ -249,10 +251,10 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
         </div>
         <div className="text-right">
           <p className="text-[11px] font-semibold tabular-nums" style={{ color: '#34d399' }}>
-            ₱{totalSaved.toFixed(2)}
+            {formatPHP(totalSaved)}
           </p>
           <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
-            of ₱{totalTarget.toFixed(0)} target
+            of {formatPHP(totalTarget)} target
           </p>
         </div>
       </div>

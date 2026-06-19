@@ -14,21 +14,45 @@ import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTrack
 import RestockAdvisor from '@/components/accounts/RestockAdvisor'
 import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import {
-  Plus, Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, Zap, RefreshCw, Archive,
+  Coins, Wallet, Users, Lock, ChevronDown, X,
+  CheckSquare, Square, RefreshCw, Archive,
 } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
-import { springToggle, fadeUpVariants } from '@/lib/motion'
+import { springToggle, fadeUpVariants, staggerContainer, staggerItem, cardStagger, cardStaggerItem } from '@/lib/motion'
+import { useToast } from '@/components/shared/Toast'
+import { useConfirm } from '@/components/shared/ConfirmDialog'
+import { SkeletonChart, SkeletonCard } from '@/components/shared/Skeleton'
+import EmptyState from '@/components/shared/EmptyState'
+import { useUrlState } from '@/hooks/useUrlState'
 
 type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
+const PAGE_TABS: readonly PageTab[] = ['accounts', 'planning']
 
 const LS_SELECTED = 'xob-selected-accounts'
 const LS_MODE     = 'xob-stats-mode'
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3"
+      initial={{ opacity: 0, x: -16 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 export default function AccountsPage() {
   const [accounts, setAccounts]         = useState<RobloxAccount[]>([])
@@ -39,15 +63,17 @@ export default function AccountsPage() {
   const [saving, setSaving]             = useState(false)
   const [modalOpen, setModalOpen]       = useState(false)
   const [editAccount, setEditAccount]   = useState<RobloxAccount | null>(null)
-  const [resExpanded, setResExpanded]   = useState(true)
+  const [resExpanded, setResExpanded]   = useState(false)
   const [depletedExpanded, setDepletedExpanded] = useState(false)
-  const [pageTab, setPageTab]           = useState<PageTab>('accounts')
+  const [pageTab, setPageTab]           = useUrlState<PageTab>('tab', 'accounts', PAGE_TABS)
   const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 
   // ── Selection state ────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [statsMode, setStatsMode]       = useState<StatsMode>('all')
 
+  const toast = useToast()
+  const confirm = useConfirm()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
 
@@ -145,8 +171,10 @@ export default function AccountsPage() {
     }
     setSaving(false)
     setModalOpen(false)
+    const wasEdit = !!editAccount
     setEditAccount(null)
     fetchData()
+    toast.success(wasEdit ? 'Account updated.' : 'Account added.')
   }
 
   // The only path allowed to change current_robux/reserved_robux/robux_cost_rate on an
@@ -163,6 +191,7 @@ export default function AccountsPage() {
     if (error) throw error
     setEditAccount(prev => prev ? { ...prev, [field]: newValue } : prev)
     fetchData()
+    toast.success('Adjustment recorded with audit trail.')
   }
 
   // One-time backfill: resolve avatars for accounts that don't have one yet
@@ -170,6 +199,7 @@ export default function AccountsPage() {
     const missing = accounts.filter(a => !a.roblox_user_id)
     if (missing.length === 0) return
     setRefreshingAvatars(true)
+    let resolved = 0
     for (const account of missing) {
       try {
         const res = await fetch(`/api/roblox-lookup?username=${encodeURIComponent(account.username)}`)
@@ -177,19 +207,29 @@ export default function AccountsPage() {
         const { userId } = await res.json()
         if (userId) {
           await supabase.from('roblox_accounts').update({ roblox_user_id: userId }).eq('id', account.id)
+          resolved++
         }
       } catch {}
     }
     setRefreshingAvatars(false)
     fetchData()
+    toast.success(resolved > 0 ? `Resolved ${resolved} avatar${resolved !== 1 ? 's' : ''}.` : 'No new avatars found.')
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this account? Any remaining Robux balance will be written off with an audit record.')) return
+    const account = accounts.find(a => a.id === id)
+    const ok = await confirm({
+      title: `Delete ${account?.username ?? 'this account'}?`,
+      description: 'Any remaining Robux balance will be written off with an audit record. Orders and transaction history tied to this account are preserved.',
+      confirmLabel: 'Delete Account',
+      danger: true,
+    })
+    if (!ok) return
     const { error } = await supabase.rpc('delete_roblox_account', { p_account_id: id })
-    if (error) { alert(error.message); return }
+    if (error) { toast.error(error.message); return }
     setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
     fetchData()
+    toast.success('Account deleted.')
   }
 
   function handleEdit(account: RobloxAccount) {
@@ -242,17 +282,21 @@ export default function AccountsPage() {
   const selReserved  = selectedAccounts.reduce((s, a) => s + a.reserved_robux, 0)
   const selAvailable = selectedAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
 
+  // "Selected" is only a meaningful mode once something is selected — otherwise
+  // it's silently treated as "All" so there's no toggle to reason about on first load.
+  const effectiveStatsMode: StatsMode = selectedIds.size > 0 ? statsMode : 'all'
+
   // Accounts used for top stat cards (depends on mode)
   const statsAccounts = useMemo(
-    () => statsMode === 'all' ? accounts : selectedAccounts,
-    [accounts, selectedAccounts, statsMode]
+    () => effectiveStatsMode === 'all' ? accounts : selectedAccounts,
+    [accounts, selectedAccounts, effectiveStatsMode]
   )
   const totalRobux     = statsAccounts.reduce((s, a) => s + a.current_robux, 0)
   const totalReserved  = statsAccounts.reduce((s, a) => s + a.reserved_robux, 0)
   const availableRobux = statsAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
   const activeAccounts = statsAccounts.filter(a => a.status === 'active').length
 
-  const statAnimKey    = `${statsMode}-${selectedIds.size}-${totalRobux}`
+  const statAnimKey    = `${effectiveStatsMode}-${selectedIds.size}-${totalRobux}`
 
   // Reservations grouped by account
   const reservationsByAccount = useMemo(() => {
@@ -273,8 +317,8 @@ export default function AccountsPage() {
 
   const hasSelection    = selectedIds.size > 0
   const allSelected     = accounts.length > 0 && selectedIds.size === accounts.length
-  const statsSubtitle   = statsMode === 'selected'
-    ? selectedIds.size === 0 ? 'No accounts selected' : `${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} selected`
+  const statsSubtitle   = effectiveStatsMode === 'selected'
+    ? `${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} selected`
     : `Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`
 
   return (
@@ -315,73 +359,101 @@ export default function AccountsPage() {
         {pageTab === 'planning' ? (
         <motion.div key="planning" variants={fadeUpVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
 
+        {/* ── 04 · Profitability ── */}
+        <SectionLabel index="04" label="Profitability" />
+
         {/* ── Stock Liquidation Forecast ── */}
         {loading ? (
-          <div className="glass-elevated p-5 h-64 animate-pulse" />
+          <SkeletonChart height={180} />
         ) : (
-          <LiquidationForecast
-            accounts={accounts}
-            selectedIds={selectedIds}
-            completedOrders={completedOrders}
-            walletBalance={walletBalance}
-          />
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+            <LiquidationForecast
+              accounts={accounts}
+              selectedIds={selectedIds}
+              completedOrders={completedOrders}
+              walletBalance={walletBalance}
+            />
+          </motion.div>
         )}
 
         {/* ── Capital Readiness Tracker ── */}
         {loading ? (
-          <div className="glass-elevated p-5 h-64 animate-pulse" />
+          <SkeletonChart height={180} />
         ) : (
-          <CapitalReadinessTracker
-            accounts={activeInventoryAccounts}
-            walletBalance={walletBalance}
-          />
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}>
+            <CapitalReadinessTracker
+              accounts={activeInventoryAccounts}
+              walletBalance={walletBalance}
+            />
+          </motion.div>
         )}
 
         {/* ── Restock Advisor ── */}
         {loading ? (
-          <div className="glass-elevated p-5 h-64 animate-pulse" />
+          <SkeletonChart height={180} />
         ) : (
-          <RestockAdvisor
-            accounts={activeInventoryAccounts}
-            completedOrders={completedOrders}
-            walletBalance={walletBalance}
-          />
+          <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
+            <RestockAdvisor
+              accounts={activeInventoryAccounts}
+              completedOrders={completedOrders}
+              walletBalance={walletBalance}
+            />
+          </motion.div>
         )}
 
         </motion.div>
         ) : (
         <motion.div key="accounts" variants={fadeUpVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
 
-        {/* ── Stats mode toggle + stat cards ── */}
+        {/* ── 01 · Inventory Position ── */}
         <div className="space-y-3">
+          <SectionLabel index="01" label="Inventory Position" />
           <div className="flex items-center justify-between">
             <span className="label-caps">Account Summary</span>
-            <div className="metric-toggle">
-              {(['all', 'selected'] as StatsMode[]).map(m => (
-                <button
-                  key={m}
-                  onClick={() => setStatsMode(m)}
-                  className={`metric-toggle-btn ${statsMode === m ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive'}`}
-                >
-                  {statsMode === m && (
-                    <motion.div layoutId="acc-toggle-bg" className="metric-toggle-bg" transition={springToggle} />
-                  )}
-                  <span className="relative z-10">
-                    {m === 'all' ? 'All Accounts' : `Selected${hasSelection ? ` (${selectedIds.size})` : ''}`}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {/* Only a real decision once something is selected — hidden otherwise */}
+            {hasSelection && (
+              <div className="metric-toggle">
+                {(['all', 'selected'] as StatsMode[]).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setStatsMode(m)}
+                    className={`metric-toggle-btn ${effectiveStatsMode === m ? 'metric-toggle-btn-active' : 'metric-toggle-btn-inactive'}`}
+                  >
+                    {effectiveStatsMode === m && (
+                      <motion.div layoutId="acc-toggle-bg" className="metric-toggle-bg" transition={springToggle} />
+                    )}
+                    <span className="relative z-10">
+                      {m === 'all' ? 'All Accounts' : `Selected (${selectedIds.size})`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : (
+          <motion.div
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3.5"
+            variants={cardStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.4 }}
+          >
+            <motion.div variants={cardStaggerItem}>
             <StatCard
               title="Total Robux"
               value={`${totalRobux.toLocaleString()} R$`}
               subtitle={statsSubtitle}
               icon={Coins} iconColor="#a78bfa" accentColor="#a78bfa"
               animKey={statAnimKey}
+              featured
             />
+            </motion.div>
+            <motion.div variants={cardStaggerItem}>
             <StatCard
               title="Available Robux"
               value={`${availableRobux.toLocaleString()} R$`}
@@ -389,6 +461,8 @@ export default function AccountsPage() {
               icon={Wallet} iconColor="#34d399" accentColor="#34d399"
               animKey={statAnimKey}
             />
+            </motion.div>
+            <motion.div variants={cardStaggerItem}>
             <StatCard
               title="Reserved Robux"
               value={`${totalReserved.toLocaleString()} R$`}
@@ -396,6 +470,8 @@ export default function AccountsPage() {
               icon={Lock} iconColor="#f59e0b" accentColor="#f59e0b"
               animKey={statAnimKey}
             />
+            </motion.div>
+            <motion.div variants={cardStaggerItem}>
             <StatCard
               title="Active Accounts"
               value={`${activeAccounts} / ${statsAccounts.length}`}
@@ -403,99 +479,90 @@ export default function AccountsPage() {
               icon={Users} iconColor="#22d3ee" accentColor="#22d3ee"
               animKey={statAnimKey}
             />
-          </div>
+            </motion.div>
+          </motion.div>
+          )}
         </div>
 
-        {/* ── Account grid section ── */}
+        {/* ── 02 · Account Health ── */}
+        <SectionLabel index="02" label="Account Health" />
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl px-4 py-3 flex items-center gap-2.5"
+          style={depletedInventoryAccounts.length > 0
+            ? { background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.16)' }
+            : { background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.16)' }}
+        >
+          {depletedInventoryAccounts.length > 0 ? (
+            <>
+              <Archive className="w-4 h-4 flex-shrink-0" style={{ color: '#f59e0b' }} />
+              <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                <b style={{ color: '#f59e0b' }}>{depletedInventoryAccounts.length}</b> of {accounts.length} account{accounts.length !== 1 ? 's' : ''} depleted — restock to keep fulfilling orders.
+              </p>
+            </>
+          ) : (
+            <>
+              <CheckSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#34d399' }} />
+              <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                All {accounts.length} account{accounts.length !== 1 ? 's' : ''} healthy — nothing depleted.
+              </p>
+            </>
+          )}
+        </motion.div>
+
+        {/* ── 05 · Detailed Accounts — grid + filters ── */}
         <div className="space-y-3">
+          <SectionLabel index="05" label="Detailed Accounts" />
 
-          {/* Grid header + quick filters */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.40)' }}>
-                  Active Accounts ({activeInventoryAccounts.length})
-                </p>
-                {depletedInventoryAccounts.length > 0 && (
-                  <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                    Depleted: <b className="tabular-nums" style={{ color: 'rgba(255,255,255,0.42)' }}>{depletedInventoryAccounts.length}</b>
-                    {' · '}Potential cleanup: <b className="tabular-nums" style={{ color: 'rgba(255,255,255,0.42)' }}>{depletedInventoryAccounts.length} account{depletedInventoryAccounts.length !== 1 ? 's' : ''}</b>
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {accounts.some(a => !a.roblox_user_id) && (
-                  <button
-                    onClick={refreshAvatars}
-                    disabled={refreshingAvatars}
-                    className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                    style={{ color: 'rgba(255,255,255,0.47)' }}
-                    title="Look up Roblox avatars for accounts that don't have one yet"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} />
-                    {refreshingAvatars ? 'Refreshing avatars…' : 'Refresh Avatars'}
-                  </button>
-                )}
-                {/* Select all / none toggle */}
+          {/* Grid header + selection controls */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.40)' }}>
+              Active Accounts ({activeInventoryAccounts.length})
+            </p>
+            <div className="flex items-center gap-3">
+              {accounts.some(a => !a.roblox_user_id) && (
                 <button
-                  onClick={allSelected ? clearAll : selectAll}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: allSelected ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  onClick={refreshAvatars}
+                  disabled={refreshingAvatars}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  style={{ color: 'rgba(255,255,255,0.47)' }}
+                  title="Look up Roblox avatars for accounts that don't have one yet"
                 >
-                  {allSelected
-                    ? <CheckSquare className="w-3.5 h-3.5" />
-                    : <Square className="w-3.5 h-3.5" />
-                  }
-                  {allSelected ? 'Deselect All' : 'Select All'}
-                </button>
-              </div>
-            </div>
-
-            {/* Quick filter chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: 'Active Only',      action: selectActive,    icon: '●' },
-                { label: 'High Balance',     action: selectHighBal,   icon: '▲' },
-                { label: 'Has Available',    action: selectAvailable, icon: '✓' },
-                { label: 'Has Reservations', action: selectWithRes,   icon: '⬡' },
-              ].map(({ label, action }) => (
-                <button
-                  key={label}
-                  onClick={action}
-                  className="flex items-center gap-1 h-[26px] px-2.5 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{
-                    background: 'rgba(255,255,255,0.065)',
-                    border: '1px solid rgba(255,255,255,0.100)',
-                    color: 'rgba(255,255,255,0.45)',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(34,211,238,0.07)'
-                    e.currentTarget.style.borderColor = 'rgba(34,211,238,0.22)'
-                    e.currentTarget.style.color = '#0e7490'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.065)'
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.100)'
-                    e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
-                  }}
-                >
-                  <Zap className="w-3 h-3 opacity-60" />
-                  {label}
-                </button>
-              ))}
-              {hasSelection && (
-                <button
-                  onClick={clearAll}
-                  className="flex items-center gap-1 h-[26px] px-2.5 rounded-lg text-[11px] font-semibold transition-all"
-                  style={{
-                    background: 'rgba(244,63,94,0.06)',
-                    border: '1px solid rgba(244,63,94,0.16)',
-                    color: '#be123c',
-                  }}
-                >
-                  <X className="w-3 h-3" /> Clear ({selectedIds.size})
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} />
+                  {refreshingAvatars ? 'Refreshing avatars…' : 'Refresh Avatars'}
                 </button>
               )}
+              {/* Select all / none toggle — the one most-used action stays a single click */}
+              <button
+                onClick={allSelected ? clearAll : selectAll}
+                className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                style={{ color: allSelected ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+              >
+                {allSelected
+                  ? <CheckSquare className="w-3.5 h-3.5" />
+                  : <Square className="w-3.5 h-3.5" />
+                }
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </button>
+              {/* Situational selection shortcuts — tucked behind a menu instead of four always-visible chips */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.47)' }}
+                >
+                  Select by…
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  <DropdownMenuItem onClick={selectActive} className="cursor-pointer text-[12px]">Active Only</DropdownMenuItem>
+                  <DropdownMenuItem onClick={selectHighBal} className="cursor-pointer text-[12px]">High Balance</DropdownMenuItem>
+                  <DropdownMenuItem onClick={selectAvailable} className="cursor-pointer text-[12px]">Has Available</DropdownMenuItem>
+                  <DropdownMenuItem onClick={selectWithRes} className="cursor-pointer text-[12px]">Has Reservations</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -551,21 +618,6 @@ export default function AccountsPage() {
                       )}
                     </div>
 
-                    {/* Use for stats toggle hint */}
-                    {statsMode === 'all' && (
-                      <button
-                        onClick={() => setStatsMode('selected')}
-                        className="flex-shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                        style={{
-                          background: 'rgba(34,211,238,0.08)',
-                          color: '#0e7490',
-                          border: '1px solid rgba(34,211,238,0.20)',
-                        }}
-                      >
-                        Use for stats ↑
-                      </button>
-                    )}
-
                     <button
                       onClick={clearAll}
                       className="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
@@ -585,35 +637,45 @@ export default function AccountsPage() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="glass-card p-5 h-52 animate-pulse" />
+                <SkeletonCard key={i} lines={2} />
               ))}
             </div>
           ) : accounts.length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <Coins className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No accounts yet. Add your first Roblox account.</p>
-              <Button onClick={() => setModalOpen(true)} className="mt-4 gap-2 bg-primary text-primary-foreground text-xs h-8">
-                <Plus className="w-3.5 h-3.5" /> Add Account
-              </Button>
-            </div>
+            <EmptyState
+              icon={Coins}
+              title="No accounts yet"
+              description="Add your first Roblox account to start tracking inventory, reservations, and capital position."
+              actionLabel="Add Account"
+              onAction={() => setModalOpen(true)}
+            />
           ) : activeInventoryAccounts.length === 0 ? (
-            <div className="glass-card p-12 text-center" style={{ opacity: 0.75 }}>
-              <Archive className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-              <p className="text-sm text-muted-foreground">No active inventory — all accounts are depleted.</p>
-            </div>
+            <EmptyState
+              icon={Archive}
+              title="No active inventory"
+              description="Every account is currently depleted. Restock an existing account or add a new one to resume fulfilling orders."
+              actionLabel="Add Account"
+              onAction={() => setModalOpen(true)}
+            />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              variants={staggerContainer}
+              initial="initial"
+              whileInView="animate"
+              viewport={{ once: true, amount: 0.2 }}
+            >
               {activeInventoryAccounts.map(account => (
-                <AccountCard
-                  key={account.id}
-                  account={account}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  isSelected={selectedIds.has(account.id)}
-                  onToggleSelect={() => toggleSelect(account.id)}
-                />
+                <motion.div key={account.id} variants={staggerItem}>
+                  <AccountCard
+                    account={account}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    isSelected={selectedIds.has(account.id)}
+                    onToggleSelect={() => toggleSelect(account.id)}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
 
           {/* ── Depleted Accounts (collapsed by default) ── */}
@@ -665,9 +727,10 @@ export default function AccountsPage() {
           )}
         </div>
 
-        {/* ── Reservations panel ── */}
+        {/* ── 03 · Capacity — reservations panel ── */}
         {!loading && (
           <div className="space-y-3">
+            <SectionLabel index="03" label="Capacity" />
             <button
               onClick={() => setResExpanded(p => !p)}
               className="flex items-center gap-3 w-full text-left"

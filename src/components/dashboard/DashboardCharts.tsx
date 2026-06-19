@@ -4,6 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts'
+import { formatPHP } from '@/lib/utils/pricing'
 
 const TT = {
   backgroundColor: 'rgba(10, 8, 24, 0.94)',
@@ -54,7 +55,7 @@ export function RevenueChart({ data }: { data: { day: string; revenue: number; p
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(139,92,246,0.06)" vertical={false} />
           <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={TT} formatter={(v) => `₱${v}`} />
+          <Tooltip contentStyle={TT} formatter={(v) => formatPHP(Number(v))} />
           <Area
             type="monotone" dataKey="revenue" stroke="#e879f9" strokeWidth={2.5}
             fill="url(#gRev)" name="Revenue"

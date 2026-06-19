@@ -11,6 +11,24 @@ import {
   CheckCircle2, AlertTriangle, XCircle, ShieldCheck,
   Wallet, PiggyBank, Lock, Package, Coins, RefreshCw,
 } from 'lucide-react'
+import { cardStagger, cardStaggerItem } from '@/lib/motion'
+import { SkeletonCard } from '@/components/shared/Skeleton'
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3"
+      initial={{ opacity: 0, x: -16 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 type CheckStatus = 'PASS' | 'WARNING' | 'FAIL'
 
@@ -53,7 +71,7 @@ function fmtValue(value: number, unit: 'php' | 'robux'): string {
 }
 
 function fmtDiff(value: number, unit: 'php' | 'robux'): string {
-  if (Math.abs(value) < 0.005) return unit === 'robux' ? '0 R$' : '₱0.00'
+  if (Math.abs(value) < 0.005) return unit === 'robux' ? '0 R$' : formatPHP(0)
   const sign = value > 0 ? '+' : '−'
   return sign + fmtValue(Math.abs(value), unit)
 }
@@ -111,11 +129,18 @@ export default function FinancialIntegrityPage() {
         gradient="linear-gradient(135deg, #f87171 0%, #fbbf24 50%, rgba(255,255,255,0.80) 100%)"
       />
 
-      <div className="p-5 space-y-4">
+      <div className="p-5 space-y-5">
+
+        {/* ── 01 · Reconciliation Status ── */}
+        <SectionLabel index="01" label="Reconciliation Status" />
 
         {/* ── Overall status banner ── */}
-        <div
+        <motion.div
           className="glass-elevated p-5 flex items-center justify-between flex-wrap gap-3"
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           style={{ borderColor: overallStyle.border }}
         >
           <div className="flex items-center gap-3">
@@ -159,16 +184,25 @@ export default function FinancialIntegrityPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
-        </div>
+        </motion.div>
+
+        {/* ── 02 · Per-Check Detail ── */}
+        <SectionLabel index="02" label="Per-Check Detail" />
 
         {/* ── Per-check cards ── */}
         {loading ? (
-          <div className="glass-card p-8 flex justify-center">
-            <div className="spinner" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+            {[...Array(4)].map((_, i) => <SkeletonCard key={i} lines={3} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-            {checks.map((check, i) => {
+          <motion.div
+            className="grid grid-cols-1 lg:grid-cols-2 gap-3.5"
+            variants={cardStagger}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.2 }}
+          >
+            {checks.map((check) => {
               const meta = META[check.check_name] ?? { icon: ShieldCheck, unit: 'php' as const }
               const Icon = meta.icon
               const style = STATUS_STYLES[check.status]
@@ -177,9 +211,7 @@ export default function FinancialIntegrityPage() {
               return (
                 <motion.div
                   key={check.check_name}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1], delay: i * 0.04 }}
+                  variants={cardStaggerItem}
                   className="glass-card p-5"
                   style={{ borderColor: style.border }}
                 >
@@ -235,7 +267,7 @@ export default function FinancialIntegrityPage() {
                 </motion.div>
               )
             })}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

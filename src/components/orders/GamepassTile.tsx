@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { GamepassWithGame } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { springToggle } from '@/lib/motion'
+import { formatPHP } from '@/lib/utils/pricing'
 
 interface GamepassTileProps {
   gamepass: GamepassWithGame
@@ -76,10 +77,10 @@ export default function GamepassTile({ gamepass, quantity, onAdd, onRemove }: Ga
         </span>
         <span className="w-px h-3" style={{ background: 'rgba(255,255,255,0.130)' }} />
         <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.84)' }}>
-          ₱{gamepass.your_price}
+          {formatPHP(gamepass.your_price)}
         </span>
         <span className="ml-auto text-[10px] font-semibold tabular-nums" style={{ color: 'rgba(52,211,153,0.85)' }}>
-          +₱{gamepass.profit.toFixed(2)}
+          +{formatPHP(gamepass.profit)}
         </span>
       </div>
     </button>

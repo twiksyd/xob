@@ -25,7 +25,7 @@ export function formatRobux(amount: number): string {
 }
 
 export function formatPHP(amount: number): string {
-  return '₱' + amount.toFixed(2)
+  return '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function getStatusColor(status: 'Good' | 'Okay' | 'Bad'): string {

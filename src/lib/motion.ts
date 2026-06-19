@@ -27,6 +27,18 @@ export const staggerItem: Variants = {
   animate:  { opacity: 1, y: 0, transition: t(0.22) },
 }
 
+// Slower, more perceptible stagger for small grids of stat/summary cards (3-5 items) —
+// staggerContainer's 0.04s interval reads as nearly simultaneous at that count.
+export const cardStagger: Variants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } as Transition },
+}
+
+export const cardStaggerItem: Variants = {
+  initial: { opacity: 0, y: 14, scale: 0.97 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: t(0.45) },
+}
+
 export const springToggle: Transition = {
   type: 'spring',
   damping: 26,

@@ -15,7 +15,9 @@
       "Bash(curl -s -D - -o /dev/null http://localhost:3000/integrity)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/wallet)",
       "Bash(git log *)",
-      "Bash(node -e \"require\\('three'\\); console.log\\('three ok'\\)\")"
+      "Bash(node -e \"require\\('three'\\); console.log\\('three ok'\\)\")",
+      "Bash(echo \"exit: $?\")",
+      "Read(//c/HÚsers/amala/OneDrive/Desktop/xob-mobile/src/app/\\(dashboard\\)/wallet/**)"
     ]
   }
 }

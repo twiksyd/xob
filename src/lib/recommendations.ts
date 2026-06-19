@@ -1,6 +1,7 @@
 import { OrderWithDetails, RobloxAccount, ReservationWithDetails } from '@/lib/types/database'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
-import { getAvailableRobux } from '@/lib/utils/accounts'
+import { getAvailableRobux, estimateRunwayOrders, RUNNING_LOW_THRESHOLD } from '@/lib/utils/accounts'
+import { calculateAvgRobuxPerOrder } from '@/lib/utils/velocity'
 
 export interface Recommendation {
   id: string
@@ -25,7 +26,6 @@ interface BuildInput {
 
 const STALE_ORDER_HOURS = 6
 const STUCK_RESERVATION_HOURS = 48
-const LOW_BALANCE_THRESHOLD = 500
 const OVERCOMMIT_RATIO = 0.7
 
 function ageLabel(hours: number): string {
@@ -44,9 +44,7 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
   const candidates: Recommendation[] = []
 
   const recentCompleted = orders.filter(o => o.status === 'completed').slice(0, 30)
-  const avgRobuxPerOrder = recentCompleted.length
-    ? Math.round(recentCompleted.reduce((s, o) => s + (o.robux_amount ?? 0), 0) / recentCompleted.length)
-    : 0
+  const avgRobuxPerOrder = calculateAvgRobuxPerOrder(orders)
   const avgSellingPrice = recentCompleted.length
     ? recentCompleted.reduce((s, o) => s + (o.selling_price ?? 0), 0) / recentCompleted.length
     : 0
@@ -86,11 +84,10 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
   const lowAccounts = accounts
     .filter(acc => acc.status === 'active')
     .map(acc => ({ acc, available: getAvailableRobux(acc) }))
-    .filter(({ available }) => available < LOW_BALANCE_THRESHOLD)
+    .filter(({ available }) => available < RUNNING_LOW_THRESHOLD)
     .sort((a, b) => a.available - b.available)
 
-  const runwayFor = (available: number) =>
-    avgRobuxPerOrder > 0 ? Math.max(0, Math.floor(available / avgRobuxPerOrder)) : null
+  const runwayFor = (available: number) => estimateRunwayOrders(available, avgRobuxPerOrder)
 
   if (lowAccounts.length === 1) {
     const { acc, available } = lowAccounts[0]
@@ -98,7 +95,7 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
     const runwayText = runway !== null
       ? `enough for roughly ${runway} more typical order${runway === 1 ? '' : 's'} (your recent average runs ~${formatRobux(avgRobuxPerOrder)} per order)`
       : `running low, with no recent order history yet to estimate runway from`
-    const deficit = LOW_BALANCE_THRESHOLD - available
+    const deficit = RUNNING_LOW_THRESHOLD - available
     const runwayUrgency = runway !== null ? Math.max(0, 5 - runway) * 28 : 40
 
     candidates.push({
@@ -116,16 +113,16 @@ export function buildRecommendations({ orders, accounts, reservations, onAdvance
     const { acc: worst, available: worstAvailable } = lowAccounts[0]
     const runway = runwayFor(worstAvailable)
     const runwayUrgency = runway !== null ? Math.max(0, 5 - runway) * 28 : 40
-    const totalShortfall = lowAccounts.reduce((s, { available }) => s + (LOW_BALANCE_THRESHOLD - available), 0)
+    const totalShortfall = lowAccounts.reduce((s, { available }) => s + (RUNNING_LOW_THRESHOLD - available), 0)
     const others = lowAccounts.length - 1
 
     candidates.push({
       id: 'restock-batch',
       headline: `Restock ${lowAccounts.length} accounts running low — "${worst.username}" is worst, with only ${formatRobux(worstAvailable)} left`,
-      reasoning: `${lowAccounts.length} active accounts are now under your ${formatRobux(LOW_BALANCE_THRESHOLD)} comfort threshold, "${worst.username}" furthest along (${formatRobux(worstAvailable)} available, ${runway !== null ? `~${runway} order${runway === 1 ? '' : 's'} of runway left` : 'no recent order history to estimate runway'}).`,
+      reasoning: `${lowAccounts.length} active accounts are now under your ${formatRobux(RUNNING_LOW_THRESHOLD)} comfort threshold, "${worst.username}" furthest along (${formatRobux(worstAvailable)} available, ${runway !== null ? `~${runway} order${runway === 1 ? '' : 's'} of runway left` : 'no recent order history to estimate runway'}).`,
       impact: `One restocking pass across these ${lowAccounts.length} accounts covers a combined shortfall of about ${formatRobux(totalShortfall)} — clearing the whole backlog in one trip instead of reacting account-by-account as each one runs dry.`,
       ifNothing: `Each of these accounts can independently come up short mid-sale — and the more of them run dry, the fewer accounts you have left to fall back on, compounding the risk every day you wait.`,
-      score: (LOW_BALANCE_THRESHOLD - worstAvailable) * 0.6 + runwayUrgency + Math.min(others * 6, 60),
+      score: (RUNNING_LOW_THRESHOLD - worstAvailable) * 0.6 + runwayUrgency + Math.min(others * 6, 60),
       action: { label: 'View Accounts', href: '/accounts' },
     })
   }

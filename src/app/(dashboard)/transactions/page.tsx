@@ -12,9 +12,30 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Receipt, ArrowDownCircle, ArrowUpCircle, TrendingUp, ShoppingCart, Coins } from 'lucide-react'
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { springToggle } from '@/lib/motion'
+import CountUp from '@/components/shared/CountUp'
+import { SkeletonTable } from '@/components/shared/Skeleton'
+import EmptyState from '@/components/shared/EmptyState'
+import { formatPHP } from '@/lib/utils/pricing'
+import { useUrlState } from '@/hooks/useUrlState'
+
+function SectionLabel({ index, label }: { index: string; label: string }) {
+  return (
+    <motion.div
+      className="flex items-center gap-3"
+      initial={{ opacity: 0, x: -16 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <span className="text-[10px] font-black tracking-[0.12em] uppercase" style={{ color: 'rgba(255,255,255,0.20)' }}>§ {index}</span>
+      <span style={{ width: 24, height: 1, background: 'rgba(255,255,255,0.12)', display: 'inline-block', flexShrink: 0 }} />
+      <span className="label-caps">{label}</span>
+    </motion.div>
+  )
+}
 
 type TransactionWithOrder = Transaction & {
   orders: { order_number: string | null; buyer_name: string | null } | null
@@ -25,6 +46,9 @@ type Period = 'today' | 'overall'
 type SalesSummary = { orders_count: number; revenue: number; profit: number; robux: number }
 
 const EMPTY_SUMMARY: SalesSummary = { orders_count: 0, revenue: 0, profit: 0, robux: 0 }
+
+const PERIODS: readonly Period[] = ['today', 'overall']
+const TX_TYPES = ['all', 'sale', 'refund', 'topup', 'adjustment'] as const
 
 type SalesSummaryRow = { orders_count: number | string; revenue: number | string; profit: number | string; robux: number | string }
 
@@ -43,8 +67,8 @@ export default function TransactionsPage() {
   const [summaries, setSummaries]       = useState<Record<Period, SalesSummary>>({ today: EMPTY_SUMMARY, overall: EMPTY_SUMMARY })
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
-  const [filterType, setFilterType]     = useState('all')
-  const [period, setPeriod]             = useState<Period>('overall')
+  const [filterType, setFilterType]     = useUrlState<typeof TX_TYPES[number]>('type', 'all', TX_TYPES)
+  const [period, setPeriod]             = useUrlState<Period>('period', 'overall', PERIODS)
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
 
@@ -125,11 +149,11 @@ export default function TransactionsPage() {
         gradient="linear-gradient(135deg, #34d399 0%, #22d3ee 60%, rgba(255,255,255,0.80) 100%)"
       />
 
-      <div className="p-5 space-y-4">
+      <div className="p-5 space-y-5">
 
-        {/* ── Period toggle ── */}
+        {/* ── 01 · Sales Summary ── */}
         <div className="flex items-center justify-between">
-          <span className="label-caps">Sales Summary</span>
+          <SectionLabel index="01" label="Sales Summary" />
           <div className="metric-toggle">
             {(['today', 'overall'] as Period[]).map(p => (
               <button
@@ -151,7 +175,13 @@ export default function TransactionsPage() {
         </div>
 
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <motion.div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3.5"
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        >
 
           {/* Profit — hero card */}
           <div
@@ -159,10 +189,10 @@ export default function TransactionsPage() {
             style={{
               background: metrics.profit > 0
                 ? 'rgba(52,211,153,0.07) padding-box, linear-gradient(140deg, rgba(52,211,153,0.28), rgba(34,211,238,0.18) 55%, rgba(52,211,153,0.12)) border-box'
-                : 'rgba(255,255,255,0.74) padding-box, linear-gradient(140deg, rgba(139,92,246,0.20), rgba(34,211,238,0.16) 55%, rgba(232,121,249,0.12)) border-box',
+                : 'rgba(167,139,250,0.05) padding-box, linear-gradient(140deg, rgba(167,139,250,0.24), rgba(34,211,238,0.14) 55%, rgba(167,139,250,0.10)) border-box',
               boxShadow: metrics.profit > 0
-                ? 'inset 0 1px 0 rgba(255,255,255,0.92), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(255,255,255,0.065)'
-                : undefined,
+                ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(0,0,0,0.32)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 12px rgba(167,139,250,0.08), 0 8px 28px rgba(0,0,0,0.32)',
             }}
           >
             <div className="flex items-center justify-between mb-2">
@@ -182,9 +212,9 @@ export default function TransactionsPage() {
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.18 }}
                 className="profit-counter-value"
-                style={{ color: metrics.profit > 0 ? '#34d399' : 'oklch(0.095 0.032 272)', fontSize: '24px' }}
+                style={{ color: metrics.profit > 0 ? '#34d399' : 'rgba(255,255,255,0.80)', fontSize: '24px' }}
               >
-                ₱{metrics.profit.toFixed(2)}
+                <CountUp value={metrics.profit} format={formatPHP} duration={1.4} />
               </motion.p>
             </AnimatePresence>
             <AnimatePresence mode="wait">
@@ -218,9 +248,9 @@ export default function TransactionsPage() {
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.18, delay: 0.03 }}
                 className="stat-value"
-                style={{ color: 'oklch(0.095 0.032 272)', fontSize: '22px' }}
+                style={{ color: 'rgba(255,255,255,0.88)', fontSize: '22px' }}
               >
-                ₱{metrics.revenue.toFixed(2)}
+                <CountUp value={metrics.revenue} format={formatPHP} duration={1.4} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -244,9 +274,9 @@ export default function TransactionsPage() {
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.18, delay: 0.06 }}
                 className="stat-value"
-                style={{ color: 'oklch(0.095 0.032 272)', fontSize: '22px' }}
+                style={{ color: 'rgba(255,255,255,0.88)', fontSize: '22px' }}
               >
-                {metrics.orders}
+                <CountUp value={metrics.orders} format={(v) => `${Math.round(v)}`} duration={1.4} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -272,14 +302,17 @@ export default function TransactionsPage() {
                 className="stat-value"
                 style={{ color: '#f59e0b', fontSize: '22px' }}
               >
-                {metrics.robux.toLocaleString()}
+                <CountUp value={metrics.robux} format={(v) => Math.round(v).toLocaleString()} duration={1.4} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
               R$ sold
             </p>
           </div>
-        </div>
+        </motion.div>
+
+        {/* ── 02 · Transaction History ── */}
+        <SectionLabel index="02" label="Transaction History" />
 
         {/* ── Type filter ── */}
         <div className="flex items-center gap-3">
@@ -305,21 +338,25 @@ export default function TransactionsPage() {
 
         {/* ── Transaction table ── */}
         {loading ? (
-          <div className="glass-card p-8 flex justify-center">
-            <div className="spinner" />
-          </div>
+          <SkeletonTable rows={6} cols={5} />
         ) : filtered.length === 0 ? (
-          <div className="glass-card p-12 text-center">
-            <Receipt className="w-10 h-10 mx-auto mb-3" style={{ color: 'oklch(0.62 0.010 265)' }} />
-            <p className="text-[14px] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.40)' }}>
-              {period === 'today' ? 'No transactions today' : 'No transactions yet'}
-            </p>
-            <p className="text-[12px]" style={{ color: 'oklch(0.62 0.010 265)' }}>
-              {period === 'today' ? 'Switch to Overall to see all history' : 'Complete an order to see history'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Receipt}
+            title={period === 'today' ? 'No transactions today' : 'No transactions yet'}
+            description={period === 'today'
+              ? 'Nothing has posted since midnight. Switch to Overall to see your full history.'
+              : 'Completed orders post here automatically as sales are fulfilled.'}
+            actionLabel={period === 'today' ? 'View Overall' : undefined}
+            onAction={period === 'today' ? () => setPeriod('overall') : undefined}
+          />
         ) : (
-          <div className="glass-card overflow-hidden">
+          <motion.div
+            className="glass-card overflow-hidden"
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full data-table">
                 <thead>
@@ -375,13 +412,13 @@ export default function TransactionsPage() {
                           {tx.balance_after?.toLocaleString() ?? '—'} R$
                         </td>
                         <td className="text-right text-[12px]" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                          {tx.selling_price ? `₱${tx.selling_price}` : '—'}
+                          {tx.selling_price ? formatPHP(tx.selling_price) : '—'}
                         </td>
                         <td className={cn(
                           'text-right text-[12px] font-semibold',
                           (tx.profit ?? 0) >= 0 ? 'text-emerald-500' : 'text-red-400'
                         )}>
-                          {tx.profit ? `₱${tx.profit.toFixed(2)}` : '—'}
+                          {tx.profit ? formatPHP(tx.profit) : '—'}
                         </td>
                       </tr>
                     )
@@ -389,7 +426,7 @@ export default function TransactionsPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </motion.div>
         )}
 
       </div>

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Gamepass, Game } from '@/lib/types/database'
-import { computeGamepassFields, ROBUX_RATE } from '@/lib/utils/pricing'
+import { computeGamepassFields, ROBUX_RATE, formatPHP } from '@/lib/utils/pricing'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog'
@@ -78,7 +78,7 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-elevated sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{gamepass ? 'Edit Gamepass' : 'Add Gamepass'}</DialogTitle>
         </DialogHeader>
@@ -132,12 +132,12 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="rounded-lg py-2" style={{ background: 'rgba(255,255,255,0.038)' }}>
                 <p className="text-[10px] mb-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>Your Cost</p>
-                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>₱{computed.your_cost.toFixed(2)}</p>
+                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>{formatPHP(computed.your_cost)}</p>
               </div>
               <div className="rounded-lg py-2" style={{ background: computed.profit >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(244,63,94,0.08)' }}>
                 <p className="text-[10px] mb-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>Profit</p>
                 <p className={`text-[13px] font-bold ${computed.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  ₱{computed.profit.toFixed(2)}
+                  {formatPHP(computed.profit)}
                 </p>
               </div>
               <div className="rounded-lg py-2 flex flex-col items-center justify-center" style={{ background: 'rgba(255,255,255,0.038)' }}>
@@ -146,13 +146,13 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
               </div>
             </div>
             <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
-              Suggested lower price: ₱{computed.suggested_lower_price.toFixed(0)}
+              Suggested lower price: {formatPHP(computed.suggested_lower_price)}
             </p>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
-            <Button type="submit" disabled={loading} className="bg-primary text-primary-foreground">
+            <Button type="submit" disabled={loading} className="btn-primary px-5">
               {loading ? 'Saving...' : gamepass ? 'Save Changes' : 'Add Gamepass'}
             </Button>
           </DialogFooter>

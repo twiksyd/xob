@@ -14,22 +14,28 @@ interface StatCardProps {
   trend?: { value: string; positive: boolean }
   className?: string
   animKey?: string
+  /** Elevates this card as the grid's focal point — use on at most one card per grid. */
+  featured?: boolean
 }
 
 export default function StatCard({
   title, value, subtitle, icon: Icon,
   iconColor = '#22d3ee', accentColor = '#22d3ee',
-  trend, className, animKey,
+  trend, className, animKey, featured = false,
 }: StatCardProps) {
   return (
     <motion.div
       {...hoverLift}
       className={`relative overflow-hidden rounded-2xl p-5 stat-card ${className ?? ''}`}
       style={{
-        background: `rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, ${accentColor}38, rgba(34,211,238,0.22) 50%, rgba(232,121,249,0.14)) border-box`,
+        background: featured
+          ? `rgba(255,255,255,0.052) padding-box, linear-gradient(135deg, ${accentColor}55, rgba(34,211,238,0.28) 50%, rgba(232,121,249,0.18)) border-box`
+          : `rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, ${accentColor}38, rgba(34,211,238,0.22) 50%, rgba(232,121,249,0.14)) border-box`,
         border: '1px solid transparent',
         backdropFilter: 'blur(24px) saturate(170%)',
-        boxShadow: `0 2px 16px ${accentColor}14, 0 4px 24px rgba(255,255,255,0.092), inset 0 0 0 1px rgba(255,255,255,0.22)`,
+        boxShadow: featured
+          ? `0 0 28px ${accentColor}22, 0 4px 24px rgba(255,255,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.26)`
+          : `0 2px 16px ${accentColor}14, 0 4px 24px rgba(255,255,255,0.092), inset 0 0 0 1px rgba(255,255,255,0.22)`,
       }}
     >
       <div
@@ -54,7 +60,7 @@ export default function StatCard({
 
         <div className="min-w-0 flex-1">
           <p className="label-caps mb-1">{title}</p>
-          <div className="overflow-hidden" style={{ height: '32px' }}>
+          <div className="overflow-hidden" style={{ height: featured ? '40px' : '32px' }}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={animKey ?? value}
@@ -63,6 +69,7 @@ export default function StatCard({
                 animate="animate"
                 exit="exit"
                 className="stat-value"
+                style={featured ? { fontSize: '34px', textShadow: `0 0 24px ${accentColor}40, 0 0 48px ${accentColor}18` } : undefined}
               >
                 {value}
               </motion.p>

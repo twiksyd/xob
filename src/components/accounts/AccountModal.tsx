@@ -140,7 +140,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-elevated sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{account ? 'Edit Account' : 'Add Roblox Account'}</DialogTitle>
         </DialogHeader>
@@ -351,7 +351,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
-            <Button type="submit" disabled={loading} className="bg-primary text-primary-foreground">
+            <Button type="submit" disabled={loading} className="btn-primary px-5">
               {loading ? 'Saving...' : account ? 'Save Changes' : 'Add Account'}
             </Button>
           </DialogFooter>

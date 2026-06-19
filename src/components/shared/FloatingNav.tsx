@@ -94,10 +94,10 @@ export default function FloatingNav() {
                 <Link
                   key={href}
                   href={href}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold tracking-wide transition-all duration-150 whitespace-nowrap flex-shrink-0"
+                  className="nav-shine flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold tracking-wide transition-all duration-150 whitespace-nowrap flex-shrink-0 hover:bg-white/5"
                   style={{
                     color: active ? '#22d3ee' : 'rgba(255,255,255,0.40)',
-                    background: active ? 'rgba(34,211,238,0.08)' : 'transparent',
+                    background: active ? 'rgba(34,211,238,0.08)' : undefined,
                     border: `1px solid ${active ? 'rgba(34,211,238,0.20)' : 'transparent'}`,
                     textShadow: active ? '0 0 12px rgba(34,211,238,0.40)' : 'none',
                   }}
@@ -117,7 +117,7 @@ export default function FloatingNav() {
             {/* Sign out — desktop */}
             <button
               onClick={handleSignOut}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-150 hover:bg-red-500/10 hover:text-red-400"
+              className="nav-shine hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-150 hover:bg-red-500/10 hover:text-red-400"
               style={{ color: 'rgba(255,255,255,0.24)' }}
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -180,7 +180,7 @@ export default function FloatingNav() {
                     <Link
                       key={href}
                       href={href}
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-[12px] font-semibold transition-all"
+                      className="nav-shine flex items-center gap-2.5 px-4 py-3 rounded-xl text-[12px] font-semibold transition-all"
                       style={{
                         color: active ? '#22d3ee' : 'rgba(255,255,255,0.52)',
                         background: active ? 'rgba(34,211,238,0.08)' : 'rgba(255,255,255,0.028)',
@@ -201,7 +201,7 @@ export default function FloatingNav() {
               <div className="px-3 pb-3">
                 <button
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-[12px] font-semibold transition-all hover:bg-red-500/10"
+                  className="nav-shine w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-[12px] font-semibold transition-all hover:bg-red-500/10"
                   style={{
                     color: 'rgba(248,113,113,0.65)',
                     background: 'rgba(248,113,113,0.048)',

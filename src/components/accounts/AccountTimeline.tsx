@@ -5,6 +5,7 @@ import { OrderWithItems, RobloxReservation, OrderReassignment } from '@/lib/type
 import { format } from 'date-fns'
 import { History } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatPHP } from '@/lib/utils/pricing'
 
 interface AccountTimelineProps {
   accountId: string
@@ -36,7 +37,7 @@ export default function AccountTimeline({ accountId, orders, reservations, reass
           color: '#34d399',
           title: `Completed ${label}`,
           amounts: [
-            { label: 'Revenue', value: `+₱${(order.selling_price ?? 0).toFixed(2)}`, positive: true },
+            { label: 'Revenue', value: `+${formatPHP(order.selling_price ?? 0)}`, positive: true },
             { label: 'Robux', value: `-${(order.robux_amount ?? 0).toLocaleString()} R$`, positive: false },
           ],
         })
