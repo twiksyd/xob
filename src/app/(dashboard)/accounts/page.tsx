@@ -42,7 +42,7 @@ type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
 const PAGE_TABS: readonly PageTab[] = ['accounts', 'planning']
 
-// Daily Transfer Tracker — every account has a 500 R$/day instant-transfer
+// Daily Transfer Tracker — every account has a 1000 R$/day instant-transfer
 // allowance. sent_today / reserved / available all come from the
 // get_transfer_allowance_summary RPC (server-aggregated — transfer_logs is
 // permanent/append-only and will keep growing, so it's never summed client-side).
@@ -269,7 +269,7 @@ function AccountsPageContent() {
   }
 
   // Daily Transfer Tracker — every mutation goes through a server-side RPC
-  // that locks the account row and re-validates the 500 R$ ceiling, so two
+  // that locks the account row and re-validates the 1000 R$ ceiling, so two
   // concurrent actions on the same account can't both squeeze past a stale
   // check. Refetch-after-mutation rather than optimistic local state, since
   // a single action here can move numbers across three different views at
@@ -732,7 +732,7 @@ function AccountsPageContent() {
           )}
         </motion.div>
 
-        {/* ── Daily Transfer Tracker — 500 R$/day allowance per account, resets at local midnight ── */}
+        {/* ── Daily Transfer Tracker — 1000 R$/day allowance per account, resets at local midnight ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}

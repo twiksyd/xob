@@ -1,6 +1,6 @@
 // Daily Transfer Tracker — shared helpers. Replaces lib/utils/instantSend.ts.
 
-export const DAILY_TRANSFER_LIMIT = 500
+export const DAILY_TRANSFER_LIMIT = 1000
 
 // Start of "today" in the operator's local time, as an ISO string — passed to
 // the record_transfer / create_transfer_reservation / get_transfer_allowance_summary
@@ -13,11 +13,13 @@ export function getStartOfTodayISO(): string {
 
 export type AllowanceBand = 'green' | 'yellow' | 'red'
 
-// 0-249 used/reserved -> green, 250-449 -> yellow, 450-500 -> red.
+// Bands scale with DAILY_TRANSFER_LIMIT rather than hardcoded absolute
+// numbers, so changing the limit doesn't silently break the thresholds:
+// <50% used/reserved -> green, 50-89% -> yellow, >=90% -> red.
 export function getAllowanceBand(sentToday: number, reserved: number): AllowanceBand {
-  const committed = sentToday + reserved
-  if (committed >= 450) return 'red'
-  if (committed >= 250) return 'yellow'
+  const pct = DAILY_TRANSFER_LIMIT > 0 ? (sentToday + reserved) / DAILY_TRANSFER_LIMIT : 0
+  if (pct >= 0.9) return 'red'
+  if (pct >= 0.5) return 'yellow'
   return 'green'
 }
 

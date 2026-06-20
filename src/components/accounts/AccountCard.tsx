@@ -24,7 +24,7 @@ interface AccountCardProps {
   isSelected?: boolean
   onToggleSelect?: () => void
   /** Daily Transfer Tracker — omit to hide the whole section (e.g. on depleted
-   *  accounts, where sending 500 R$/day doesn't make sense). */
+   *  accounts, where sending 1000 R$/day doesn't make sense). */
   allowance?: AllowanceSummary
   history?: TransferLog[]
   reservationQueue?: TransferReservation[]
@@ -299,7 +299,7 @@ export default function AccountCard({
         )}
       </div>
 
-      {/* ── Daily Transfer Tracker — 500 R$/day instant-transfer allowance ── */}
+      {/* ── Daily Transfer Tracker — 1000 R$/day instant-transfer allowance ── */}
       {showTransferTracker && (
         <div className="space-y-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
           <span className="label-caps">Daily Transfer</span>
