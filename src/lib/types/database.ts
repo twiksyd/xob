@@ -325,6 +325,7 @@ export type Database = {
           amount: number
           reservation_id: string | null
           sent_at: string
+          note: string | null
         }
         Insert: {
           id?: string
@@ -333,6 +334,7 @@ export type Database = {
           amount: number
           reservation_id?: string | null
           sent_at?: string
+          note?: string | null
         }
         Update: never
       }

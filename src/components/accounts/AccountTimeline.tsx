@@ -1,17 +1,21 @@
 'use client'
 
 import { useMemo } from 'react'
-import { OrderWithItems, RobloxReservation, OrderReassignment } from '@/lib/types/database'
+import { OrderWithItems, RobloxReservation, OrderReassignment, TransferLog, TransferReservation } from '@/lib/types/database'
 import { format } from 'date-fns'
 import { History } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatPHP } from '@/lib/utils/pricing'
+import { formatPHP, formatRobux } from '@/lib/utils/pricing'
 
 interface AccountTimelineProps {
   accountId: string
   orders: OrderWithItems[]
   reservations: RobloxReservation[]
   reassignments: OrderReassignment[]
+  /** Full history (not just today) — the Daily Transfer Tracker's per-card
+   *  view only ever shows today, so this is the only place older days are visible. */
+  transferLogs?: TransferLog[]
+  transferReservations?: TransferReservation[]
 }
 
 type TimelineEvent = {
@@ -23,7 +27,10 @@ type TimelineEvent = {
   amounts?: { label: string; value: string; positive: boolean }[]
 }
 
-export default function AccountTimeline({ accountId, orders, reservations, reassignments }: AccountTimelineProps) {
+export default function AccountTimeline({
+  accountId, orders, reservations, reassignments,
+  transferLogs = [], transferReservations = [],
+}: AccountTimelineProps) {
   const events = useMemo<TimelineEvent[]>(() => {
     const out: TimelineEvent[] = []
 
@@ -105,8 +112,49 @@ export default function AccountTimeline({ accountId, orders, reservations, reass
       })
     }
 
+    for (const log of transferLogs) {
+      out.push({
+        id: `${log.id}-sent`,
+        date: log.sent_at,
+        color: '#34d399',
+        title: 'Instant Transfer Sent',
+        detail: log.note || undefined,
+        amounts: [{ label: 'Sent', value: `${formatRobux(log.amount)}`, positive: false }],
+      })
+    }
+
+    for (const res of transferReservations) {
+      const label = res.customer_label || 'Reservation'
+      out.push({
+        id: `${res.id}-reserved`,
+        date: res.created_at,
+        color: '#f59e0b',
+        title: `Transfer Reserved — ${label}`,
+        detail: res.note || undefined,
+        amounts: [{ label: 'Reserved', value: formatRobux(res.amount), positive: false }],
+      })
+      if (res.fulfilled_at) {
+        out.push({
+          id: `${res.id}-fulfilled`,
+          date: res.fulfilled_at,
+          color: '#34d399',
+          title: `Reservation Fulfilled — ${label}`,
+          amounts: [{ label: 'Sent', value: formatRobux(res.amount), positive: false }],
+        })
+      }
+      if (res.cancelled_at) {
+        out.push({
+          id: `${res.id}-cancelled`,
+          date: res.cancelled_at,
+          color: '#94a3b8',
+          title: `Reservation Cancelled — ${label}`,
+          amounts: [{ label: 'Released', value: formatRobux(res.amount), positive: true }],
+        })
+      }
+    }
+
     return out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [accountId, orders, reservations, reassignments])
+  }, [accountId, orders, reservations, reassignments, transferLogs, transferReservations])
 
   return (
     <div className="space-y-3">

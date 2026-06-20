@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { RobloxAccount, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
-  MoreHorizontal, Edit2, Trash2, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X,
+  MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -27,13 +28,13 @@ interface AccountCardProps {
   allowance?: AllowanceSummary
   history?: TransferLog[]
   reservationQueue?: TransferReservation[]
-  /** accountId (while a quick/custom send is in flight) or a reservationId
-   *  (while fulfilling/cancelling that specific reservation). */
-  busyId?: string | null
-  onQuickTransfer?: (amount: number) => void
+  onQuickTransfer?: (amount: number) => Promise<void>
   onOpenReserveDialog?: () => void
-  onFulfillReservation?: (reservationId: string) => void
-  onCancelReservation?: (reservationId: string) => void
+  onOpenLogDialog?: () => void
+  onEditTransferLog?: (log: TransferLog) => void
+  onDeleteTransferLog?: (log: TransferLog) => void
+  onFulfillReservation?: (reservationId: string) => Promise<void>
+  onCancelReservation?: (reservationId: string) => Promise<void>
 }
 
 const COLOR_AVAILABLE = '#34d399'
@@ -43,16 +44,20 @@ const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 export default function AccountCard({
   account, onEdit, onDelete, isSelected = false, onToggleSelect,
   allowance, history = [], reservationQueue = [],
-  busyId, onQuickTransfer, onOpenReserveDialog, onFulfillReservation, onCancelReservation,
+  onQuickTransfer, onOpenReserveDialog, onOpenLogDialog, onEditTransferLog, onDeleteTransferLog,
+  onFulfillReservation, onCancelReservation,
 }: AccountCardProps) {
   const showTransferTracker = allowance !== undefined
   const [customOpen, setCustomOpen] = useState(false)
   const [customValue, setCustomValue] = useState('')
+  const [customPending, setCustomPending] = useState(false)
+  const [pendingAmount, setPendingAmount] = useState<number | null>(null)
+  const [pendingReservationId, setPendingReservationId] = useState<string | null>(null)
 
-  const available   = getAvailableRobux(account)
-  const depleted     = isDepleted(account)
-  const isLow        = available < 500 && !depleted
-  const isHigh       = account.current_robux >= 8000
+  const available    = getAvailableRobux(account)
+  const depleted      = isDepleted(account)
+  const isLow         = available < 500 && !depleted
+  const isHigh        = account.current_robux >= 8000
 
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
@@ -61,12 +66,31 @@ export default function AccountCard({
   const band = allowance ? getAllowanceBand(allowance.sent_today, allowance.reserved) : 'green'
   const bandColors = ALLOWANCE_BAND_COLORS[band]
 
-  function submitCustomAmount() {
+  async function runQuickTransfer(amt: number) {
+    setPendingAmount(amt)
+    try { await onQuickTransfer?.(amt) } finally { setPendingAmount(null) }
+  }
+
+  async function submitCustomAmount() {
     const v = Number(customValue)
-    if (allowance && v > 0 && v <= allowance.available) {
-      onQuickTransfer?.(v)
+    if (!allowance || !(v > 0 && v <= allowance.available)) return
+    setCustomPending(true)
+    try {
+      await onQuickTransfer?.(v)
       setCustomValue('')
       setCustomOpen(false)
+    } finally {
+      setCustomPending(false)
+    }
+  }
+
+  async function runReservationAction(id: string, action: 'fulfill' | 'cancel') {
+    setPendingReservationId(id)
+    try {
+      if (action === 'fulfill') await onFulfillReservation?.(id)
+      else await onCancelReservation?.(id)
+    } finally {
+      setPendingReservationId(null)
     }
   }
 
@@ -278,12 +302,34 @@ export default function AccountCard({
       {/* ── Daily Transfer Tracker — 500 R$/day instant-transfer allowance ── */}
       {showTransferTracker && (
         <div className="space-y-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
-          <div className="flex items-center justify-between">
-            <span className="label-caps">Daily Transfer</span>
-            <span className="text-[10px] font-semibold tabular-nums" style={{ color: 'rgba(255,255,255,0.44)' }}>
-              Sent {formatRobux(allowance!.sent_today)}
-              {allowance!.reserved > 0 && <span style={{ color: COLOR_RESERVED }}> · Reserved {formatRobux(allowance!.reserved)}</span>}
-            </span>
+          <span className="label-caps">Daily Transfer</span>
+
+          {/* Sent / Reserved / Available — bold, scannable at a glance, not buried in a caption line */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg p-2 text-center" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.16)' }}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: '#34d399', opacity: 0.8 }}>Sent Today</p>
+              <p className="tabular-nums leading-tight" style={{ fontSize: '13px', fontWeight: 800, color: '#34d399' }}>
+                {formatRobux(allowance!.sent_today)}
+              </p>
+            </div>
+            <div
+              className="rounded-lg p-2 text-center"
+              style={{
+                background: allowance!.reserved > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.045)',
+                border: `1px solid ${allowance!.reserved > 0 ? 'rgba(245,158,11,0.18)' : 'rgba(255,255,255,0.075)'}`,
+              }}
+            >
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: allowance!.reserved > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.46)', opacity: 0.8 }}>Reserved</p>
+              <p className="tabular-nums leading-tight" style={{ fontSize: '13px', fontWeight: 800, color: allowance!.reserved > 0 ? COLOR_RESERVED : 'rgba(255,255,255,0.44)' }}>
+                {formatRobux(allowance!.reserved)}
+              </p>
+            </div>
+            <div className="rounded-lg p-2 text-center" style={{ background: bandColors.bg, border: `1px solid ${bandColors.border}` }}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: bandColors.text, opacity: 0.85 }}>Available</p>
+              <p className="tabular-nums leading-tight" style={{ fontSize: '13px', fontWeight: 800, color: bandColors.text }}>
+                {formatRobux(allowance!.available)}
+              </p>
+            </div>
           </div>
 
           {allowance!.available <= 0 ? (
@@ -297,26 +343,32 @@ export default function AccountCard({
             <div className="space-y-2">
               {!customOpen ? (
                 <div className="grid grid-cols-4 gap-1.5">
-                  {QUICK_TRANSFER_AMOUNTS.map(amt => (
-                    <button
-                      key={amt}
-                      type="button"
-                      disabled={amt > allowance!.available || busyId === account.id}
-                      onClick={e => { e.stopPropagation(); onQuickTransfer?.(amt) }}
-                      className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-30"
-                      style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.22)' }}
-                    >
-                      +{amt}
-                    </button>
-                  ))}
-                  <button
+                  {QUICK_TRANSFER_AMOUNTS.map(amt => {
+                    const isPending = pendingAmount === amt
+                    return (
+                      <motion.button
+                        key={amt}
+                        type="button"
+                        whileTap={{ scale: 0.92 }}
+                        disabled={amt > allowance!.available || pendingAmount !== null}
+                        onClick={e => { e.stopPropagation(); runQuickTransfer(amt) }}
+                        className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-30"
+                        style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.22)' }}
+                      >
+                        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : `+${amt}`}
+                      </motion.button>
+                    )
+                  })}
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.92 }}
+                    disabled={pendingAmount !== null}
                     onClick={e => { e.stopPropagation(); setCustomOpen(true) }}
-                    className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors"
+                    className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-30"
                     style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
                   >
                     Custom
-                  </button>
+                  </motion.button>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5">
@@ -330,47 +382,86 @@ export default function AccountCard({
                     onClick={e => e.stopPropagation()}
                     onKeyDown={e => { if (e.key === 'Enter') submitCustomAmount() }}
                     placeholder={`Up to ${allowance!.available}`}
+                    disabled={customPending}
                     className="flex-1 min-w-0 rounded-lg px-2.5 py-2 text-[12px] font-semibold tabular-nums focus:outline-none"
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.88)' }}
                   />
-                  <button
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.92 }}
+                    disabled={customPending}
                     onClick={e => { e.stopPropagation(); submitCustomAmount() }}
-                    className="flex-shrink-0 px-3 py-2 rounded-lg text-[11px] font-bold transition-colors"
+                    className="flex-shrink-0 px-3 py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50"
                     style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.22)' }}
                   >
-                    Send
-                  </button>
-                  <button
+                    {customPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Send'}
+                  </motion.button>
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.92 }}
+                    disabled={customPending}
                     onClick={e => { e.stopPropagation(); setCustomOpen(false); setCustomValue('') }}
-                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-50"
                     style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.50)' }}
                   >
                     <X className="w-3.5 h-3.5" />
-                  </button>
+                  </motion.button>
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onOpenReserveDialog?.() }}
-                className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[12px] font-bold transition-colors"
-                style={{ background: 'rgba(245,158,11,0.10)', color: COLOR_RESERVED, border: '1px solid rgba(245,158,11,0.24)' }}
-              >
-                Reserve Amount
-              </button>
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              disabled={allowance!.available <= 0}
+              onClick={e => { e.stopPropagation(); onOpenReserveDialog?.() }}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold transition-colors disabled:opacity-30"
+              style={{ background: 'rgba(245,158,11,0.10)', color: COLOR_RESERVED, border: '1px solid rgba(245,158,11,0.24)' }}
+            >
+              Reserve Amount
+            </motion.button>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={e => { e.stopPropagation(); onOpenLogDialog?.() }}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold transition-colors"
+              style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
+              title="Record a transfer that already happened"
+            >
+              Log Past Transfer
+            </motion.button>
+          </div>
 
           {history.length > 0 && (
             <div className="rounded-xl p-2.5 space-y-1" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.065)' }}>
               <p className="label-caps">Sent Today</p>
               <div className="space-y-0.5 max-h-24 overflow-y-auto">
                 {history.map(log => (
-                  <div key={log.id} className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold" style={{ color: '#34d399' }}>+{formatRobux(log.amount)}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.40)' }}>{format(new Date(log.sent_at), 'h:mm a')}</span>
+                  <div key={log.id} className="group/log flex items-center gap-2 text-[11px]">
+                    <span className="font-semibold flex-shrink-0" style={{ color: '#34d399' }}>+{formatRobux(log.amount)}</span>
+                    <span className="flex-1 text-right" style={{ color: 'rgba(255,255,255,0.40)' }}>{format(new Date(log.sent_at), 'h:mm a')}</span>
+                    <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/log:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onEditTransferLog?.(log) }}
+                        className="w-5 h-5 rounded flex items-center justify-center"
+                        style={{ color: 'rgba(255,255,255,0.50)' }}
+                        title="Edit this entry"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onDeleteTransferLog?.(log) }}
+                        className="w-5 h-5 rounded flex items-center justify-center"
+                        style={{ color: '#f87171' }}
+                        title="Delete this entry"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -380,42 +471,47 @@ export default function AccountCard({
           {reservationQueue.length > 0 && (
             <div className="rounded-xl p-2.5 space-y-1.5" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.16)' }}>
               <p className="label-caps" style={{ color: COLOR_RESERVED, opacity: 0.8 }}>Reservation Queue</p>
-              {reservationQueue.map(res => (
-                <div key={res.id} className="flex items-center justify-between gap-2 text-[11px]">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                      🟡 {res.customer_label || 'Reserved'} — {formatRobux(res.amount)}
-                    </p>
-                    {res.scheduled_for && (
-                      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.40)' }}>
-                        {format(new Date(res.scheduled_for), 'MMM d, h:mm a')}
+              {reservationQueue.map(res => {
+                const isPending = pendingReservationId === res.id
+                return (
+                  <div key={res.id} className="flex items-center justify-between gap-2 text-[11px]">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                        🟡 {res.customer_label || 'Reserved'} — {formatRobux(res.amount)}
                       </p>
-                    )}
+                      {res.scheduled_for && (
+                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.40)' }}>
+                          {format(new Date(res.scheduled_for), 'MMM d, h:mm a')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.88 }}
+                        disabled={isPending}
+                        onClick={e => { e.stopPropagation(); runReservationAction(res.id, 'fulfill') }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-40"
+                        style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
+                        title="Mark fulfilled — moves to Sent"
+                      >
+                        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.88 }}
+                        disabled={isPending}
+                        onClick={e => { e.stopPropagation(); runReservationAction(res.id, 'cancel') }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-40"
+                        style={{ background: 'rgba(244,63,94,0.10)', color: '#f87171' }}
+                        title="Cancel reservation"
+                      >
+                        <X className="w-3 h-3" />
+                      </motion.button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      disabled={busyId === res.id}
-                      onClick={e => { e.stopPropagation(); onFulfillReservation?.(res.id) }}
-                      className="w-6 h-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-40"
-                      style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
-                      title="Mark fulfilled — moves to Sent"
-                    >
-                      <Check className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId === res.id}
-                      onClick={e => { e.stopPropagation(); onCancelReservation?.(res.id) }}
-                      className="w-6 h-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-40"
-                      style={{ background: 'rgba(244,63,94,0.10)', color: '#f87171' }}
-                      title="Cancel reservation"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

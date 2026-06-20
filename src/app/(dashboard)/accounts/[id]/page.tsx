@@ -16,7 +16,7 @@ import { SkeletonCard, SkeletonTable } from '@/components/shared/Skeleton'
 import Breadcrumb from '@/components/shared/Breadcrumb'
 import { formatPHP } from '@/lib/utils/pricing'
 import {
-  RobloxAccount, RobloxReservation, OrderReassignment, OrderWithItems,
+  RobloxAccount, RobloxReservation, OrderReassignment, OrderWithItems, TransferLog, TransferReservation,
 } from '@/lib/types/database'
 import {
   ShoppingCart, Coins, Wallet, TrendingUp, Percent, Gamepad2,
@@ -36,6 +36,8 @@ export default function AccountLedgerPage() {
   const [orders, setOrders]               = useState<OrderWithItems[]>([])
   const [reservations, setReservations]   = useState<RobloxReservation[]>([])
   const [reassignments, setReassignments] = useState<OrderReassignment[]>([])
+  const [transferLogs, setTransferLogs]   = useState<TransferLog[]>([])
+  const [transferReservations, setTransferReservations] = useState<TransferReservation[]>([])
   const [loading, setLoading]             = useState(true)
 
   const supabaseRef = useRef(createClient())
@@ -43,18 +45,24 @@ export default function AccountLedgerPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [accRes, allAccRes, ordersRes, resRes, reassignRes] = await Promise.all([
+    const [accRes, allAccRes, ordersRes, resRes, reassignRes, transferLogRes, transferResRes] = await Promise.all([
       supabase.from('roblox_accounts').select('*').eq('id', accountId).single(),
       supabase.from('roblox_accounts').select('*').order('username', { ascending: true }),
       supabase.from('orders').select('*, order_items(*)').eq('roblox_account_id', accountId).order('created_at', { ascending: false }),
       supabase.from('robux_reservations').select('*').eq('account_id', accountId).order('created_at', { ascending: false }),
       supabase.from('order_reassignments').select('*').or(`from_account_id.eq.${accountId},to_account_id.eq.${accountId}`).order('created_at', { ascending: false }),
+      // Full history (not just today) — this page is the only place older
+      // days of the Daily Transfer Tracker are visible.
+      supabase.from('transfer_logs').select('*').eq('roblox_account_id', accountId).order('sent_at', { ascending: false }),
+      supabase.from('transfer_reservations').select('*').eq('roblox_account_id', accountId).order('created_at', { ascending: false }),
     ])
     if (!accRes.error && accRes.data) setAccount(accRes.data)
     if (!allAccRes.error && allAccRes.data) setAccounts(allAccRes.data)
     if (!ordersRes.error && ordersRes.data) setOrders(ordersRes.data as OrderWithItems[])
     if (!resRes.error && resRes.data) setReservations(resRes.data)
     if (!reassignRes.error && reassignRes.data) setReassignments(reassignRes.data)
+    if (!transferLogRes.error && transferLogRes.data) setTransferLogs(transferLogRes.data)
+    if (!transferResRes.error && transferResRes.data) setTransferReservations(transferResRes.data)
     setLoading(false)
   }, [supabase, accountId])
 
@@ -262,6 +270,8 @@ export default function AccountLedgerPage() {
           orders={orders}
           reservations={reservations}
           reassignments={reassignments}
+          transferLogs={transferLogs}
+          transferReservations={transferReservations}
         />
 
       </div>

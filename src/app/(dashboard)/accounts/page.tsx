@@ -22,6 +22,7 @@ import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
 import ReserveTransferDialog from '@/components/accounts/ReserveTransferDialog'
+import LogTransferDialog from '@/components/accounts/LogTransferDialog'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown,
@@ -107,7 +108,8 @@ function AccountsPageContent() {
   const [transferFilter, setTransferFilter] = useState<TransferFilter>('all')
   const [transferSort, setTransferSort] = useState<TransferSort>('none')
   const [reserveDialogAccount, setReserveDialogAccount] = useState<RobloxAccount | null>(null)
-  const [transferBusyId, setTransferBusyId] = useState<string | null>(null)
+  const [logDialogAccount, setLogDialogAccount] = useState<RobloxAccount | null>(null)
+  const [editingTransferLog, setEditingTransferLog] = useState<TransferLog | null>(null)
 
   const toast = useToast()
   const confirm = useConfirm()
@@ -271,13 +273,13 @@ function AccountsPageContent() {
   // concurrent actions on the same account can't both squeeze past a stale
   // check. Refetch-after-mutation rather than optimistic local state, since
   // a single action here can move numbers across three different views at
-  // once (allowance summary, history list, reservation queue).
+  // once (allowance summary, history list, reservation queue). Each handler
+  // returns its promise so AccountCard can show a per-button spinner while
+  // it's in flight rather than a blanket page-level busy flag.
   async function handleRecordTransfer(accountId: string, amount: number) {
-    setTransferBusyId(accountId)
     const { error } = await supabase.rpc('record_transfer', {
       p_account_id: accountId, p_amount: amount, p_start_of_today: getStartOfTodayISO(),
     })
-    setTransferBusyId(null)
     if (error) { toast.error(error.message || 'Could not record the transfer.'); return }
     toast.success(`+${formatRobux(amount)} sent.`)
     fetchData()
@@ -306,9 +308,7 @@ function AccountsPageContent() {
   }
 
   async function handleFulfillReservation(reservationId: string) {
-    setTransferBusyId(reservationId)
     const { error } = await supabase.rpc('fulfill_transfer_reservation', { p_reservation_id: reservationId })
-    setTransferBusyId(null)
     if (error) { toast.error(error.message || 'Could not fulfill the reservation.'); return }
     toast.success('Reservation fulfilled — moved to sent.')
     fetchData()
@@ -325,6 +325,49 @@ function AccountsPageContent() {
     const { error } = await supabase.rpc('cancel_transfer_reservation', { p_reservation_id: reservationId })
     if (error) { toast.error(error.message || 'Could not cancel the reservation.'); return }
     toast.success('Reservation cancelled.')
+    fetchData()
+  }
+
+  // Logging/editing a transfer after the fact — backdated entries are
+  // validated against that day's other logs only (not live reservations,
+  // which have nothing to do with a day that's already passed).
+  function handleOpenLogDialog(account: RobloxAccount) {
+    setLogDialogAccount(account)
+    setEditingTransferLog(null)
+  }
+
+  function handleOpenEditLog(account: RobloxAccount, log: TransferLog) {
+    setLogDialogAccount(account)
+    setEditingTransferLog(log)
+  }
+
+  async function handleSubmitLogTransfer(data: { amount: number; sentAt: string; note?: string }) {
+    if (!logDialogAccount) return
+    const { error } = editingTransferLog
+      ? await supabase.rpc('update_transfer_log', {
+          p_log_id: editingTransferLog.id, p_amount: data.amount, p_sent_at: data.sentAt, p_note: data.note || null,
+        })
+      : await supabase.rpc('record_transfer', {
+          p_account_id: logDialogAccount.id, p_amount: data.amount, p_sent_at: data.sentAt, p_note: data.note || null,
+        })
+    if (error) { toast.error(error.message || 'Could not save the transfer.'); return }
+    toast.success(editingTransferLog ? 'Transfer updated.' : 'Transfer logged.')
+    setLogDialogAccount(null)
+    setEditingTransferLog(null)
+    fetchData()
+  }
+
+  async function handleDeleteTransferLog(log: TransferLog) {
+    const ok = await confirm({
+      title: 'Delete this transfer entry?',
+      description: `Removes the ${formatRobux(log.amount)} entry from the day's record. This cannot be undone.`,
+      confirmLabel: 'Delete Entry',
+      danger: true,
+    })
+    if (!ok) return
+    const { error } = await supabase.from('transfer_logs').delete().eq('id', log.id)
+    if (error) { toast.error(error.message || 'Could not delete the entry.'); return }
+    toast.success('Entry deleted.')
     fetchData()
   }
 
@@ -918,9 +961,11 @@ function AccountsPageContent() {
                     allowance={getAllowance(account.id)}
                     history={historyByAccount.get(account.id) ?? []}
                     reservationQueue={transferQueueByAccount.get(account.id) ?? []}
-                    busyId={transferBusyId}
                     onQuickTransfer={amount => handleRecordTransfer(account.id, amount)}
                     onOpenReserveDialog={() => handleOpenReserveDialog(account)}
+                    onOpenLogDialog={() => handleOpenLogDialog(account)}
+                    onEditTransferLog={log => handleOpenEditLog(account, log)}
+                    onDeleteTransferLog={handleDeleteTransferLog}
                     onFulfillReservation={handleFulfillReservation}
                     onCancelReservation={handleCancelReservation}
                   />
@@ -1148,6 +1193,14 @@ function AccountsPageContent() {
         available={reserveDialogAccount ? getAllowance(reserveDialogAccount.id).available : 0}
         onClose={() => setReserveDialogAccount(null)}
         onSubmit={handleCreateReservation}
+      />
+
+      <LogTransferDialog
+        open={logDialogAccount !== null}
+        account={logDialogAccount}
+        editingLog={editingTransferLog}
+        onClose={() => { setLogDialogAccount(null); setEditingTransferLog(null) }}
+        onSubmit={handleSubmitLogTransfer}
       />
     </div>
   )
