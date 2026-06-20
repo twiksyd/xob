@@ -40,7 +40,10 @@ export const ALLOWANCE_BAND_COLORS: Record<AllowanceBand, { text: string; bg: st
   red:    { text: '#f87171', bg: 'rgba(244,63,94,0.08)',  border: 'rgba(244,63,94,0.20)',  icon: '🔴' },
 }
 
-export const QUICK_TRANSFER_AMOUNTS = [50, 100, 250] as const
+// Chosen to match price tiers exactly (100/300/500 in the default tiers),
+// so every quick click reliably auto-credits the wallet — unlike 50/250,
+// which don't correspond to any tier and silently credit nothing.
+export const QUICK_TRANSFER_AMOUNTS = [100, 300, 500] as const
 
 // Instant Send Sales — decompose a customer's total purchase (e.g. 700) into
 // a combination of price-tier amounts that sum to it exactly (e.g. 500 +
