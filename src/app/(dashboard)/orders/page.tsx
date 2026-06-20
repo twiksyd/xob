@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -70,7 +70,7 @@ const STATUS_ACTION: Record<string, { label: string; color: string; bg: string; 
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function OrdersPage() {
+function OrdersPageContent() {
   const [orders, setOrders]                   = useState<OrderWithDetails[]>([])
   const [hasMore, setHasMore]                 = useState(false)
   const [loadingMore, setLoadingMore]         = useState(false)
@@ -833,5 +833,16 @@ export default function OrdersPage() {
       </AnimatePresence>
 
     </div>
+  )
+}
+
+// useSearchParams() (for ?create=1 auto-opening the workspace) requires a
+// Suspense boundary or the build's prerender pass fails even on a
+// force-dynamic page.
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrdersPageContent />
+    </Suspense>
   )
 }

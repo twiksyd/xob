@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -62,7 +62,7 @@ function toSummary(row: SalesSummaryRow): SalesSummary {
   }
 }
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
   const [transactions, setTransactions] = useState<TransactionWithOrder[]>([])
   const [summaries, setSummaries]       = useState<Record<Period, SalesSummary>>({ today: EMPTY_SUMMARY, overall: EMPTY_SUMMARY })
   const [loading, setLoading]           = useState(true)
@@ -431,5 +431,15 @@ export default function TransactionsPage() {
 
       </div>
     </div>
+  )
+}
+
+// useUrlState() calls useSearchParams() internally — requires a Suspense
+// boundary or the build's prerender pass fails even on a force-dynamic page.
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TransactionsPageContent />
+    </Suspense>
   )
 }

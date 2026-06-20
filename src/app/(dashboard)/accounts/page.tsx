@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -12,13 +12,19 @@ import AccountModal, { parseRobloxUserId } from '@/components/accounts/AccountMo
 import LiquidationForecast from '@/components/accounts/LiquidationForecast'
 import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTracker'
 import RestockAdvisor from '@/components/accounts/RestockAdvisor'
-import { RobloxAccount, ReservationWithDetails, OrderWithItems } from '@/lib/types/database'
+import {
+  RobloxAccount, ReservationWithDetails, OrderWithItems,
+  TransferLog, TransferReservation, AllowanceSummary,
+} from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
+import { formatRobux } from '@/lib/utils/pricing'
+import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
+import ReserveTransferDialog from '@/components/accounts/ReserveTransferDialog'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, RefreshCw, Archive,
+  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -34,6 +40,28 @@ import { useUrlState } from '@/hooks/useUrlState'
 type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
 const PAGE_TABS: readonly PageTab[] = ['accounts', 'planning']
+
+// Daily Transfer Tracker — every account has a 500 R$/day instant-transfer
+// allowance. sent_today / reserved / available all come from the
+// get_transfer_allowance_summary RPC (server-aggregated — transfer_logs is
+// permanent/append-only and will keep growing, so it's never summed client-side).
+type TransferFilter = 'all' | 'canSend' | 'hasReservations' | 'fullyReserved' | 'limitReached'
+const TRANSFER_FILTERS: readonly { value: TransferFilter; label: string }[] = [
+  { value: 'all',              label: 'All' },
+  { value: 'canSend',          label: 'Can Send Today' },
+  { value: 'hasReservations',  label: 'Has Reservations' },
+  { value: 'fullyReserved',    label: 'Fully Reserved' },
+  { value: 'limitReached',     label: 'Daily Limit Reached' },
+]
+
+type TransferSort = 'none' | 'mostAvailable' | 'leastAvailable' | 'mostReserved' | 'mostRecentlyUsed'
+const TRANSFER_SORTS: readonly { value: TransferSort; label: string }[] = [
+  { value: 'none',             label: 'Default Order' },
+  { value: 'mostAvailable',    label: 'Most Available Allowance' },
+  { value: 'leastAvailable',   label: 'Least Available Allowance' },
+  { value: 'mostReserved',     label: 'Most Reserved' },
+  { value: 'mostRecentlyUsed', label: 'Most Recently Used' },
+]
 
 const LS_SELECTED = 'xob-selected-accounts'
 const LS_MODE     = 'xob-stats-mode'
@@ -54,7 +82,7 @@ function SectionLabel({ index, label }: { index: string; label: string }) {
   )
 }
 
-export default function AccountsPage() {
+function AccountsPageContent() {
   const [accounts, setAccounts]         = useState<RobloxAccount[]>([])
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
   const [completedOrders, setCompletedOrders] = useState<OrderWithItems[]>([])
@@ -72,10 +100,29 @@ export default function AccountsPage() {
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [statsMode, setStatsMode]       = useState<StatsMode>('all')
 
+  // ── Daily Transfer Tracker state ────────────────────────────────────────────
+  const [allowanceByAccount, setAllowanceByAccount] = useState<Map<string, AllowanceSummary>>(new Map())
+  const [historyByAccount, setHistoryByAccount] = useState<Map<string, TransferLog[]>>(new Map())
+  const [transferQueueByAccount, setTransferQueueByAccount] = useState<Map<string, TransferReservation[]>>(new Map())
+  const [transferFilter, setTransferFilter] = useState<TransferFilter>('all')
+  const [transferSort, setTransferSort] = useState<TransferSort>('none')
+  const [reserveDialogAccount, setReserveDialogAccount] = useState<RobloxAccount | null>(null)
+  const [transferBusyId, setTransferBusyId] = useState<string | null>(null)
+
   const toast = useToast()
   const confirm = useConfirm()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
+
+  // Every account has a row from get_transfer_allowance_summary (it LEFT JOINs
+  // from roblox_accounts), so this default is just a defensive fallback.
+  // useCallback so it has a stable identity across renders when the map
+  // itself hasn't changed — lets the useMemos below depend on it safely.
+  const getAllowance = useCallback((accountId: string): AllowanceSummary => {
+    return allowanceByAccount.get(accountId) ?? {
+      roblox_account_id: accountId, sent_today: 0, reserved: 0, available: DAILY_TRANSFER_LIMIT, last_sent_at: null,
+    }
+  }, [allowanceByAccount])
 
   // Persist & restore from localStorage
   useEffect(() => {
@@ -98,7 +145,8 @@ export default function AccountsPage() {
   // ── Data ──────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [accRes, resRes, ordersRes, walletRes] = await Promise.all([
+    const startOfToday = getStartOfTodayISO()
+    const [accRes, resRes, ordersRes, walletRes, allowanceRes, historyRes, queueRes] = await Promise.all([
       supabase.from('roblox_accounts').select('*').order('created_at', { ascending: true }),
       supabase.from('robux_reservations')
         .select('*, roblox_accounts(username), orders(order_number, buyer_name, status)')
@@ -106,11 +154,35 @@ export default function AccountsPage() {
         .order('created_at', { ascending: false }),
       supabase.from('orders').select('*, order_items(*)').eq('status', 'completed'),
       supabase.rpc('get_wallet_balance'),
+      supabase.rpc('get_transfer_allowance_summary', { p_start_of_today: startOfToday }),
+      supabase.from('transfer_logs').select('*').gte('sent_at', startOfToday).order('sent_at', { ascending: false }),
+      supabase.from('transfer_reservations').select('*').eq('status', 'reserved').order('created_at', { ascending: false }),
     ])
     if (!accRes.error && accRes.data) setAccounts(accRes.data)
     if (!resRes.error && resRes.data)  setReservations(resRes.data as ReservationWithDetails[])
     if (!ordersRes.error && ordersRes.data) setCompletedOrders(ordersRes.data as OrderWithItems[])
     if (!walletRes.error && walletRes.data != null) setWalletBalance(Number(walletRes.data))
+    if (!allowanceRes.error && allowanceRes.data) {
+      setAllowanceByAccount(new Map((allowanceRes.data as AllowanceSummary[]).map(r => [r.roblox_account_id, r])))
+    }
+    if (!historyRes.error && historyRes.data) {
+      const map = new Map<string, TransferLog[]>()
+      for (const log of historyRes.data as TransferLog[]) {
+        const list = map.get(log.roblox_account_id) ?? []
+        list.push(log)
+        map.set(log.roblox_account_id, list)
+      }
+      setHistoryByAccount(map)
+    }
+    if (!queueRes.error && queueRes.data) {
+      const map = new Map<string, TransferReservation[]>()
+      for (const res of queueRes.data as TransferReservation[]) {
+        const list = map.get(res.roblox_account_id) ?? []
+        list.push(res)
+        map.set(res.roblox_account_id, list)
+      }
+      setTransferQueueByAccount(map)
+    }
     setLoading(false)
   }, [supabase])
 
@@ -194,6 +266,68 @@ export default function AccountsPage() {
     toast.success('Adjustment recorded with audit trail.')
   }
 
+  // Daily Transfer Tracker — every mutation goes through a server-side RPC
+  // that locks the account row and re-validates the 500 R$ ceiling, so two
+  // concurrent actions on the same account can't both squeeze past a stale
+  // check. Refetch-after-mutation rather than optimistic local state, since
+  // a single action here can move numbers across three different views at
+  // once (allowance summary, history list, reservation queue).
+  async function handleRecordTransfer(accountId: string, amount: number) {
+    setTransferBusyId(accountId)
+    const { error } = await supabase.rpc('record_transfer', {
+      p_account_id: accountId, p_amount: amount, p_start_of_today: getStartOfTodayISO(),
+    })
+    setTransferBusyId(null)
+    if (error) { toast.error(error.message || 'Could not record the transfer.'); return }
+    toast.success(`+${formatRobux(amount)} sent.`)
+    fetchData()
+  }
+
+  function handleOpenReserveDialog(account: RobloxAccount) {
+    setReserveDialogAccount(account)
+  }
+
+  async function handleCreateReservation(data: {
+    amount: number; customerLabel?: string; note?: string; scheduledFor?: string
+  }) {
+    if (!reserveDialogAccount) return
+    const { error } = await supabase.rpc('create_transfer_reservation', {
+      p_account_id: reserveDialogAccount.id,
+      p_amount: data.amount,
+      p_customer_label: data.customerLabel || null,
+      p_note: data.note || null,
+      p_scheduled_for: data.scheduledFor || null,
+      p_start_of_today: getStartOfTodayISO(),
+    })
+    if (error) { toast.error(error.message || 'Could not create the reservation.'); return }
+    toast.success('Reservation created.')
+    setReserveDialogAccount(null)
+    fetchData()
+  }
+
+  async function handleFulfillReservation(reservationId: string) {
+    setTransferBusyId(reservationId)
+    const { error } = await supabase.rpc('fulfill_transfer_reservation', { p_reservation_id: reservationId })
+    setTransferBusyId(null)
+    if (error) { toast.error(error.message || 'Could not fulfill the reservation.'); return }
+    toast.success('Reservation fulfilled — moved to sent.')
+    fetchData()
+  }
+
+  async function handleCancelReservation(reservationId: string) {
+    const ok = await confirm({
+      title: 'Cancel this reservation?',
+      description: 'The reserved amount will be released back into the available allowance.',
+      confirmLabel: 'Cancel Reservation',
+      danger: true,
+    })
+    if (!ok) return
+    const { error } = await supabase.rpc('cancel_transfer_reservation', { p_reservation_id: reservationId })
+    if (error) { toast.error(error.message || 'Could not cancel the reservation.'); return }
+    toast.success('Reservation cancelled.')
+    fetchData()
+  }
+
   // One-time backfill: resolve avatars for accounts that don't have one yet
   async function refreshAvatars() {
     const missing = accounts.filter(a => !a.roblox_user_id)
@@ -272,6 +406,48 @@ export default function AccountsPage() {
     () => sortedAccounts.filter(a => isDepleted(a)),
     [sortedAccounts]
   )
+
+  // ── Instant Send Tracker ─────────────────────────────────────────────────
+  const transferStats = useMemo(() => {
+    let canSend = 0, hasReservations = 0, limitReached = 0, totalReserved = 0
+    for (const a of activeInventoryAccounts) {
+      const s = getAllowance(a.id)
+      if (s.available > 0) canSend++
+      if (s.reserved > 0) { hasReservations++; totalReserved += s.reserved }
+      if (s.available === 0) limitReached++
+    }
+    return { total: activeInventoryAccounts.length, canSend, hasReservations, limitReached, totalReserved }
+  }, [activeInventoryAccounts, getAllowance])
+
+  const transferFilteredAccounts = useMemo(() => {
+    let list = activeInventoryAccounts.filter(a => {
+      const s = getAllowance(a.id)
+      switch (transferFilter) {
+        case 'canSend':         return s.available > 0
+        case 'hasReservations': return s.reserved > 0
+        case 'fullyReserved':   return s.available === 0 && s.reserved > 0
+        case 'limitReached':    return s.available === 0
+        default:                return true
+      }
+    })
+    if (transferSort !== 'none') {
+      list = [...list].sort((a, b) => {
+        const sa = getAllowance(a.id), sb = getAllowance(b.id)
+        switch (transferSort) {
+          case 'mostAvailable':  return sb.available - sa.available
+          case 'leastAvailable': return sa.available - sb.available
+          case 'mostReserved':   return sb.reserved - sa.reserved
+          case 'mostRecentlyUsed': {
+            const ta = sa.last_sent_at ? new Date(sa.last_sent_at).getTime() : 0
+            const tb = sb.last_sent_at ? new Date(sb.last_sent_at).getTime() : 0
+            return tb - ta
+          }
+          default: return 0
+        }
+      })
+    }
+    return list
+  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort])
 
   // Accounts used for summary bar (always selection-based)
   const selectedAccounts = useMemo(
@@ -513,6 +689,31 @@ export default function AccountsPage() {
           )}
         </motion.div>
 
+        {/* ── Daily Transfer Tracker — 500 R$/day allowance per account, resets at local midnight ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl px-4 py-3 flex items-center gap-2.5"
+          style={transferStats.canSend > 0
+            ? { background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.16)' }
+            : { background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.16)' }}
+        >
+          <Zap className="w-4 h-4 flex-shrink-0" style={{ color: transferStats.canSend > 0 ? '#34d399' : '#f87171' }} />
+          <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+            <b style={{ color: transferStats.canSend > 0 ? '#34d399' : '#f87171' }}>
+              {transferStats.canSend}
+            </b> of {transferStats.total} account{transferStats.total !== 1 ? 's' : ''} can still send today
+            {transferStats.hasReservations > 0 && (
+              <span style={{ color: '#f59e0b' }}> · {formatRobux(transferStats.totalReserved)} reserved across {transferStats.hasReservations}</span>
+            )}
+            {transferStats.limitReached > 0 && (
+              <span style={{ color: 'rgba(255,255,255,0.44)' }}> · {transferStats.limitReached} at the daily limit</span>
+            )}
+          </p>
+        </motion.div>
+
         {/* ── 05 · Detailed Accounts — grid + filters ── */}
         <div className="space-y-3">
           <SectionLabel index="05" label="Detailed Accounts" />
@@ -561,6 +762,42 @@ export default function AccountsPage() {
                   <DropdownMenuItem onClick={selectHighBal} className="cursor-pointer text-[12px]">High Balance</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectAvailable} className="cursor-pointer text-[12px]">Has Available</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectWithRes} className="cursor-pointer text-[12px]">Has Reservations</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Daily Transfer Tracker filter — Can Send Today / Has Reservations / Fully Reserved / Daily Limit Reached / All */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: transferFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {TRANSFER_FILTERS.find(f => f.value === transferFilter)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {TRANSFER_FILTERS.map(f => (
+                    <DropdownMenuItem key={f.value} onClick={() => setTransferFilter(f.value)} className="cursor-pointer text-[12px]">
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Daily Transfer Tracker sort — Most/Least Available, Most Reserved, Most Recently Used */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: transferSort !== 'none' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  {TRANSFER_SORTS.find(s => s.value === transferSort)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {TRANSFER_SORTS.map(s => (
+                    <DropdownMenuItem key={s.value} onClick={() => setTransferSort(s.value)} className="cursor-pointer text-[12px]">
+                      {s.label}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -656,6 +893,12 @@ export default function AccountsPage() {
               actionLabel="Add Account"
               onAction={() => setModalOpen(true)}
             />
+          ) : transferFilteredAccounts.length === 0 ? (
+            <EmptyState
+              icon={Zap}
+              title="No accounts match this filter"
+              description="Try a different transfer filter, or switch back to All."
+            />
           ) : (
             <motion.div
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -664,7 +907,7 @@ export default function AccountsPage() {
               whileInView="animate"
               viewport={{ once: true, amount: 0.2 }}
             >
-              {activeInventoryAccounts.map(account => (
+              {transferFilteredAccounts.map(account => (
                 <motion.div key={account.id} variants={staggerItem}>
                   <AccountCard
                     account={account}
@@ -672,6 +915,14 @@ export default function AccountsPage() {
                     onDelete={handleDelete}
                     isSelected={selectedIds.has(account.id)}
                     onToggleSelect={() => toggleSelect(account.id)}
+                    allowance={getAllowance(account.id)}
+                    history={historyByAccount.get(account.id) ?? []}
+                    reservationQueue={transferQueueByAccount.get(account.id) ?? []}
+                    busyId={transferBusyId}
+                    onQuickTransfer={amount => handleRecordTransfer(account.id, amount)}
+                    onOpenReserveDialog={() => handleOpenReserveDialog(account)}
+                    onFulfillReservation={handleFulfillReservation}
+                    onCancelReservation={handleCancelReservation}
                   />
                 </motion.div>
               ))}
@@ -890,6 +1141,27 @@ export default function AccountsPage() {
         account={editAccount}
         loading={saving}
       />
+
+      <ReserveTransferDialog
+        open={reserveDialogAccount !== null}
+        account={reserveDialogAccount}
+        available={reserveDialogAccount ? getAllowance(reserveDialogAccount.id).available : 0}
+        onClose={() => setReserveDialogAccount(null)}
+        onSubmit={handleCreateReservation}
+      />
     </div>
+  )
+}
+
+// useUrlState() calls useSearchParams() internally — Next.js requires any
+// component using it to sit under a Suspense boundary, or the build's
+// prerender pass fails even on a force-dynamic page. The real loading state
+// is already handled inside AccountsPageContent itself, so this fallback is
+// never actually shown — it exists purely to satisfy that requirement.
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AccountsPageContent />
+    </Suspense>
   )
 }

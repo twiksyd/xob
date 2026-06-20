@@ -286,6 +286,56 @@ export type Database = {
         }
         Update: never
       }
+      transfer_reservations: {
+        Row: {
+          id: string
+          user_id: string
+          roblox_account_id: string
+          amount: number
+          customer_label: string | null
+          order_id: string | null
+          note: string | null
+          scheduled_for: string | null
+          status: 'reserved' | 'fulfilled' | 'cancelled'
+          created_at: string
+          fulfilled_at: string | null
+          cancelled_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          roblox_account_id: string
+          amount: number
+          customer_label?: string | null
+          order_id?: string | null
+          note?: string | null
+          scheduled_for?: string | null
+          status?: 'reserved' | 'fulfilled' | 'cancelled'
+          created_at?: string
+          fulfilled_at?: string | null
+          cancelled_at?: string | null
+        }
+        Update: never
+      }
+      transfer_logs: {
+        Row: {
+          id: string
+          user_id: string
+          roblox_account_id: string
+          amount: number
+          reservation_id: string | null
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          roblox_account_id: string
+          amount: number
+          reservation_id?: string | null
+          sent_at?: string
+        }
+        Update: never
+      }
     }
   }
 }
@@ -293,6 +343,15 @@ export type Database = {
 // Convenience types
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type RobloxAccount = Database['public']['Tables']['roblox_accounts']['Row']
+export type TransferReservation = Database['public']['Tables']['transfer_reservations']['Row']
+export type TransferLog = Database['public']['Tables']['transfer_logs']['Row']
+export type AllowanceSummary = {
+  roblox_account_id: string
+  sent_today: number
+  reserved: number
+  available: number
+  last_sent_at: string | null
+}
 export type Game = Database['public']['Tables']['games']['Row']
 export type Gamepass = Database['public']['Tables']['gamepasses']['Row']
 export type Order = Database['public']['Tables']['orders']['Row']

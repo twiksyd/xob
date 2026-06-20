@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -44,7 +44,7 @@ function SectionLabel({ index, label }: { index: string; label: string }) {
   )
 }
 
-export default function InventoryPage() {
+function InventoryPageContent() {
   const [gamepasses, setGamepasses] = useState<GamepassWithGame[]>([])
   const [games, setGames] = useState<Game[]>([])
   const [accounts, setAccounts] = useState<RobloxAccount[]>([])
@@ -354,5 +354,15 @@ export default function InventoryPage() {
         loading={saving}
       />
     </div>
+  )
+}
+
+// useUrlState() calls useSearchParams() internally — requires a Suspense
+// boundary or the build's prerender pass fails even on a force-dynamic page.
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <InventoryPageContent />
+    </Suspense>
   )
 }

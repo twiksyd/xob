@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, memo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, memo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -406,29 +406,34 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardChapters
-      totalRobux={totalRobux}
-      walletBalance={walletBalance}
-      todayProfit={todayProfit}
-      totalProfit={totalProfit}
-      operationalStatus={operationalStatus}
-      supplierDecision={supplierDecision}
-      recommendations={recommendations}
-      outstandingCount={outstandingCount}
-      weekRevenue={weekRevenue}
-      revenueData={revenueData}
-      ordersThisWeek={ordersThisWeek}
-      avgOrderValue={avgOrderValue}
-      topGame={topGame}
-      totalActiveAccounts={activeAccounts.length}
-      criticalAccounts={criticalAccounts}
-      accountHealth={accountHealth}
-      atRiskAccounts={atRiskAccounts}
-      businessValue={businessValue}
-      isCapitalRecovered={isCapitalRecovered}
-      capitalRecoveryPct={capitalRecoveryPct}
-      withdrawableProfit={withdrawableProfit}
-    />
+    // DashboardChapters calls useSearchParams() (for the ?chapter=N deep link)
+    // — Next.js requires a Suspense boundary around that, or the build's
+    // prerender pass fails even on a force-dynamic page.
+    <Suspense fallback={null}>
+      <DashboardChapters
+        totalRobux={totalRobux}
+        walletBalance={walletBalance}
+        todayProfit={todayProfit}
+        totalProfit={totalProfit}
+        operationalStatus={operationalStatus}
+        supplierDecision={supplierDecision}
+        recommendations={recommendations}
+        outstandingCount={outstandingCount}
+        weekRevenue={weekRevenue}
+        revenueData={revenueData}
+        ordersThisWeek={ordersThisWeek}
+        avgOrderValue={avgOrderValue}
+        topGame={topGame}
+        totalActiveAccounts={activeAccounts.length}
+        criticalAccounts={criticalAccounts}
+        accountHealth={accountHealth}
+        atRiskAccounts={atRiskAccounts}
+        businessValue={businessValue}
+        isCapitalRecovered={isCapitalRecovered}
+        capitalRecoveryPct={capitalRecoveryPct}
+        withdrawableProfit={withdrawableProfit}
+      />
+    </Suspense>
   )
 }
 

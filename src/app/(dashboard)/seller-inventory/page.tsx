@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -314,7 +314,7 @@ function InventoryCard({
 type FilterKey = 'all' | 'ready' | 'drag_spec' | 'needs_limiteds'
 const FILTER_KEYS: readonly FilterKey[] = ['all', 'ready', 'drag_spec', 'needs_limiteds']
 
-export default function SellerInventoryPage() {
+function SellerInventoryPageContent() {
   const [accounts, setAccounts]       = useState<SellerAccountWithVehicles[]>([])
   const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
@@ -711,5 +711,15 @@ export default function SellerInventoryPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// useUrlState() calls useSearchParams() internally — requires a Suspense
+// boundary or the build's prerender pass fails even on a force-dynamic page.
+export default function SellerInventoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <SellerInventoryPageContent />
+    </Suspense>
   )
 }
