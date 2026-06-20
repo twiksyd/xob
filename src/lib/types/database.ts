@@ -338,6 +338,59 @@ export type Database = {
         }
         Update: never
       }
+      instant_send_price_tiers: {
+        Row: {
+          id: string
+          user_id: string
+          robux_amount: number
+          price: number
+          profit: number
+          status: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          robux_amount: number
+          price: number
+          profit: number
+          status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          price?: number
+          profit?: number
+          status?: string | null
+          updated_at?: string
+        }
+      }
+      instant_send_sales: {
+        Row: {
+          id: string
+          user_id: string
+          roblox_account_id: string
+          robux_amount: number
+          price: number
+          profit: number
+          breakdown: { amount: number; price: number; profit: number; sent_at: string; log_id: string }[]
+          customer_label: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          roblox_account_id: string
+          robux_amount: number
+          price: number
+          profit: number
+          breakdown: { amount: number; price: number; profit: number; sent_at: string; log_id: string }[]
+          customer_label?: string | null
+          created_at?: string
+        }
+        Update: never
+      }
     }
   }
 }
@@ -347,6 +400,8 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type RobloxAccount = Database['public']['Tables']['roblox_accounts']['Row']
 export type TransferReservation = Database['public']['Tables']['transfer_reservations']['Row']
 export type TransferLog = Database['public']['Tables']['transfer_logs']['Row']
+export type InstantSendPriceTier = Database['public']['Tables']['instant_send_price_tiers']['Row']
+export type InstantSendSale = Database['public']['Tables']['instant_send_sales']['Row']
 export type AllowanceSummary = {
   roblox_account_id: string
   sent_today: number

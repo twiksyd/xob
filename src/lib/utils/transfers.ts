@@ -41,3 +41,38 @@ export const ALLOWANCE_BAND_COLORS: Record<AllowanceBand, { text: string; bg: st
 }
 
 export const QUICK_TRANSFER_AMOUNTS = [50, 100, 250] as const
+
+// Instant Send Sales — decompose a customer's total purchase (e.g. 700) into
+// a combination of price-tier amounts that sum to it exactly (e.g. 500 +
+// 200), since each individual transfer is capped at DAILY_TRANSFER_LIMIT and
+// a sale may need to be delivered across more than one day. Unbounded coin
+// change (repetition allowed — the same tier amount can be used more than
+// once), not naive greedy, so it doesn't miss a valid combination greedy
+// could fail to find. Picks the first match per sum in descending-amount
+// order, which biases toward fewer, larger chunks without needing a separate
+// minimization pass.
+export interface PriceTierLike { robux_amount: number; price: number; profit: number }
+
+export function decomposeAmount<T extends PriceTierLike>(target: number, tiers: T[]): T[] | null {
+  if (target <= 0 || tiers.length === 0) return null
+  const sorted = [...tiers].sort((a, b) => b.robux_amount - a.robux_amount)
+  const pick: (number | null)[] = new Array(target + 1).fill(null)
+  for (let sum = 1; sum <= target; sum++) {
+    for (let i = 0; i < sorted.length; i++) {
+      const amt = sorted[i].robux_amount
+      if (amt <= sum && (sum - amt === 0 || pick[sum - amt] !== null)) {
+        pick[sum] = i
+        break
+      }
+    }
+  }
+  if (pick[target] === null) return null
+  const result: T[] = []
+  let remaining = target
+  while (remaining > 0) {
+    const idx = pick[remaining]!
+    result.push(sorted[idx])
+    remaining -= sorted[idx].robux_amount
+  }
+  return result
+}

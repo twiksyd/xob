@@ -14,7 +14,7 @@ import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTrack
 import RestockAdvisor from '@/components/accounts/RestockAdvisor'
 import {
   RobloxAccount, ReservationWithDetails, OrderWithItems,
-  TransferLog, TransferReservation, AllowanceSummary,
+  TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier,
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
@@ -23,6 +23,8 @@ import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
 import ReserveTransferDialog from '@/components/accounts/ReserveTransferDialog'
 import LogTransferDialog from '@/components/accounts/LogTransferDialog'
+import LogInstantSendSaleDialog from '@/components/accounts/LogInstantSendSaleDialog'
+import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceTierManager'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown,
@@ -111,6 +113,11 @@ function AccountsPageContent() {
   const [logDialogAccount, setLogDialogAccount] = useState<RobloxAccount | null>(null)
   const [editingTransferLog, setEditingTransferLog] = useState<TransferLog | null>(null)
 
+  // ── Instant Send Sales state ────────────────────────────────────────────────
+  const [priceTiers, setPriceTiers] = useState<InstantSendPriceTier[]>([])
+  const [saleDialogAccount, setSaleDialogAccount] = useState<RobloxAccount | null>(null)
+  const [priceTierManagerOpen, setPriceTierManagerOpen] = useState(false)
+
   const toast = useToast()
   const confirm = useConfirm()
   const supabaseRef = useRef(createClient())
@@ -148,7 +155,7 @@ function AccountsPageContent() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     const startOfToday = getStartOfTodayISO()
-    const [accRes, resRes, ordersRes, walletRes, allowanceRes, historyRes, queueRes] = await Promise.all([
+    const [accRes, resRes, ordersRes, walletRes, allowanceRes, historyRes, queueRes, tiersRes] = await Promise.all([
       supabase.from('roblox_accounts').select('*').order('created_at', { ascending: true }),
       supabase.from('robux_reservations')
         .select('*, roblox_accounts(username), orders(order_number, buyer_name, status)')
@@ -159,6 +166,7 @@ function AccountsPageContent() {
       supabase.rpc('get_transfer_allowance_summary', { p_start_of_today: startOfToday }),
       supabase.from('transfer_logs').select('*').gte('sent_at', startOfToday).order('sent_at', { ascending: false }),
       supabase.from('transfer_reservations').select('*').eq('status', 'reserved').order('created_at', { ascending: false }),
+      supabase.from('instant_send_price_tiers').select('*').order('robux_amount', { ascending: true }),
     ])
     if (!accRes.error && accRes.data) setAccounts(accRes.data)
     if (!resRes.error && resRes.data)  setReservations(resRes.data as ReservationWithDetails[])
@@ -185,6 +193,7 @@ function AccountsPageContent() {
       }
       setTransferQueueByAccount(map)
     }
+    if (!tiersRes.error && tiersRes.data) setPriceTiers(tiersRes.data)
     setLoading(false)
   }, [supabase])
 
@@ -368,6 +377,57 @@ function AccountsPageContent() {
     const { error } = await supabase.from('transfer_logs').delete().eq('id', log.id)
     if (error) { toast.error(error.message || 'Could not delete the entry.'); return }
     toast.success('Entry deleted.')
+    fetchData()
+  }
+
+  // Instant Send Sales — a customer's total purchase, decomposed into priced
+  // tier chunks and routed through record_transfer per chunk (so the daily/
+  // lifetime ceilings and the current_robux-deduction trigger apply exactly
+  // as they would for any other logged transfer — no separate Robux
+  // deduction here). Credits the wallet once for the combined price.
+  function handleOpenSaleDialog(account: RobloxAccount) {
+    setSaleDialogAccount(account)
+  }
+
+  async function handleSubmitSale(data: { chunks: { amount: number; sentAt: string }[]; customerLabel?: string }) {
+    if (!saleDialogAccount) return
+    const { error } = await supabase.rpc('log_instant_send_sale', {
+      p_account_id: saleDialogAccount.id,
+      p_chunks: data.chunks.map(c => ({ amount: c.amount, sent_at: c.sentAt })),
+      p_customer_label: data.customerLabel || null,
+      p_start_of_today: getStartOfTodayISO(),
+    })
+    if (error) { toast.error(error.message || 'Could not log this sale.'); return }
+    toast.success('Sale logged — wallet credited.')
+    setSaleDialogAccount(null)
+    fetchData()
+  }
+
+  async function handleAddPriceTier(data: { robux_amount: number; price: number; profit: number; status?: string }) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error } = await supabase.from('instant_send_price_tiers').insert({
+      user_id: user.id, robux_amount: data.robux_amount, price: data.price, profit: data.profit, status: data.status,
+    })
+    if (error) { toast.error(error.message || 'Could not add this tier.'); return }
+    toast.success('Tier added.')
+    fetchData()
+  }
+
+  async function handleDeletePriceTier(id: string) {
+    const { error } = await supabase.from('instant_send_price_tiers').delete().eq('id', id)
+    if (error) { toast.error(error.message || 'Could not delete this tier.'); return }
+    fetchData()
+  }
+
+  async function handleLoadDefaultTiers(missing: DefaultPriceTier[]) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error } = await supabase.from('instant_send_price_tiers').insert(
+      missing.map(t => ({ user_id: user.id, robux_amount: t.robux_amount, price: t.price, profit: t.profit, status: t.status }))
+    )
+    if (error) { toast.error(error.message || 'Could not load defaults.'); return }
+    toast.success(`Loaded ${missing.length} default tier${missing.length !== 1 ? 's' : ''}.`)
     fetchData()
   }
 
@@ -732,7 +792,7 @@ function AccountsPageContent() {
           )}
         </motion.div>
 
-        {/* ── Daily Transfer Tracker — 1000 R$/day allowance per account, resets at local midnight ── */}
+        {/* ── Daily Transfer Tracker — 500 R$/day, 1000 R$ lifetime per account ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -744,7 +804,7 @@ function AccountsPageContent() {
             : { background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.16)' }}
         >
           <Zap className="w-4 h-4 flex-shrink-0" style={{ color: transferStats.canSend > 0 ? '#34d399' : '#f87171' }} />
-          <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+          <p className="text-[12px] font-semibold flex-1" style={{ color: 'rgba(255,255,255,0.72)' }}>
             <b style={{ color: transferStats.canSend > 0 ? '#34d399' : '#f87171' }}>
               {transferStats.canSend}
             </b> of {transferStats.total} account{transferStats.total !== 1 ? 's' : ''} can still send today
@@ -755,6 +815,14 @@ function AccountsPageContent() {
               <span style={{ color: 'rgba(255,255,255,0.44)' }}> · {transferStats.limitReached} at the daily limit</span>
             )}
           </p>
+          <button
+            type="button"
+            onClick={() => setPriceTierManagerOpen(true)}
+            className="flex-shrink-0 text-[11px] font-semibold underline"
+            style={{ color: 'rgba(255,255,255,0.50)' }}
+          >
+            Manage Pricing
+          </button>
         </motion.div>
 
         {/* ── 05 · Detailed Accounts — grid + filters ── */}
@@ -968,6 +1036,7 @@ function AccountsPageContent() {
                     onDeleteTransferLog={handleDeleteTransferLog}
                     onFulfillReservation={handleFulfillReservation}
                     onCancelReservation={handleCancelReservation}
+                    onOpenSaleDialog={() => handleOpenSaleDialog(account)}
                   />
                 </motion.div>
               ))}
@@ -1201,6 +1270,23 @@ function AccountsPageContent() {
         editingLog={editingTransferLog}
         onClose={() => { setLogDialogAccount(null); setEditingTransferLog(null) }}
         onSubmit={handleSubmitLogTransfer}
+      />
+
+      <LogInstantSendSaleDialog
+        open={saleDialogAccount !== null}
+        account={saleDialogAccount}
+        tiers={priceTiers}
+        onClose={() => setSaleDialogAccount(null)}
+        onSubmit={handleSubmitSale}
+      />
+
+      <PriceTierManager
+        open={priceTierManagerOpen}
+        tiers={priceTiers}
+        onClose={() => setPriceTierManagerOpen(false)}
+        onAdd={handleAddPriceTier}
+        onDelete={handleDeletePriceTier}
+        onLoadDefaults={handleLoadDefaultTiers}
       />
     </div>
   )

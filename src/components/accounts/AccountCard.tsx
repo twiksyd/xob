@@ -24,7 +24,7 @@ interface AccountCardProps {
   isSelected?: boolean
   onToggleSelect?: () => void
   /** Daily Transfer Tracker — omit to hide the whole section (e.g. on depleted
-   *  accounts, where sending 1000 R$/day doesn't make sense). */
+   *  accounts, where sending 500 R$/day doesn't make sense). */
   allowance?: AllowanceSummary
   history?: TransferLog[]
   reservationQueue?: TransferReservation[]
@@ -35,6 +35,9 @@ interface AccountCardProps {
   onDeleteTransferLog?: (log: TransferLog) => void
   onFulfillReservation?: (reservationId: string) => Promise<void>
   onCancelReservation?: (reservationId: string) => Promise<void>
+  /** Instant Send Sales — logs a priced sale (decomposed into tier chunks,
+   *  credits the wallet once) rather than just a daily-allowance entry. */
+  onOpenSaleDialog?: () => void
 }
 
 const COLOR_AVAILABLE = '#34d399'
@@ -45,7 +48,7 @@ export default function AccountCard({
   account, onEdit, onDelete, isSelected = false, onToggleSelect,
   allowance, history = [], reservationQueue = [],
   onQuickTransfer, onOpenReserveDialog, onOpenLogDialog, onEditTransferLog, onDeleteTransferLog,
-  onFulfillReservation, onCancelReservation,
+  onFulfillReservation, onCancelReservation, onOpenSaleDialog,
 }: AccountCardProps) {
   const showTransferTracker = allowance !== undefined
   const [customOpen, setCustomOpen] = useState(false)
@@ -451,6 +454,17 @@ export default function AccountCard({
               Log Past Transfer
             </motion.button>
           </div>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.96 }}
+            onClick={e => { e.stopPropagation(); onOpenSaleDialog?.() }}
+            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[12px] font-bold transition-colors"
+            style={{ background: 'rgba(167,139,250,0.10)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.26)' }}
+            title="Log a priced sale — credits the wallet for the combined price/profit"
+          >
+            Log Instant Send Sale
+          </motion.button>
 
           {history.length > 0 && (
             <div className="rounded-xl p-2.5 space-y-1" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.065)' }}>
