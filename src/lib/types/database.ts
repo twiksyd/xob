@@ -351,6 +351,7 @@ export type AllowanceSummary = {
   roblox_account_id: string
   sent_today: number
   reserved: number
+  lifetime_sent: number
   available: number
   last_sent_at: string | null
 }

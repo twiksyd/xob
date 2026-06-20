@@ -122,7 +122,7 @@ function AccountsPageContent() {
   // itself hasn't changed — lets the useMemos below depend on it safely.
   const getAllowance = useCallback((accountId: string): AllowanceSummary => {
     return allowanceByAccount.get(accountId) ?? {
-      roblox_account_id: accountId, sent_today: 0, reserved: 0, available: DAILY_TRANSFER_LIMIT, last_sent_at: null,
+      roblox_account_id: accountId, sent_today: 0, reserved: 0, lifetime_sent: 0, available: DAILY_TRANSFER_LIMIT, last_sent_at: null,
     }
   }, [allowanceByAccount])
 

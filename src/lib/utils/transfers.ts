@@ -1,6 +1,15 @@
 // Daily Transfer Tracker — shared helpers. Replaces lib/utils/instantSend.ts.
 
-export const DAILY_TRANSFER_LIMIT = 1000
+// Two independent caps per account, both enforced server-side:
+//   - DAILY: resets every local midnight.
+//   - LIFETIME: cumulative across all time, never resets — once an account
+//     has sent this much total, it can never instant-send again even
+//     though its daily counter keeps resetting.
+// available = min(daily remaining, lifetime remaining); whichever is more
+// restrictive wins, so an account can show 0 available well before its
+// daily counter would otherwise allow more.
+export const DAILY_TRANSFER_LIMIT    = 500
+export const LIFETIME_TRANSFER_LIMIT = 1000
 
 // Start of "today" in the operator's local time, as an ISO string — passed to
 // the record_transfer / create_transfer_reservation / get_transfer_allowance_summary
@@ -13,13 +22,15 @@ export function getStartOfTodayISO(): string {
 
 export type AllowanceBand = 'green' | 'yellow' | 'red'
 
-// Bands scale with DAILY_TRANSFER_LIMIT rather than hardcoded absolute
-// numbers, so changing the limit doesn't silently break the thresholds:
-// <50% used/reserved -> green, 50-89% -> yellow, >=90% -> red.
-export function getAllowanceBand(sentToday: number, reserved: number): AllowanceBand {
-  const pct = DAILY_TRANSFER_LIMIT > 0 ? (sentToday + reserved) / DAILY_TRANSFER_LIMIT : 0
-  if (pct >= 0.9) return 'red'
-  if (pct >= 0.5) return 'yellow'
+// Based on the account's actual remaining capacity (already the lesser of
+// daily/lifetime), as a fraction of the daily limit — so an account that's
+// fine on its daily counter but near its lifetime cap still shows red,
+// which is the accurate "can this account still send" signal.
+// >50% remaining -> green, 10-50% -> yellow, <=10% -> red.
+export function getAllowanceBand(available: number): AllowanceBand {
+  const pct = DAILY_TRANSFER_LIMIT > 0 ? available / DAILY_TRANSFER_LIMIT : 0
+  if (pct <= 0.1) return 'red'
+  if (pct <= 0.5) return 'yellow'
   return 'green'
 }
 

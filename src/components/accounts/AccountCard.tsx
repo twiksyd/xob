@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { formatRobux } from '@/lib/utils/pricing'
-import { getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
+import { getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS, DAILY_TRANSFER_LIMIT, LIFETIME_TRANSFER_LIMIT } from '@/lib/utils/transfers'
 
 interface AccountCardProps {
   account: RobloxAccount
@@ -63,8 +63,11 @@ export default function AccountCard({
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
   const availDisplayColor = depleted ? 'rgba(255,255,255,0.48)' : available < 200 ? '#f43f5e' : available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
-  const band = allowance ? getAllowanceBand(allowance.sent_today, allowance.reserved) : 'green'
+  const band = allowance ? getAllowanceBand(allowance.available) : 'green'
   const bandColors = ALLOWANCE_BAND_COLORS[band]
+  // When available hits 0, distinguish which cap is binding — daily resets
+  // tonight, lifetime never does, so the message the operator sees matters.
+  const lifetimeExhausted = allowance ? allowance.lifetime_sent + allowance.reserved >= LIFETIME_TRANSFER_LIMIT : false
 
   async function runQuickTransfer(amt: number) {
     setPendingAmount(amt)
@@ -299,7 +302,7 @@ export default function AccountCard({
         )}
       </div>
 
-      {/* ── Daily Transfer Tracker — 1000 R$/day instant-transfer allowance ── */}
+      {/* ── Daily Transfer Tracker — 500 R$/day, 1000 R$ lifetime per account ── */}
       {showTransferTracker && (
         <div className="space-y-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
           <span className="label-caps">Daily Transfer</span>
@@ -332,12 +335,27 @@ export default function AccountCard({
             </div>
           </div>
 
+          {/* Lifetime cap — never resets, so it's worth surfacing even when it isn't the binding constraint yet */}
+          <div className="flex items-center justify-between text-[10px] font-semibold" style={{ color: lifetimeExhausted ? '#f87171' : 'rgba(255,255,255,0.40)' }}>
+            <span>Lifetime</span>
+            <span className="tabular-nums">{formatRobux(allowance!.lifetime_sent)} / {formatRobux(LIFETIME_TRANSFER_LIMIT)}</span>
+          </div>
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.090)' }}>
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${Math.min(100, (allowance!.lifetime_sent / LIFETIME_TRANSFER_LIMIT) * 100)}%`,
+                background: lifetimeExhausted ? '#f87171' : 'rgba(255,255,255,0.30)',
+              }}
+            />
+          </div>
+
           {allowance!.available <= 0 ? (
             <p
               className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[12px] font-semibold"
               style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.40)', border: '1px solid rgba(255,255,255,0.075)' }}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" /> Daily limit reached
+              <CheckCircle2 className="w-3.5 h-3.5" /> {lifetimeExhausted ? 'Lifetime limit reached' : 'Daily limit reached'}
             </p>
           ) : (
             <div className="space-y-2">
