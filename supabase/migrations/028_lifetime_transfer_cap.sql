@@ -196,6 +196,10 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.update_transfer_log(uuid, integer, timestamptz, text) TO authenticated;
 
+-- Return shape changed (added lifetime_sent) — CREATE OR REPLACE can't alter
+-- a function's OUT columns, so the old version has to be dropped first.
+DROP FUNCTION IF EXISTS public.get_transfer_allowance_summary(timestamptz);
+
 CREATE OR REPLACE FUNCTION public.get_transfer_allowance_summary(p_start_of_today timestamptz DEFAULT NULL)
 RETURNS TABLE (
   roblox_account_id uuid,
