@@ -2,10 +2,13 @@ import { PricingEngineTier, Gamepass } from '@/lib/types/database'
 import { ROBUX_RATE, calculateCost } from '@/lib/utils/pricing'
 
 // ── Bulk Generate paste-box parsing ─────────────────────────────────────────
-// Each line is "Name | Amount" or "Name,Amount". A bare number with no
-// delimiter is also accepted (supports loading a bare-amount preset like
-// "100/250/500" without forcing a rename first) — its name defaults to
-// "{amount} Robux", still editable in the review table afterward.
+// Each line is "Name | Amount", "Name,Amount", or just "Name Amount" (space-
+// separated — the last whitespace-token is taken as the amount, everything
+// before it as the name, since that's what people type without thinking
+// about it). A bare number with no name at all is also accepted (supports
+// loading a bare-amount preset like "100/250/500" without forcing a rename
+// first) — its name defaults to "{amount} Robux", still editable in the
+// review table afterward.
 
 export interface ParsedGenerationRow {
   lineNumber: number
@@ -50,13 +53,28 @@ export function parseGenerationInput(raw: string): ParsedGenerationResult {
       if (seenNames.has(key)) duplicateNames.add(name)
       seenNames.set(key, lineNumber)
     } else {
-      const amount = Number(text)
-      if (!Number.isFinite(amount) || amount <= 0) {
-        errors.push({ lineNumber, text })
+      const bareAmount = Number(text)
+      if (Number.isFinite(bareAmount) && bareAmount > 0) {
+        rows.push({ lineNumber, name: `${bareAmount.toLocaleString()} Robux`, amount: bareAmount })
         return
       }
-      const name = `${amount.toLocaleString()} Robux`
-      rows.push({ lineNumber, name, amount })
+
+      // No |/, delimiter and not a bare number — try "Name Amount" with the
+      // last whitespace-separated token as the amount.
+      const lastSpace = text.lastIndexOf(' ')
+      if (lastSpace > 0) {
+        const name = text.slice(0, lastSpace).trim()
+        const amount = Number(text.slice(lastSpace + 1).trim())
+        if (name !== '' && Number.isFinite(amount) && amount > 0) {
+          rows.push({ lineNumber, name, amount })
+          const key = name.toLowerCase()
+          if (seenNames.has(key)) duplicateNames.add(name)
+          seenNames.set(key, lineNumber)
+          return
+        }
+      }
+
+      errors.push({ lineNumber, text })
     }
   })
 
