@@ -143,54 +143,6 @@ export type Database = {
           updated_at?: string
         }
       }
-      pricing_engine_tiers: {
-        Row: {
-          id: string
-          user_id: string
-          robux_amount: number
-          selling_price: number
-          profit: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          robux_amount: number
-          selling_price: number
-          profit: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          selling_price?: number
-          profit?: number
-          updated_at?: string
-        }
-      }
-      gamepass_generation_presets: {
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          raw_input: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          raw_input: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          name?: string
-          raw_input?: string
-          updated_at?: string
-        }
-      }
       orders: {
         Row: {
           id: string
@@ -463,8 +415,6 @@ export type AllowanceSummary = {
 }
 export type Game = Database['public']['Tables']['games']['Row']
 export type Gamepass = Database['public']['Tables']['gamepasses']['Row']
-export type PricingEngineTier = Database['public']['Tables']['pricing_engine_tiers']['Row']
-export type GamepassGenerationPreset = Database['public']['Tables']['gamepass_generation_presets']['Row']
 export type Order = Database['public']['Tables']['orders']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 
