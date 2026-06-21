@@ -14,6 +14,7 @@ type GamepassWithGame = Gamepass & { games: Game | null }
 interface DuplicateGroup {
   key: string
   gameName: string
+  name: string
   robux_amount: number
   entries: GamepassWithGame[]
 }
@@ -25,14 +26,16 @@ interface DuplicateGamepassesDialogProps {
   onDelete: (ids: string[]) => Promise<void>
 }
 
-// Same anchor as everywhere else in the Pricing Engine flow — same game +
-// same Robux amount is treated as "the same gamepass," since that survives
-// renames and is exactly what a re-imported sheet produces.
+// Requires BOTH the same Robux amount AND the same name within a game.
+// Amount alone isn't enough — a game can legitimately have two different
+// gamepasses at the same price (e.g. "2x Luck" and "2x Speed" both at
+// 100 R$), and grouping by amount only would wrongly flag those as
+// duplicates of each other, deleting a genuinely distinct gamepass.
 function findDuplicateGroups(gamepasses: GamepassWithGame[]): DuplicateGroup[] {
   const map = new Map<string, GamepassWithGame[]>()
   for (const gp of gamepasses) {
     if (!gp.game_id) continue
-    const key = `${gp.game_id}__${gp.robux_amount}`
+    const key = `${gp.game_id}__${gp.robux_amount}__${gp.name.trim().toLowerCase()}`
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(gp)
   }
@@ -41,8 +44,9 @@ function findDuplicateGroups(gamepasses: GamepassWithGame[]): DuplicateGroup[] {
     if (entries.length < 2) continue
     entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     groups.push({
-      key: `${entries[0].game_id}__${entries[0].robux_amount}`,
+      key: `${entries[0].game_id}__${entries[0].robux_amount}__${entries[0].name.trim().toLowerCase()}`,
       gameName: entries[0].games?.name ?? 'Unknown game',
+      name: entries[0].name,
       robux_amount: entries[0].robux_amount,
       entries,
     })
@@ -102,7 +106,7 @@ export default function DuplicateGamepassesDialog({ open, onClose, gamepasses, o
         ) : (
           <div className="space-y-4 py-2">
             <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
-              Found {groups.length} gamepass{groups.length !== 1 ? 'es' : ''} that exist more than once in the same game with the same Robux amount — likely from importing the same sheet twice. Pick which copy to keep in each group; the rest get removed.
+              Found {groups.length} gamepass{groups.length !== 1 ? 'es' : ''} that exist more than once in the same game with the same name and Robux amount — likely from importing the same sheet twice. Pick which copy to keep in each group; the rest get removed.
             </p>
 
             <div className="flex items-center gap-2">
@@ -115,7 +119,7 @@ export default function DuplicateGamepassesDialog({ open, onClose, gamepasses, o
               {groups.map(group => (
                 <div key={group.key} className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.080)' }}>
                   <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.82)' }}>
-                    {group.gameName} · {group.robux_amount.toLocaleString()} R$ <span className="font-normal" style={{ color: 'rgba(255,255,255,0.44)' }}>({group.entries.length} copies)</span>
+                    {group.gameName} · &ldquo;{group.name}&rdquo; · {group.robux_amount.toLocaleString()} R$ <span className="font-normal" style={{ color: 'rgba(255,255,255,0.44)' }}>({group.entries.length} copies)</span>
                   </p>
                   <div className="space-y-1">
                     {group.entries.map(entry => (

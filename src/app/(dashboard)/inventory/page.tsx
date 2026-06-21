@@ -254,13 +254,20 @@ function InventoryPageContent() {
     toast.success(`Removed ${ids.length} duplicate${ids.length !== 1 ? 's' : ''}.`)
   }
 
-  const filtered = useMemo(() => gamepasses.filter(gp => {
-    const matchSearch = gp.name.toLowerCase().includes(search.toLowerCase()) ||
-                        (gp.games?.name ?? '').toLowerCase().includes(search.toLowerCase())
-    const matchGame = filterGame === 'all' || gp.game_id === filterGame
-    const matchStatus = filterStatus === 'all' || gp.status === filterStatus
-    return matchSearch && matchGame && matchStatus
-  }), [gamepasses, search, filterGame, filterStatus])
+  // Sorted by game, then ascending Robux amount — like an actual price
+  // list — rather than creation order, which shuffles every time a bulk
+  // tool (re-import, regenerate, duplicate cleanup) touches a game, since
+  // newly-written rows always sort as "most recent" otherwise.
+  const filtered = useMemo(() => gamepasses
+    .filter(gp => {
+      const matchSearch = gp.name.toLowerCase().includes(search.toLowerCase()) ||
+                          (gp.games?.name ?? '').toLowerCase().includes(search.toLowerCase())
+      const matchGame = filterGame === 'all' || gp.game_id === filterGame
+      const matchStatus = filterStatus === 'all' || gp.status === filterStatus
+      return matchSearch && matchGame && matchStatus
+    })
+    .sort((a, b) => (a.games?.name ?? '').localeCompare(b.games?.name ?? '') || a.robux_amount - b.robux_amount),
+  [gamepasses, search, filterGame, filterStatus])
 
   const statusCounts = useMemo(() => ({
     Good: filtered.filter(g => g.status === 'Good').length,
