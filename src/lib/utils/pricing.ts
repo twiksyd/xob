@@ -6,6 +6,17 @@ export function calculateCost(robuxAmount: number, rate = ROBUX_RATE): number {
   return (robuxAmount / 1000) * rate
 }
 
+// Roblox Plus accounts get ~10% better Robux acquisition economics. This is
+// the ONLY place that discount is applied — every cost/profit/inventory-
+// value/capital calculation that depends on an account's robux_cost_rate
+// must derive its rate through this function instead of reading the raw
+// column, so the discount is never silently missed or duplicated.
+export const PLUS_ACCOUNT_DISCOUNT = 0.10
+
+export function getEffectiveCostRate(robuxCostRate: number, isPlusAccount: boolean): number {
+  return isPlusAccount ? robuxCostRate * (1 - PLUS_ACCOUNT_DISCOUNT) : robuxCostRate
+}
+
 export function calculateProfit(yourPrice: number, robuxAmount: number, rate = ROBUX_RATE): number {
   return yourPrice - calculateCost(robuxAmount, rate)
 }

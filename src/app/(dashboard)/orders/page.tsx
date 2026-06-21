@@ -11,7 +11,7 @@ import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import { useOrderCart } from '@/hooks/useOrderCart'
 import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
+import { calculateOrderTotals, formatPHP, getEffectiveCostRate } from '@/lib/utils/pricing'
 import { isActiveOrder } from '@/lib/utils/orders'
 import { motion, AnimatePresence } from 'framer-motion'
 import { staggerContainer, staggerItem } from '@/lib/motion'
@@ -108,7 +108,9 @@ function OrdersPageContent() {
 
   const accountRate = useMemo(() => {
     if (!accountId) return 0
-    return accounts.find(a => a.id === accountId)?.robux_cost_rate ?? 0
+    const account = accounts.find(a => a.id === accountId)
+    if (!account) return 0
+    return getEffectiveCostRate(account.robux_cost_rate, account.is_plus_account)
   }, [accountId, accounts])
 
   const totals = useMemo(
@@ -233,7 +235,8 @@ function OrdersPageContent() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    const rateUsed = accounts.find(a => a.id === data.roblox_account_id)?.robux_cost_rate ?? 0
+    const orderAccount = accounts.find(a => a.id === data.roblox_account_id)
+    const rateUsed = orderAccount ? getEffectiveCostRate(orderAccount.robux_cost_rate, orderAccount.is_plus_account) : 0
     const { totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit } = calculateOrderTotals(cart.validItems, rateUsed)
     const first = cart.validItems[0]
     const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')

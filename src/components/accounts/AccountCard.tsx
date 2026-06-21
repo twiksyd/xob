@@ -7,6 +7,8 @@ import { format } from 'date-fns'
 import { RobloxAccount, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
 import DiscountBadge from '@/components/shared/DiscountBadge'
+import PlusBadge from '@/components/shared/PlusBadge'
+import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
   MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2,
@@ -143,7 +145,9 @@ export default function AccountCard({
               <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {account.username}
               </p>
+              {account.is_plus_account && <PlusBadge />}
               {account.has_active_discount && <DiscountBadge />}
+              {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <StatusBadge status={account.status} />

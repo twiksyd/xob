@@ -27,7 +27,7 @@ import LogInstantSendSaleDialog from '@/components/accounts/LogInstantSendSaleDi
 import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceTierManager'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles,
+  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -82,6 +82,15 @@ const DISCOUNT_SORTS: readonly { value: DiscountSort; label: string }[] = [
   { value: 'last',  label: 'Discount Active Last' },
 ]
 
+// Roblox Plus — purely operational tagging too; the actual cost discount
+// lives in getEffectiveCostRate (pricing.ts), not here.
+type PlusFilter = 'all' | 'plus' | 'nonPlus'
+const PLUS_FILTERS: readonly { value: PlusFilter; label: string }[] = [
+  { value: 'all',    label: 'All Accounts' },
+  { value: 'plus',   label: 'Plus Accounts' },
+  { value: 'nonPlus', label: 'Non-Plus Accounts' },
+]
+
 const LS_SELECTED = 'xob-selected-accounts'
 const LS_MODE     = 'xob-stats-mode'
 
@@ -127,6 +136,8 @@ function AccountsPageContent() {
   const [transferSort, setTransferSort] = useState<TransferSort>('none')
   const [discountFilter, setDiscountFilter] = useState<DiscountFilter>('all')
   const [discountSort, setDiscountSort] = useState<DiscountSort>('none')
+  const [plusFilter, setPlusFilter] = useState<PlusFilter>('all')
+  const [chromeProfileFilter, setChromeProfileFilter] = useState<string>('all')
   const [reserveDialogAccount, setReserveDialogAccount] = useState<RobloxAccount | null>(null)
   const [logDialogAccount, setLogDialogAccount] = useState<RobloxAccount | null>(null)
   const [editingTransferLog, setEditingTransferLog] = useState<TransferLog | null>(null)
@@ -224,6 +235,8 @@ function AccountsPageContent() {
     roblox_profile?: string
     purchase_cost?: number; supplier?: string; purchase_date?: string
     has_active_discount?: boolean
+    is_plus_account?: boolean
+    chrome_profile?: string
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -249,10 +262,10 @@ function AccountsPageContent() {
       // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
       // once an account exists — they can only change via the order financial engine or
       // adjust_account_field (handleAdjust below), both of which leave an audit trail.
-      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false }
+      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
-      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false }
+      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
       const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
 
       // Phase 2: every new stock purchase automatically logs a Capital Event
@@ -529,6 +542,13 @@ function AccountsPageContent() {
     [sortedAccounts]
   )
 
+  // Distinct Chrome profile values actually in use, for the filter dropdown —
+  // free text, so this is computed rather than a fixed enum.
+  const chromeProfiles = useMemo(
+    () => [...new Set(accounts.map(a => a.chrome_profile).filter((p): p is string => !!p))].sort(),
+    [accounts]
+  )
+
   // ── Instant Send Tracker ─────────────────────────────────────────────────
   const transferStats = useMemo(() => {
     let canSend = 0, hasReservations = 0, limitReached = 0, totalReserved = 0
@@ -554,7 +574,9 @@ function AccountsPageContent() {
         }
       })()
       const passesDiscount = discountFilter === 'all' ? true : discountFilter === 'active' ? a.has_active_discount : !a.has_active_discount
-      return passesTransfer && passesDiscount
+      const passesPlus = plusFilter === 'all' ? true : plusFilter === 'plus' ? a.is_plus_account : !a.is_plus_account
+      const passesChromeProfile = chromeProfileFilter === 'all' ? true : (a.chrome_profile ?? '') === chromeProfileFilter
+      return passesTransfer && passesDiscount && passesPlus && passesChromeProfile
     })
     if (transferSort !== 'none') {
       list = [...list].sort((a, b) => {
@@ -582,7 +604,7 @@ function AccountsPageContent() {
       })
     }
     return list
-  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort])
+  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort, plusFilter, chromeProfileFilter])
 
   // Accounts used for summary bar (always selection-based)
   const selectedAccounts = useMemo(
@@ -979,6 +1001,47 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              {/* Roblox Plus filter — All / Plus / Non-Plus */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: plusFilter !== 'all' ? '#38bdf8' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <BadgeCheck className="w-3.5 h-3.5" />
+                  {PLUS_FILTERS.find(f => f.value === plusFilter)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {PLUS_FILTERS.map(f => (
+                    <DropdownMenuItem key={f.value} onClick={() => setPlusFilter(f.value)} className="cursor-pointer text-[12px]">
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Chrome Profile filter — dynamic list of distinct profiles in use */}
+              {chromeProfiles.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                    style={{ color: chromeProfileFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    {chromeProfileFilter === 'all' ? 'All Profiles' : chromeProfileFilter}
+                    <ChevronDown className="w-3 h-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover border-border">
+                    <DropdownMenuItem onClick={() => setChromeProfileFilter('all')} className="cursor-pointer text-[12px]">
+                      All Profiles
+                    </DropdownMenuItem>
+                    {chromeProfiles.map(p => (
+                      <DropdownMenuItem key={p} onClick={() => setChromeProfileFilter(p)} className="cursor-pointer text-[12px]">
+                        {p}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 

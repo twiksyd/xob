@@ -10,6 +10,8 @@ import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import StatusBadge from '@/components/shared/StatusBadge'
 import DiscountBadge from '@/components/shared/DiscountBadge'
+import PlusBadge from '@/components/shared/PlusBadge'
+import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import PurchaseHistoryTable from '@/components/accounts/PurchaseHistoryTable'
 import AccountTimeline from '@/components/accounts/AccountTimeline'
 import { createClient } from '@/lib/supabase/client'
@@ -179,7 +181,9 @@ export default function AccountLedgerPage() {
                   <p className="text-[18px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                     {account.username}
                   </p>
+                  {account.is_plus_account && <PlusBadge />}
                   {account.has_active_discount && <DiscountBadge />}
+                  {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
                 </div>
                 <div className="mt-1">
                   <StatusBadge status={account.status} />

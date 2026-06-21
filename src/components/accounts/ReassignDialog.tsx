@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import DiscountBadge from '@/components/shared/DiscountBadge'
+import PlusBadge from '@/components/shared/PlusBadge'
+import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 
 interface ReassignDialogProps {
@@ -79,7 +81,9 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
               <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {currentAccount.username}
               </p>
+              {currentAccount.is_plus_account && <PlusBadge />}
               {currentAccount.has_active_discount && <DiscountBadge />}
+              {currentAccount.chrome_profile && <ChromeProfileBadge profile={currentAccount.chrome_profile} />}
             </div>
           </div>
 
@@ -94,7 +98,9 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
                   <SelectItem key={a.id} value={a.id}>
                     <span className="flex items-center gap-1.5">
                       {a.username}
+                      {a.is_plus_account && <PlusBadge />}
                       {a.has_active_discount && <DiscountBadge />}
+                      {a.chrome_profile && <ChromeProfileBadge profile={a.chrome_profile} />}
                     </span>
                   </SelectItem>
                 ))}
