@@ -7,6 +7,7 @@ import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
 import GamepassModal from '@/components/inventory/GamepassModal'
 import BulkGenerateGamepassesDialog, { SaveRow } from '@/components/inventory/BulkGenerateGamepassesDialog'
+import ImportCatalogDialog, { CatalogImportTierRow, CatalogImportGamepassRow } from '@/components/inventory/ImportCatalogDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CountUp from '@/components/shared/CountUp'
 import { Gamepass, Game, RobloxAccount, PricingEngineTier, GamepassGenerationPreset } from '@/lib/types/database'
@@ -54,6 +55,7 @@ function InventoryPageContent() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editGamepass, setEditGamepass] = useState<Gamepass | null>(null)
   const [bulkGenerateOpen, setBulkGenerateOpen] = useState(false)
+  const [importCatalogOpen, setImportCatalogOpen] = useState(false)
   const [pricingTiers, setPricingTiers] = useState<PricingEngineTier[]>([])
   const [generationPresets, setGenerationPresets] = useState<GamepassGenerationPreset[]>([])
   const [search, setSearch] = useState('')
@@ -186,6 +188,63 @@ function InventoryPageContent() {
     toast.success(parts.join(', ') || 'Nothing saved.')
   }
 
+  // Catalog import — same Update/Replace semantics as Bulk Generate, but
+  // spans multiple games at once: any game name in the import that doesn't
+  // already exist gets created first, then every row resolves to its game.
+  async function handleImportCatalog(tierRows: CatalogImportTierRow[], gamepassRows: CatalogImportGamepassRow[]) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const gameIdByName = new Map<string, string>(games.map(g => [g.name.toLowerCase(), g.id]))
+    const neededNames = [...new Set(gamepassRows.map(r => r.gameName))]
+    for (const name of neededNames) {
+      if (gameIdByName.has(name.toLowerCase())) continue
+      const { data, error } = await supabase.from('games').insert({ user_id: user.id, name }).select('id').single()
+      if (!error && data) gameIdByName.set(name.toLowerCase(), data.id)
+    }
+
+    if (tierRows.length > 0) {
+      await supabase.from('pricing_engine_tiers').upsert(
+        tierRows.map(r => ({ user_id: user.id, robux_amount: r.robux_amount, selling_price: r.selling_price, profit: r.profit })),
+        { onConflict: 'user_id,robux_amount' }
+      )
+    }
+
+    let created = 0, updated = 0, replaced = 0, failed = 0
+    for (const row of gamepassRows) {
+      const gameId = gameIdByName.get(row.gameName.toLowerCase())
+      if (!gameId) { failed++; continue }
+      const fields = computeGamepassFieldsFromProfit(row.robux_amount, row.your_price, row.profit, 0)
+      if (row.action === 'create') {
+        const { error } = await supabase.from('gamepasses').insert({
+          user_id: user.id, game_id: gameId, name: row.name, robux_amount: row.robux_amount,
+          your_price: row.your_price, your_cost: fields.your_cost, robux_rate: fields.robux_rate,
+          profit: row.profit, status: fields.status, suggested_lower_price: fields.suggested_lower_price,
+          competitor_price: 0, is_active: true,
+        })
+        if (error) failed++; else created++
+      } else if (row.action === 'update' && row.existingId) {
+        const { error } = await supabase.from('gamepasses').update({
+          name: row.name, robux_amount: row.robux_amount, your_price: row.your_price, profit: row.profit,
+          your_cost: fields.your_cost, robux_rate: fields.robux_rate, status: fields.status,
+          updated_at: new Date().toISOString(),
+        }).eq('id', row.existingId)
+        if (error) failed++; else updated++
+      } else if (row.action === 'replace' && row.existingId) {
+        const { error } = await supabase.from('gamepasses').update({
+          name: row.name, robux_amount: row.robux_amount, your_price: row.your_price, profit: row.profit,
+          your_cost: fields.your_cost, robux_rate: fields.robux_rate, status: fields.status,
+          competitor_price: 0, suggested_lower_price: fields.suggested_lower_price, is_active: true,
+          updated_at: new Date().toISOString(),
+        }).eq('id', row.existingId)
+        if (error) failed++; else replaced++
+      }
+    }
+    fetchData()
+    const parts = [created && `${created} created`, updated && `${updated} updated`, replaced && `${replaced} replaced`, failed && `${failed} failed`].filter(Boolean)
+    toast.success(parts.join(', ') || 'Nothing imported.')
+  }
+
   const filtered = useMemo(() => gamepasses.filter(gp => {
     const matchSearch = gp.name.toLowerCase().includes(search.toLowerCase()) ||
                         (gp.games?.name ?? '').toLowerCase().includes(search.toLowerCase())
@@ -234,14 +293,24 @@ function InventoryPageContent() {
           <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
             New game releasing? Generate its whole gamepass list from the master pricing table or by copying another game.
           </p>
-          <button
-            type="button"
-            onClick={() => setBulkGenerateOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold flex-shrink-0"
-            style={{ background: 'rgba(167,139,250,0.14)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.30)' }}
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Bulk Generate Gamepasses
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setImportCatalogOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-[12px] font-bold"
+              style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
+            >
+              Import Catalog (CSV)
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkGenerateOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold"
+              style={{ background: 'rgba(167,139,250,0.14)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.30)' }}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Bulk Generate Gamepasses
+            </button>
+          </div>
         </div>
 
         {/* ── 01 · Catalog Overview ── */}
@@ -463,6 +532,15 @@ function InventoryPageContent() {
         onAddMissingTier={handleAddMissingTier}
         onSavePreset={handleSaveGenerationPreset}
         onSaveGamepasses={handleBulkSaveGamepasses}
+      />
+
+      <ImportCatalogDialog
+        open={importCatalogOpen}
+        onClose={() => setImportCatalogOpen(false)}
+        games={games}
+        gamepasses={gamepasses}
+        tiers={pricingTiers}
+        onImport={handleImportCatalog}
       />
     </div>
   )
