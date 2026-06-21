@@ -27,7 +27,7 @@ import LogInstantSendSaleDialog from '@/components/accounts/LogInstantSendSaleDi
 import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceTierManager'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown,
+  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -64,6 +64,22 @@ const TRANSFER_SORTS: readonly { value: TransferSort; label: string }[] = [
   { value: 'leastAvailable',   label: 'Least Available Allowance' },
   { value: 'mostReserved',     label: 'Most Reserved' },
   { value: 'mostRecentlyUsed', label: 'Most Recently Used' },
+]
+
+// Roblox Discount Active — purely operational tagging, never read by any
+// inventory/profit/capital/forecast calculation.
+type DiscountFilter = 'all' | 'active' | 'inactive'
+const DISCOUNT_FILTERS: readonly { value: DiscountFilter; label: string }[] = [
+  { value: 'all',      label: 'All Accounts' },
+  { value: 'active',   label: 'Discount Active' },
+  { value: 'inactive', label: 'No Active Discount' },
+]
+
+type DiscountSort = 'none' | 'first' | 'last'
+const DISCOUNT_SORTS: readonly { value: DiscountSort; label: string }[] = [
+  { value: 'none',  label: 'No Discount Sort' },
+  { value: 'first', label: 'Discount Active First' },
+  { value: 'last',  label: 'Discount Active Last' },
 ]
 
 const LS_SELECTED = 'xob-selected-accounts'
@@ -109,6 +125,8 @@ function AccountsPageContent() {
   const [transferQueueByAccount, setTransferQueueByAccount] = useState<Map<string, TransferReservation[]>>(new Map())
   const [transferFilter, setTransferFilter] = useState<TransferFilter>('all')
   const [transferSort, setTransferSort] = useState<TransferSort>('none')
+  const [discountFilter, setDiscountFilter] = useState<DiscountFilter>('all')
+  const [discountSort, setDiscountSort] = useState<DiscountSort>('none')
   const [reserveDialogAccount, setReserveDialogAccount] = useState<RobloxAccount | null>(null)
   const [logDialogAccount, setLogDialogAccount] = useState<RobloxAccount | null>(null)
   const [editingTransferLog, setEditingTransferLog] = useState<TransferLog | null>(null)
@@ -205,6 +223,7 @@ function AccountsPageContent() {
     robux_cost_rate: number; status: 'active' | 'inactive' | 'banned' | 'low'; notes?: string
     roblox_profile?: string
     purchase_cost?: number; supplier?: string; purchase_date?: string
+    has_active_discount?: boolean
   }) {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -230,10 +249,10 @@ function AccountsPageContent() {
       // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
       // once an account exists — they can only change via the order financial engine or
       // adjust_account_field (handleAdjust below), both of which leave an audit trail.
-      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
+      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false }
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
-      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId }
+      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false }
       const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
 
       // Phase 2: every new stock purchase automatically logs a Capital Event
@@ -525,13 +544,17 @@ function AccountsPageContent() {
   const transferFilteredAccounts = useMemo(() => {
     let list = activeInventoryAccounts.filter(a => {
       const s = getAllowance(a.id)
-      switch (transferFilter) {
-        case 'canSend':         return s.available > 0
-        case 'hasReservations': return s.reserved > 0
-        case 'fullyReserved':   return s.available === 0 && s.reserved > 0
-        case 'limitReached':    return s.available === 0
-        default:                return true
-      }
+      const passesTransfer = (() => {
+        switch (transferFilter) {
+          case 'canSend':         return s.available > 0
+          case 'hasReservations': return s.reserved > 0
+          case 'fullyReserved':   return s.available === 0 && s.reserved > 0
+          case 'limitReached':    return s.available === 0
+          default:                return true
+        }
+      })()
+      const passesDiscount = discountFilter === 'all' ? true : discountFilter === 'active' ? a.has_active_discount : !a.has_active_discount
+      return passesTransfer && passesDiscount
     })
     if (transferSort !== 'none') {
       list = [...list].sort((a, b) => {
@@ -549,8 +572,17 @@ function AccountsPageContent() {
         }
       })
     }
+    // Stable secondary pass — partitions discounted accounts to the front/back
+    // while preserving whatever relative order the transfer sort produced.
+    if (discountSort !== 'none') {
+      list = [...list].sort((a, b) => {
+        const da = a.has_active_discount ? 1 : 0
+        const db = b.has_active_discount ? 1 : 0
+        return discountSort === 'first' ? db - da : da - db
+      })
+    }
     return list
-  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort])
+  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort])
 
   // Accounts used for summary bar (always selection-based)
   const selectedAccounts = useMemo(
@@ -906,6 +938,42 @@ function AccountsPageContent() {
                 <DropdownMenuContent align="end" className="bg-popover border-border">
                   {TRANSFER_SORTS.map(s => (
                     <DropdownMenuItem key={s.value} onClick={() => setTransferSort(s.value)} className="cursor-pointer text-[12px]">
+                      {s.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Roblox Discount Active filter — All / Discount Active / No Active Discount */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: discountFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {DISCOUNT_FILTERS.find(f => f.value === discountFilter)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {DISCOUNT_FILTERS.map(f => (
+                    <DropdownMenuItem key={f.value} onClick={() => setDiscountFilter(f.value)} className="cursor-pointer text-[12px]">
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Roblox Discount Active sort — Discount Active First / Last */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: discountSort !== 'none' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  {DISCOUNT_SORTS.find(s => s.value === discountSort)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {DISCOUNT_SORTS.map(s => (
+                    <DropdownMenuItem key={s.value} onClick={() => setDiscountSort(s.value)} className="cursor-pointer text-[12px]">
                       {s.label}
                     </DropdownMenuItem>
                   ))}

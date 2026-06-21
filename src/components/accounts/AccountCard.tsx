@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { RobloxAccount, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
+import DiscountBadge from '@/components/shared/DiscountBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
   MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2,
@@ -138,9 +139,12 @@ export default function AccountCard({
             }
           />
           <div className="min-w-0">
-            <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
-              {account.username}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                {account.username}
+              </p>
+              {account.has_active_discount && <DiscountBadge />}
+            </div>
             <div className="flex items-center gap-2 mt-0.5">
               <StatusBadge status={account.status} />
               {showTransferTracker && (

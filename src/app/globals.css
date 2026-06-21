@@ -1101,6 +1101,41 @@ input::selection, textarea::selection {
 }
 .twicks-glow { animation: twicks-glow-breath 5s ease-in-out infinite; }
 
+/* ── Discount Active badge ──────────────────────────────────────
+   One shared keyframe for every badge instance, not a per-element
+   <style> block — the only animated property is background-position
+   (compositor-only, no layout/paint per frame); the glow is a STATIC
+   box-shadow, never animated, since animating box-shadow/filter forces
+   a repaint every frame and is the expensive way to do this. This is
+   deliberately the cheap path even with 50+ accounts on screen at once. */
+@keyframes discount-badge-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.discount-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #ffffff;
+  white-space: nowrap;
+  background-image: linear-gradient(
+    90deg,
+    #ff3b3b, #ff9d3b, #ffe93b, #3bff6e, #3bdcff, #6e3bff, #ff3bdc, #ff3b3b
+  );
+  background-size: 220% 100%;
+  animation: discount-badge-flow 5s linear infinite;
+  box-shadow: 0 0 8px rgba(255,255,255,0.30), 0 0 16px rgba(140,100,255,0.30);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.50);
+}
+@media (prefers-reduced-motion: reduce) {
+  .discount-badge { animation: none; background-position: 50% 50%; }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MOBILE — touch targets & responsive utilities (< 640 px)
 ═══════════════════════════════════════════════════════════════ */

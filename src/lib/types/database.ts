@@ -45,6 +45,7 @@ export type Database = {
           notes: string | null
           roblox_user_id: string | null
           status: 'active' | 'inactive' | 'banned' | 'low'
+          has_active_discount: boolean
           created_at: string
           updated_at: string
         }
@@ -58,6 +59,7 @@ export type Database = {
           notes?: string | null
           roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
+          has_active_discount?: boolean
         }
         Update: {
           username?: string
@@ -67,6 +69,7 @@ export type Database = {
           notes?: string | null
           roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
+          has_active_discount?: boolean
           updated_at?: string
         }
       }

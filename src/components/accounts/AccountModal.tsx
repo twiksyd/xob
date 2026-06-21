@@ -19,16 +19,17 @@ import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import { formatPHP } from '@/lib/utils/pricing'
 
 const schema = z.object({
-  username:        z.string().min(1, 'Username required'),
-  current_robux:   z.number().min(0),
-  reserved_robux:  z.number().min(0),
-  robux_cost_rate: z.number().min(0),
-  status:          z.enum(['active', 'inactive', 'banned', 'low']),
-  notes:           z.string().optional(),
-  roblox_profile:  z.string().optional(),
-  purchase_cost:   z.number().min(0).optional(),
-  supplier:        z.string().optional(),
-  purchase_date:   z.string().optional(),
+  username:            z.string().min(1, 'Username required'),
+  current_robux:       z.number().min(0),
+  reserved_robux:      z.number().min(0),
+  robux_cost_rate:     z.number().min(0),
+  status:              z.enum(['active', 'inactive', 'banned', 'low']),
+  notes:               z.string().optional(),
+  roblox_profile:      z.string().optional(),
+  purchase_cost:       z.number().min(0).optional(),
+  supplier:            z.string().optional(),
+  purchase_date:       z.string().optional(),
+  has_active_discount: z.boolean().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -65,7 +66,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
     defaultValues: {
       username: '', current_robux: 0, reserved_robux: 0,
       robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
-      purchase_cost: 0, supplier: '', purchase_date: '',
+      purchase_cost: 0, supplier: '', purchase_date: '', has_active_discount: false,
     }
   })
 
@@ -79,21 +80,22 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
   useEffect(() => {
     if (account) {
       reset({
-        username:        account.username,
-        current_robux:   account.current_robux,
-        reserved_robux:  account.reserved_robux,
-        robux_cost_rate: account.robux_cost_rate ?? 0,
-        status:          account.status,
-        notes:           account.notes ?? '',
-        roblox_profile:  account.roblox_user_id ?? '',
-        purchase_cost:   0,
-        supplier:        '',
-        purchase_date:   '',
+        username:            account.username,
+        current_robux:       account.current_robux,
+        reserved_robux:      account.reserved_robux,
+        robux_cost_rate:     account.robux_cost_rate ?? 0,
+        status:              account.status,
+        notes:               account.notes ?? '',
+        roblox_profile:      account.roblox_user_id ?? '',
+        purchase_cost:       0,
+        supplier:            '',
+        purchase_date:       '',
+        has_active_discount: account.has_active_discount ?? false,
       })
     } else {
       reset({
         username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
-        purchase_cost: 0, supplier: '', purchase_date: new Date().toISOString().slice(0, 10),
+        purchase_cost: 0, supplier: '', purchase_date: new Date().toISOString().slice(0, 10), has_active_discount: false,
       })
     }
     setAdjustField('current_robux')
@@ -343,6 +345,17 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
               </SelectContent>
             </Select>
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              {...register('has_active_discount')}
+              className="w-4 h-4 rounded accent-violet-500"
+            />
+            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.78)' }}>
+              Roblox Discount Active
+            </span>
+          </label>
 
           <div className="space-y-1.5">
             <Label className="text-xs">Notes (optional)</Label>

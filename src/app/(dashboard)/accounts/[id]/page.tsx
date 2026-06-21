@@ -9,6 +9,7 @@ import PageHero from '@/components/shared/PageHero'
 import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import StatusBadge from '@/components/shared/StatusBadge'
+import DiscountBadge from '@/components/shared/DiscountBadge'
 import PurchaseHistoryTable from '@/components/accounts/PurchaseHistoryTable'
 import AccountTimeline from '@/components/accounts/AccountTimeline'
 import { createClient } from '@/lib/supabase/client'
@@ -174,9 +175,12 @@ export default function AccountLedgerPage() {
                 glow="0 0 14px rgba(139,92,246,0.20)"
               />
               <div className="min-w-0">
-                <p className="text-[18px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                  {account.username}
-                </p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-[18px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                    {account.username}
+                  </p>
+                  {account.has_active_discount && <DiscountBadge />}
+                </div>
                 <div className="mt-1">
                   <StatusBadge status={account.status} />
                 </div>

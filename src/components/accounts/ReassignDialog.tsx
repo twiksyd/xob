@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import DiscountBadge from '@/components/shared/DiscountBadge'
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 
 interface ReassignDialogProps {
@@ -74,9 +75,12 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
         <div className="space-y-4">
           <div className="glass-secondary p-3">
             <p className="label-caps mb-1">Currently Assigned To</p>
-            <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-              {currentAccount.username}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                {currentAccount.username}
+              </p>
+              {currentAccount.has_active_discount && <DiscountBadge />}
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -87,7 +91,12 @@ export default function ReassignDialog({ order, currentAccount, accounts, onClos
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
                 {otherAccounts.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.username}</SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    <span className="flex items-center gap-1.5">
+                      {a.username}
+                      {a.has_active_discount && <DiscountBadge />}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
