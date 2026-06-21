@@ -8,6 +8,7 @@ import PageHero from '@/components/shared/PageHero'
 import GamepassModal from '@/components/inventory/GamepassModal'
 import BulkGenerateGamepassesDialog, { SaveRow } from '@/components/inventory/BulkGenerateGamepassesDialog'
 import ImportCatalogDialog, { CatalogImportTierRow, CatalogImportGamepassRow } from '@/components/inventory/ImportCatalogDialog'
+import DuplicateGamepassesDialog from '@/components/inventory/DuplicateGamepassesDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CountUp from '@/components/shared/CountUp'
 import { Gamepass, Game, RobloxAccount, PricingEngineTier, GamepassGenerationPreset } from '@/lib/types/database'
@@ -56,6 +57,7 @@ function InventoryPageContent() {
   const [editGamepass, setEditGamepass] = useState<Gamepass | null>(null)
   const [bulkGenerateOpen, setBulkGenerateOpen] = useState(false)
   const [importCatalogOpen, setImportCatalogOpen] = useState(false)
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [pricingTiers, setPricingTiers] = useState<PricingEngineTier[]>([])
   const [generationPresets, setGenerationPresets] = useState<GamepassGenerationPreset[]>([])
   const [search, setSearch] = useState('')
@@ -245,6 +247,13 @@ function InventoryPageContent() {
     toast.success(parts.join(', ') || 'Nothing imported.')
   }
 
+  async function handleDeleteDuplicates(ids: string[]) {
+    const { error } = await supabase.from('gamepasses').delete().in('id', ids)
+    if (error) { toast.error(error.message || 'Could not remove duplicates.'); return }
+    fetchData()
+    toast.success(`Removed ${ids.length} duplicate${ids.length !== 1 ? 's' : ''}.`)
+  }
+
   const filtered = useMemo(() => gamepasses.filter(gp => {
     const matchSearch = gp.name.toLowerCase().includes(search.toLowerCase()) ||
                         (gp.games?.name ?? '').toLowerCase().includes(search.toLowerCase())
@@ -294,6 +303,14 @@ function InventoryPageContent() {
             New game releasing? Generate its whole gamepass list from the master pricing table or by copying another game.
           </p>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setDuplicatesOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-[12px] font-bold"
+              style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
+            >
+              Find Duplicates
+            </button>
             <button
               type="button"
               onClick={() => setImportCatalogOpen(true)}
@@ -541,6 +558,13 @@ function InventoryPageContent() {
         gamepasses={gamepasses}
         tiers={pricingTiers}
         onImport={handleImportCatalog}
+      />
+
+      <DuplicateGamepassesDialog
+        open={duplicatesOpen}
+        onClose={() => setDuplicatesOpen(false)}
+        gamepasses={gamepasses}
+        onDelete={handleDeleteDuplicates}
       />
     </div>
   )
