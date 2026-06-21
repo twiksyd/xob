@@ -57,6 +57,24 @@ export function computeGamepassFields(
   return { your_cost, profit, status, suggested_lower_price }
 }
 
+// Pricing Engine — the master tier table gives price AND profit directly
+// (a trusted, already-decided number from the operator's own spreadsheet),
+// so this back-derives cost/rate from them instead of computing profit
+// forward from a rate — preserves the imported numbers exactly rather than
+// silently recalculating them against today's global ROBUX_RATE.
+export function computeGamepassFieldsFromProfit(
+  robuxAmount: number,
+  yourPrice: number,
+  profit: number,
+  competitorPrice = 0
+) {
+  const your_cost = yourPrice - profit
+  const robux_rate = robuxAmount > 0 ? (your_cost / robuxAmount) * 1000 : ROBUX_RATE
+  const status = calculateStatus(profit)
+  const suggested_lower_price = calculateSuggestedLowerPrice(competitorPrice)
+  return { your_cost, robux_rate, status, suggested_lower_price }
+}
+
 export interface OrderTotals {
   totalRobux: number
   totalPrice: number

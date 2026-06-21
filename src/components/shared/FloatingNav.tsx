@@ -7,13 +7,14 @@ import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Box, LayoutDashboard, Users, Package, ShoppingCart, Receipt,
-  Wallet, ShieldCheck, TrendingUp, Archive, LogOut, Menu, X,
+  Wallet, ShieldCheck, TrendingUp, Archive, LogOut, Menu, X, Calculator,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/',                  label: 'Dashboard',    icon: LayoutDashboard },
   { href: '/accounts',          label: 'Accounts',     icon: Users           },
   { href: '/inventory',         label: 'Inventory',    icon: Package         },
+  { href: '/pricing-engine',    label: 'Pricing Engine',icon: Calculator     },
   { href: '/orders',            label: 'Orders',       icon: ShoppingCart    },
   { href: '/transactions',      label: 'Transactions', icon: Receipt         },
   { href: '/wallet',            label: 'Wallet',       icon: Wallet          },
