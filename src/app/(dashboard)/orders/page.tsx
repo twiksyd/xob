@@ -11,7 +11,7 @@ import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import { useOrderCart } from '@/hooks/useOrderCart'
 import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { calculateOrderTotals, formatPHP, getEffectiveCostRate } from '@/lib/utils/pricing'
+import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
 import { isActiveOrder } from '@/lib/utils/orders'
 import { motion, AnimatePresence } from 'framer-motion'
 import { staggerContainer, staggerItem } from '@/lib/motion'
@@ -106,16 +106,16 @@ function OrdersPageContent() {
   const accountId  = watch('roblox_account_id')
   const isEditMode = editOrder !== null
 
-  const accountRate = useMemo(() => {
-    if (!accountId) return 0
-    const account = accounts.find(a => a.id === accountId)
-    if (!account) return 0
-    return getEffectiveCostRate(account.robux_cost_rate, account.is_plus_account)
-  }, [accountId, accounts])
+  const selectedAccount = useMemo(
+    () => accounts.find(a => a.id === accountId) ?? null,
+    [accountId, accounts]
+  )
+  const accountRate = selectedAccount?.robux_cost_rate ?? 0
+  const isAccountPlus = selectedAccount?.is_plus_account ?? false
 
   const totals = useMemo(
-    () => calculateOrderTotals(cart.items, accountRate),
-    [cart.items, accountRate]
+    () => calculateOrderTotals(cart.items, accountRate, isAccountPlus),
+    [cart.items, accountRate, isAccountPlus]
   )
 
   // ── Populate form when editing ──────────────────────────────────────────────
@@ -236,8 +236,10 @@ function OrdersPageContent() {
     if (!user) { setSaving(false); return }
 
     const orderAccount = accounts.find(a => a.id === data.roblox_account_id)
-    const rateUsed = orderAccount ? getEffectiveCostRate(orderAccount.robux_cost_rate, orderAccount.is_plus_account) : 0
-    const { totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit } = calculateOrderTotals(cart.validItems, rateUsed)
+    const rateUsed = orderAccount?.robux_cost_rate ?? 0
+    const {
+      totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit, effectiveRobux,
+    } = calculateOrderTotals(cart.validItems, rateUsed, orderAccount?.is_plus_account ?? false)
     const first = cart.validItems[0]
     const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
 
@@ -251,6 +253,7 @@ function OrdersPageContent() {
         notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
         account_rate_used: rateUsed || null,
+        effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
         updated_at: new Date().toISOString(),
       }).eq('id', editOrder.id)
       await supabase.from('order_items').delete().eq('order_id', editOrder.id)
@@ -266,7 +269,7 @@ function OrdersPageContent() {
         await supabase.rpc('reserve_order_robux', {
           p_order_id:       editOrder.id,
           p_account_id:     data.roblox_account_id,
-          p_robux_amount:   tRobux,
+          p_robux_amount:   Math.round(effectiveRobux),
           p_gamepass_names: gpNames,
         })
       }
@@ -286,6 +289,7 @@ function OrdersPageContent() {
         status: 'pending', notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
         account_rate_used: rateUsed || null,
+        effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
       }).select().single()
       if (newOrder && cart.validItems.length > 0) {
         await supabase.from('order_items').insert(cart.validItems.map(item => ({
@@ -298,7 +302,7 @@ function OrdersPageContent() {
         await supabase.rpc('reserve_order_robux', {
           p_order_id:       newOrder.id,
           p_account_id:     data.roblox_account_id,
-          p_robux_amount:   tRobux,
+          p_robux_amount:   Math.round(effectiveRobux),
           p_gamepass_names: gpNames,
         })
       }

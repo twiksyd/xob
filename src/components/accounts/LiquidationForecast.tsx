@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { LucideIcon } from 'lucide-react'
 import { RobloxAccount, OrderWithItems } from '@/lib/types/database'
-import { formatPHP, formatRobux, getEffectiveCostRate } from '@/lib/utils/pricing'
+import { formatPHP, formatRobux } from '@/lib/utils/pricing'
 import { getAvailableRobux } from '@/lib/utils/accounts'
 import { Sparkles, Wallet, Coins, TrendingUp, Target, Info } from 'lucide-react'
 
@@ -77,14 +77,12 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
       stdDevPrice = Math.sqrt(variance)
     }
 
-    // ── Per-account forecast — respects each account's own (Plus-adjusted)
-    // cost rate ────────────────────────────────────────────────────────────
+    // ── Per-account forecast — respects each account's own cost rate ──────
     const accountForecasts = accountInventory.map(({ account, available }) => {
-      const baseCostPerRobux = account.robux_cost_rate / 1000
-      const costPerRobux = getEffectiveCostRate(account.robux_cost_rate, account.is_plus_account) / 1000
+      const costPerRobux = account.robux_cost_rate / 1000
       const revenue = available * avgPricePerRobux
       const profit = available * (avgPricePerRobux - costPerRobux)
-      return { account, available, baseCostPerRobux, costPerRobux, revenue, profit }
+      return { account, available, costPerRobux, revenue, profit }
     })
 
     const estRevenue = accountForecasts.reduce((s, x) => s + x.revenue, 0)
@@ -266,30 +264,22 @@ export default function LiquidationForecast({ accounts, selectedIds, completedOr
           {f.accountForecasts.length > 1 && (
             <div className="mt-5 pt-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.092)' }}>
               <span className="label-caps">Projected Profit by Account</span>
-              {f.accountForecasts.slice(0, 5).map(({ account, profit, available, baseCostPerRobux, costPerRobux }) => {
+              {f.accountForecasts.slice(0, 5).map(({ account, profit }) => {
                 const pct = f.estProfit !== 0 ? (profit / f.estProfit) * 100 : 0
-                const plusSavings = account.is_plus_account ? available * (baseCostPerRobux - costPerRobux) : 0
                 return (
-                  <div key={account.id} className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[12px] font-semibold w-28 sm:w-36 truncate flex-shrink-0" style={{ color: 'rgba(255,255,255,0.76)' }}>
-                        {account.username}
-                      </span>
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: profit >= 0 ? '#34d399' : '#f43f5e' }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-bold tabular-nums w-20 text-right flex-shrink-0" style={{ color: profit >= 0 ? '#34d399' : '#f43f5e' }}>
-                        {fmtSigned(profit)}
-                      </span>
+                  <div key={account.id} className="flex items-center gap-3">
+                    <span className="text-[12px] font-semibold w-28 sm:w-36 truncate flex-shrink-0" style={{ color: 'rgba(255,255,255,0.76)' }}>
+                      {account.username}
+                    </span>
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.092)' }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: profit >= 0 ? '#34d399' : '#f43f5e' }}
+                      />
                     </div>
-                    {plusSavings > 0 && (
-                      <p className="text-[10px] pl-1" style={{ color: '#38bdf8' }}>
-                        Base {formatPHP(baseCostPerRobux * 1000)}/1k → Plus {formatPHP(costPerRobux * 1000)}/1k · Savings {formatPHP(plusSavings)}
-                      </p>
-                    )}
+                    <span className="text-[11px] font-bold tabular-nums w-20 text-right flex-shrink-0" style={{ color: profit >= 0 ? '#34d399' : '#f43f5e' }}>
+                      {fmtSigned(profit)}
+                    </span>
                   </div>
                 )
               })}

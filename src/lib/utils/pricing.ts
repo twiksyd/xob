@@ -6,15 +6,17 @@ export function calculateCost(robuxAmount: number, rate = ROBUX_RATE): number {
   return (robuxAmount / 1000) * rate
 }
 
-// Roblox Plus accounts get ~10% better Robux acquisition economics. This is
-// the ONLY place that discount is applied — every cost/profit/inventory-
-// value/capital calculation that depends on an account's robux_cost_rate
-// must derive its rate through this function instead of reading the raw
-// column, so the discount is never silently missed or duplicated.
-export const PLUS_ACCOUNT_DISCOUNT = 0.10
+// Roblox Plus does NOT discount an account's cost rate (₱/1,000 R$) — that
+// stays the same everywhere (inventory/capital/business valuation, cost-per-
+// 1000 displays). What it actually does is let the account spend ~10% less
+// Robux to deliver the same gamepass when an order is fulfilled through it.
+// This is the ONLY place that discount is applied — every site that deducts/
+// reserves/compares Robux for order fulfillment must derive the amount
+// through this function instead of using the nominal gamepass amount.
+export const PLUS_ROBUX_DISCOUNT = 0.10
 
-export function getEffectiveCostRate(robuxCostRate: number, isPlusAccount: boolean): number {
-  return isPlusAccount ? robuxCostRate * (1 - PLUS_ACCOUNT_DISCOUNT) : robuxCostRate
+export function getEffectivePlusRobuxCost(robuxAmount: number, isPlusAccount: boolean): number {
+  return isPlusAccount ? robuxAmount * (1 - PLUS_ROBUX_DISCOUNT) : robuxAmount
 }
 
 export function calculateProfit(yourPrice: number, robuxAmount: number, rate = ROBUX_RATE): number {
@@ -73,16 +75,24 @@ export interface OrderTotals {
   totalPrice: number
   totalCost: number
   totalProfit: number
+  /** Robux actually drawn from the fulfilling account — equals totalRobux
+   *  unless isPlusAccount discounts it. Use this for reservation amounts and
+   *  the order's effective_robux_amount snapshot, never totalRobux. */
+  effectiveRobux: number
 }
 
 // Account-level cost basis: when the account has a robux_cost_rate set, cost is
 // derived from that rate; otherwise falls back to each line item's own cost.
-export function calculateOrderTotals(items: LineItem[], accountRate: number): OrderTotals {
+// totalRobux is the nominal gamepass amount sold (buyer-facing, unaffected by
+// which account fulfills it); effectiveRobux is what a Plus account actually
+// spends to deliver it, and is what cost/profit are computed from.
+export function calculateOrderTotals(items: LineItem[], accountRate: number, isPlusAccount = false): OrderTotals {
   const totalRobux = items.reduce((sum, item) => sum + item.robux_amount, 0)
   const totalPrice = items.reduce((sum, item) => sum + item.selling_price, 0)
+  const effectiveRobux = getEffectivePlusRobuxCost(totalRobux, isPlusAccount)
   const totalCost = accountRate > 0
-    ? Math.round(items.reduce((sum, item) => sum + (item.robux_amount / 1000) * accountRate, 0) * 100) / 100
+    ? Math.round((effectiveRobux / 1000) * accountRate * 100) / 100
     : items.reduce((sum, item) => sum + item.cost, 0)
   const totalProfit = totalPrice - totalCost
-  return { totalRobux, totalPrice, totalCost, totalProfit }
+  return { totalRobux, totalPrice, totalCost, totalProfit, effectiveRobux }
 }

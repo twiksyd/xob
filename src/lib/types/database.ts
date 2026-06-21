@@ -165,6 +165,7 @@ export type Database = {
           payment_method: 'GCash' | 'Maya' | 'Bank' | 'Cash' | 'Other'
           status: 'pending' | 'paid' | 'delivering' | 'completed' | 'refunded' | 'cancelled'
           account_rate_used: number | null
+          effective_robux_amount: number | null
           notes: string | null
           paid_at: string | null
           delivered_at: string | null
@@ -186,6 +187,7 @@ export type Database = {
           profit?: number | null
           payment_method?: 'GCash' | 'Maya' | 'Bank' | 'Cash' | 'Other'
           status?: 'pending' | 'paid' | 'delivering' | 'completed' | 'refunded' | 'cancelled'
+          effective_robux_amount?: number | null
           notes?: string | null
         }
         Update: {
@@ -200,6 +202,7 @@ export type Database = {
           payment_method?: 'GCash' | 'Maya' | 'Bank' | 'Cash' | 'Other'
           status?: 'pending' | 'paid' | 'delivering' | 'completed' | 'refunded' | 'cancelled'
           account_rate_used?: number | null
+          effective_robux_amount?: number | null
           notes?: string | null
           updated_at?: string
         }

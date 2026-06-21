@@ -1,15 +1,16 @@
 import { RobloxAccount, CapitalEvent } from '@/lib/types/database'
 import { getAvailableRobux } from './accounts'
-import { formatPHP, getEffectiveCostRate } from './pricing'
+import { formatPHP } from './pricing'
 import { FIXED_CAPITAL } from '@/lib/constants/restock'
 
-// Unsold Robux is valued at each account's own (Plus-adjusted) cost rate
-// (₱ per 1k R$), not its selling price — this is what makes inventory a real
-// asset instead of "money already spent". Shared by every Capital* dashboard
-// card so the numbers always agree.
+// Unsold Robux is valued at each account's own cost rate (₱ per 1k R$), not
+// its selling price — this is what makes inventory a real asset instead of
+// "money already spent". Shared by every Capital* dashboard card so the
+// numbers always agree. Roblox Plus does not change this — it only reduces
+// Robux spent during order fulfillment, not the account's cost basis.
 export function calculateInventoryValue(accounts: RobloxAccount[]): number {
   return accounts.reduce(
-    (sum, a) => sum + Math.max(0, getAvailableRobux(a)) * (getEffectiveCostRate(a.robux_cost_rate, a.is_plus_account) / 1000),
+    (sum, a) => sum + Math.max(0, getAvailableRobux(a)) * (a.robux_cost_rate / 1000),
     0
   )
 }

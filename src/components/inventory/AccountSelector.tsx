@@ -5,8 +5,7 @@ import { RobloxAccount } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, Star, Archive, ChevronDown } from 'lucide-react'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import DiscountBadge from '@/components/shared/DiscountBadge'
-import PlusBadge from '@/components/shared/PlusBadge'
+import AccountBadgeRow from '@/components/shared/AccountBadgeRow'
 import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import { rankAccountsForOrder } from '@/lib/utils/accounts'
 
@@ -101,8 +100,7 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
                   <p className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                     {acc.username}
                   </p>
-                  {acc.is_plus_account && <PlusBadge />}
-                  {acc.has_active_discount && <DiscountBadge />}
+                  <AccountBadgeRow account={acc} />
                   {acc.chrome_profile && <ChromeProfileBadge profile={acc.chrome_profile} />}
                   {isBest && (
                     <span className="flex items-center gap-0.5 text-[10px] font-bold flex-shrink-0" style={{ color: COLOR_RESERVED }}>

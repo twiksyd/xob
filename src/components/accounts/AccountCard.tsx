@@ -6,8 +6,7 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { RobloxAccount, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
-import DiscountBadge from '@/components/shared/DiscountBadge'
-import PlusBadge from '@/components/shared/PlusBadge'
+import AccountBadgeRow from '@/components/shared/AccountBadgeRow'
 import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
@@ -145,9 +144,7 @@ export default function AccountCard({
               <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                 {account.username}
               </p>
-              {account.is_plus_account && <PlusBadge />}
-              {account.has_active_discount && <DiscountBadge />}
-              {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
+              <AccountBadgeRow account={account} />
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <StatusBadge status={account.status} />
@@ -180,43 +177,50 @@ export default function AccountCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
-          {/* Selection checkbox */}
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onToggleSelect?.() }}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
-            style={{
-              color: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.50)',
-              background: isSelected ? 'rgba(34,211,238,0.12)' : 'transparent',
-            }}
-            title={isSelected ? 'Deselect account' : 'Select account'}
-          >
-            {isSelected
-              ? <CheckCircle2 className="w-4 h-4" />
-              : <Circle className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity duration-150" />
-            }
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
-              style={{ color: 'rgba(255,255,255,0.45)' }}
+        {/* Account controls — Chrome Profile badge stacks above the
+            selection/menu controls, kept separate from the trait badges
+            beside the username so browser-management info doesn't clutter
+            the account-identity row. */}
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-2">
+          {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
+          <div className="flex items-center gap-0.5">
+            {/* Selection checkbox */}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onToggleSelect?.() }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
+              style={{
+                color: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.50)',
+                background: isSelected ? 'rgba(34,211,238,0.12)' : 'transparent',
+              }}
+              title={isSelected ? 'Deselect account' : 'Select account'}
             >
-              <MoreHorizontal className="w-4 h-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
-              <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
-                <Edit2 className="w-3.5 h-3.5" /> Edit Account
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(account.id)}
-                className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+              {isSelected
+                ? <CheckCircle2 className="w-4 h-4" />
+                : <Circle className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity duration-150" />
+              }
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
+                style={{ color: 'rgba(255,255,255,0.45)' }}
               >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <MoreHorizontal className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
+                <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
+                  <Edit2 className="w-3.5 h-3.5" /> Edit Account
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onDelete(account.id)}
+                  className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 

@@ -1101,18 +1101,16 @@ input::selection, textarea::selection {
 }
 .twicks-glow { animation: twicks-glow-breath 5s ease-in-out infinite; }
 
-/* ── Discount Active badge ──────────────────────────────────────
-   One shared keyframe for every badge instance, not a per-element
+/* ── Account trait badges (PLUS, DISCOUNT ACTIVE, …) ─────────────
+   Shared base for every .account-badge--<type> variant rendered by
+   AccountBadge.tsx. One shared keyframe per variant, not a per-element
    <style> block — the only animated property is background-position
-   (compositor-only, no layout/paint per frame); the glow is a STATIC
+   (compositor-only, no layout/paint per frame); glow is a STATIC
    box-shadow, never animated, since animating box-shadow/filter forces
-   a repaint every frame and is the expensive way to do this. This is
-   deliberately the cheap path even with 50+ accounts on screen at once. */
-@keyframes discount-badge-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.discount-badge {
+   a repaint every frame. Deliberately the cheap path even with 50+
+   accounts on screen at once. Add a new .account-badge--<type> block
+   here (+ an AccountBadgeType entry) to introduce a new badge. */
+.account-badge {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -1120,9 +1118,17 @@ input::selection, textarea::selection {
   border-radius: 4px;
   font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.05em;
   color: #ffffff;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.50);
+}
+
+@keyframes discount-badge-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.account-badge--discount {
+  letter-spacing: 0.05em;
   background-image: linear-gradient(
     90deg,
     #ff3b3b, #ff9d3b, #ffe93b, #3bff6e, #3bdcff, #6e3bff, #ff3bdc, #ff3b3b
@@ -1130,43 +1136,29 @@ input::selection, textarea::selection {
   background-size: 220% 100%;
   animation: discount-badge-flow 5s linear infinite;
   box-shadow: 0 0 8px rgba(255,255,255,0.30), 0 0 16px rgba(140,100,255,0.30);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.50);
 }
 @media (prefers-reduced-motion: reduce) {
-  .discount-badge { animation: none; background-position: 50% 50%; }
+  .account-badge--discount { animation: none; background-position: 50% 50%; }
 }
 
-/* ── Roblox Plus badge ────────────────────────────────────────────
-   Distinct from the Discount badge's full-rainbow rotation: a single
-   blue/cyan "shine" band sweeping across a solid blue base, the classic
-   shimmer look. Same cheap-animation discipline — only background-position
-   moves, glow is a static box-shadow. */
+/* Roblox Plus — deep reddish-orange, distinct from Discount's full-rainbow
+   rotation: a single bright "shine" band sweeping across a deep orange base. */
 @keyframes plus-badge-shimmer {
   0%   { background-position: -150% 0; }
   100% { background-position: 250% 0; }
 }
-.plus-badge {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 9.5px;
-  font-weight: 800;
+.account-badge--plus {
   letter-spacing: 0.06em;
-  color: #ffffff;
-  white-space: nowrap;
   background-image: linear-gradient(
     100deg,
-    #0ea5e9 0%, #0ea5e9 35%, #a5f3fc 50%, #0ea5e9 65%, #0ea5e9 100%
+    #ff5a1f 0%, #ff5a1f 32%, #ffc24d 50%, #ff7a1a 68%, #ff5a1f 100%
   );
   background-size: 250% 100%;
   animation: plus-badge-shimmer 3.2s linear infinite;
-  box-shadow: 0 0 8px rgba(14,165,233,0.45), 0 0 16px rgba(165,243,252,0.25);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.50);
+  box-shadow: 0 0 9px rgba(255,90,31,0.55), 0 0 18px rgba(255,157,0,0.30);
 }
 @media (prefers-reduced-motion: reduce) {
-  .plus-badge { animation: none; background-position: 0% 0; }
+  .account-badge--plus { animation: none; background-position: 0% 0; }
 }
 
 /* ── Chrome Profile badge ─────────────────────────────────────────

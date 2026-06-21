@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
-import { formatPHP, getEffectiveCostRate } from '@/lib/utils/pricing'
+import { formatPHP } from '@/lib/utils/pricing'
 
 const schema = z.object({
   username:            z.string().min(1, 'Username required'),
@@ -145,14 +145,6 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
   const purchaseCostValue = watch('purchase_cost') ?? 0
   const currentRobuxValue = watch('current_robux') ?? 0
   const derivedRate = currentRobuxValue > 0 ? (purchaseCostValue / currentRobuxValue) * 1000 : 0
-
-  // Base/Plus/Savings preview — per 1,000 R$, same basis as the cost rate
-  // field itself. Reads whichever value is currently the source of truth:
-  // the account's stored rate once one exists, the typed-in rate otherwise.
-  const isPlusValue = watch('is_plus_account') ?? false
-  const baseRate = account ? (account.robux_cost_rate ?? 0) : (watch('robux_cost_rate') ?? 0)
-  const effectiveRate = getEffectiveCostRate(baseRate, isPlusValue)
-  const rateSavings = baseRate - effectiveRate
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -292,36 +284,18 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
             <input
               type="checkbox"
               {...register('is_plus_account')}
-              className="w-4 h-4 rounded accent-sky-500"
+              className="w-4 h-4 rounded accent-orange-500"
             />
             <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.78)' }}>
               Roblox Plus Account
             </span>
             <span
               className="text-[10px] font-normal px-1.5 py-0.5 rounded-full"
-              style={{ background: 'rgba(14,165,233,0.10)', color: '#38bdf8' }}
+              style={{ background: 'rgba(255,90,31,0.10)', color: '#ff7a1a' }}
             >
-              ~10% better acquisition cost
+              ~10% less Robux spent per fulfillment
             </span>
           </label>
-
-          {isPlusValue && baseRate > 0 && (
-            <div className="grid grid-cols-3 gap-2 rounded-xl p-3" style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.18)' }}>
-              <div className="text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'rgba(255,255,255,0.46)' }}>Base Cost</p>
-                <p className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>{formatPHP(baseRate)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: '#38bdf8' }}>Plus Cost</p>
-                <p className="text-[13px] font-bold" style={{ color: '#38bdf8' }}>{formatPHP(effectiveRate)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: '#34d399' }}>Savings</p>
-                <p className="text-[13px] font-bold" style={{ color: '#34d399' }}>{formatPHP(rateSavings)}</p>
-              </div>
-              <p className="col-span-3 text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.40)' }}>per 1,000 R$ — applied automatically wherever this account&apos;s cost is used</p>
-            </div>
-          )}
 
           <div className="space-y-1.5">
             <Label className="text-xs">Chrome Profile (optional)</Label>

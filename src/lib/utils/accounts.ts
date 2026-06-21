@@ -1,4 +1,5 @@
 import { RobloxAccount } from '@/lib/types/database'
+import { getEffectivePlusRobuxCost } from './pricing'
 
 // Accounts at or below this available-Robux threshold are treated as
 // depleted — exhausted inventory that no longer contributes meaningfully
@@ -48,17 +49,20 @@ export interface RankedAccount extends RobloxAccount {
 // ones), then accounts with an existing reservation, then everything else,
 // depleted last. Shared by AccountSelector (manual picking) and the order
 // form's auto-select-on-first-item behavior so the two never disagree on
-// what "best" means.
+// what "best" means. robuxRequired is the nominal gamepass amount — each
+// Plus account's actual requirement is ~10% lower, so affordability is
+// computed per-account rather than against one shared threshold.
 export function rankAccountsForOrder(accounts: RobloxAccount[], robuxRequired: number): RankedAccount[] {
   return accounts
     .filter(a => a.status === 'active')
     .map(a => {
       const available = getAvailableRobux(a)
-      const canAfford = available >= robuxRequired
+      const required = getEffectivePlusRobuxCost(robuxRequired, a.is_plus_account)
+      const canAfford = available >= required
       const depleted = isDepleted(a)
       const hasReservation = (a.reserved_robux ?? 0) > 0
       const tier = canAfford ? 1 : hasReservation ? 2 : depleted ? 4 : 3
-      const score = canAfford ? available - robuxRequired : -1
+      const score = canAfford ? available - required : -1
       return { ...a, available, canAfford, depleted, tier, score }
     })
     .sort((a, b) => {
