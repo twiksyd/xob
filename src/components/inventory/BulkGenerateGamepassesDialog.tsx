@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Game, Gamepass, PricingEngineTier, GamepassGenerationPreset } from '@/lib/types/database'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -16,7 +16,7 @@ import { formatPHP } from '@/lib/utils/pricing'
 import {
   parseGenerationInput, matchTier, findExistingGamepass, TierMatchStatus,
 } from '@/lib/utils/pricingEngine'
-import { X } from 'lucide-react'
+import { X, ClipboardList, Copy, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 
 type GamepassWithGame = Gamepass & { games: Game | null }
 
@@ -54,12 +54,6 @@ interface BulkGenerateGamepassesDialogProps {
   onSaveGamepasses: (gameId: string, rows: SaveRow[]) => Promise<void>
 }
 
-const MATCH_LABEL: Record<TierMatchStatus | 'copied', string> = {
-  exact: '✓ Exact Match',
-  closest: '⚠ Closest Match',
-  none: '❌ No Match',
-  copied: '↻ Copied',
-}
 const MATCH_COLOR: Record<TierMatchStatus | 'copied', string> = {
   exact: '#34d399',
   closest: '#f59e0b',
@@ -67,11 +61,23 @@ const MATCH_COLOR: Record<TierMatchStatus | 'copied', string> = {
   copied: '#22d3ee',
 }
 
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span
+      className="flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold flex-shrink-0"
+      style={{ background: 'rgba(167,139,250,0.18)', color: '#a78bfa' }}
+    >
+      {n}
+    </span>
+  )
+}
+
 export default function BulkGenerateGamepassesDialog({
   open, onClose, games, gamepasses, tiers, presets,
   onCreateGame, onAddMissingTier, onSavePreset, onSaveGamepasses,
 }: BulkGenerateGamepassesDialogProps) {
   const [wasOpen, setWasOpen] = useState(open)
+  const [gameChoice, setGameChoice] = useState<'existing' | 'new'>('existing')
   const [targetGameId, setTargetGameId] = useState('')
   const [newGameName, setNewGameName] = useState('')
   const [mode, setMode] = useState<'pricingTable' | 'existingGame'>('pricingTable')
@@ -88,7 +94,7 @@ export default function BulkGenerateGamepassesDialog({
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      setTargetGameId(''); setNewGameName(''); setMode('pricingTable'); setPasteText('')
+      setGameChoice('existing'); setTargetGameId(''); setNewGameName(''); setMode('pricingTable'); setPasteText('')
       setPresetNameInput(''); setCopyFromGameId(''); setGeneratedRows([])
       setParseErrors([]); setDuplicateNames([]); setMissingTierInputs({})
     }
@@ -221,95 +227,154 @@ export default function BulkGenerateGamepassesDialog({
         <DialogHeader>
           <DialogTitle>Bulk Generate Gamepasses</DialogTitle>
         </DialogHeader>
+        <p className="text-[12px] -mt-2" style={{ color: 'rgba(255,255,255,0.50)' }}>
+          Create a whole game&apos;s gamepass list in a few clicks, using the prices already saved in your Pricing Engine table.
+        </p>
 
-        <div className="space-y-4 py-2">
-          {/* Create For */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Create For</Label>
-              <Select value={targetGameId} onValueChange={v => setTargetGameId(v ?? '')}>
-                <SelectTrigger className="bg-input"><SelectValue placeholder="Select game…" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+        <div className="space-y-5 py-2">
+          {/* Step 1 — game */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <StepBadge n={1} />
+              <Label className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>Which game is this for?</Label>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">or New Game</Label>
-              <Input value={newGameName} onChange={e => { setNewGameName(e.target.value); if (e.target.value) setTargetGameId('') }} placeholder="e.g. Grow A Garden" className="bg-input" />
+            <div className="flex items-center gap-2 pl-7">
+              <button
+                type="button"
+                onClick={() => { setGameChoice('existing'); setNewGameName('') }}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                style={gameChoice === 'existing'
+                  ? { background: 'rgba(167,139,250,0.16)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.35)' }
+                  : { background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.090)' }}
+              >
+                A game I already have
+              </button>
+              <button
+                type="button"
+                onClick={() => { setGameChoice('new'); setTargetGameId('') }}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                style={gameChoice === 'new'
+                  ? { background: 'rgba(167,139,250,0.16)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.35)' }
+                  : { background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.090)' }}
+              >
+                A brand-new game
+              </button>
             </div>
-          </div>
-
-          {/* Create From */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Create From</Label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-1.5 text-[12px] cursor-pointer">
-                <input type="radio" checked={mode === 'pricingTable'} onChange={() => setMode('pricingTable')} className="accent-violet-500" />
-                Pricing Table
-              </label>
-              <label className="flex items-center gap-1.5 text-[12px] cursor-pointer">
-                <input type="radio" checked={mode === 'existingGame'} onChange={() => setMode('existingGame')} className="accent-violet-500" />
-                Existing Game
-              </label>
-            </div>
-          </div>
-
-          {mode === 'pricingTable' ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Paste list (Name | Amount)</Label>
-                {presets.length > 0 && (
-                  <Select value="" onValueChange={v => { const p = presets.find(p => p.id === v); if (p) setPasteText(p.raw_input) }}>
-                    <SelectTrigger className="bg-input h-7 w-44 text-[11px]"><SelectValue placeholder="Load preset…" /></SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {presets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              <Textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={6} placeholder={'VIP | 100\nPremium | 250\nLegendary | 750\nUltimate | 1000'} className="bg-input resize-none font-mono text-[12px]" />
-              <div className="flex items-center gap-2">
-                <Input value={presetNameInput} onChange={e => setPresetNameInput(e.target.value)} placeholder="Preset name to save this list as…" className="bg-input h-8 text-[12px]" />
-                <Button type="button" variant="outline" size="sm" disabled={!presetNameInput.trim() || !pasteText.trim() || savingPreset} onClick={handleSavePreset}>
-                  {savingPreset ? 'Saving…' : 'Save Preset'}
-                </Button>
-              </div>
-              {parseErrors.length > 0 && (
-                <p className="text-[11px] font-semibold" style={{ color: '#f87171' }}>
-                  Could not parse line{parseErrors.length !== 1 ? 's' : ''}: {parseErrors.map(e => e.lineNumber).join(', ')} — fix before generating.
-                </p>
-              )}
-              {duplicateNames.length > 0 && (
-                <p className="text-[11px] font-semibold" style={{ color: '#f59e0b' }}>
-                  Duplicate name{duplicateNames.length !== 1 ? 's' : ''} in this list: {duplicateNames.join(', ')}
-                </p>
-              )}
-              <Button type="button" onClick={runGenerateFromPricingTable} disabled={!canGenerate} className="btn-primary">
-                Generate
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label className="text-xs">Copy From</Label>
-              <div className="flex items-center gap-2">
-                <Select value={copyFromGameId} onValueChange={v => setCopyFromGameId(v ?? '')}>
-                  <SelectTrigger className="bg-input flex-1"><SelectValue placeholder="Select source game…" /></SelectTrigger>
+            <div className="pl-7">
+              {gameChoice === 'existing' ? (
+                <Select value={targetGameId} onValueChange={v => setTargetGameId(v ?? '')}>
+                  <SelectTrigger className="bg-input max-w-xs"><SelectValue placeholder="Select a game…" /></SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    {games.filter(g => g.id !== targetGameId).map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                    {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button type="button" onClick={runLoadFromExistingGame} disabled={!canGenerate} className="btn-primary flex-shrink-0">
-                  Load Passes
+              ) : (
+                <Input value={newGameName} onChange={e => setNewGameName(e.target.value)} placeholder="e.g. Grow A Garden 2" className="bg-input max-w-xs" />
+              )}
+            </div>
+          </div>
+
+          {/* Step 2 — source */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <StepBadge n={2} />
+              <Label className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>How should we fill in the prices?</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pl-7">
+              <button
+                type="button"
+                onClick={() => setMode('pricingTable')}
+                className="flex items-start gap-2 p-3 rounded-xl text-left"
+                style={mode === 'pricingTable'
+                  ? { background: 'rgba(167,139,250,0.10)', border: '1px solid rgba(167,139,250,0.35)' }
+                  : { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.080)' }}
+              >
+                <ClipboardList className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: mode === 'pricingTable' ? '#a78bfa' : 'rgba(255,255,255,0.45)' }} />
+                <span>
+                  <span className="block text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>Paste a list</span>
+                  <span className="block text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>Type names + Robux amounts, prices fill in automatically.</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('existingGame')}
+                className="flex items-start gap-2 p-3 rounded-xl text-left"
+                style={mode === 'existingGame'
+                  ? { background: 'rgba(167,139,250,0.10)', border: '1px solid rgba(167,139,250,0.35)' }
+                  : { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.080)' }}
+              >
+                <Copy className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: mode === 'existingGame' ? '#a78bfa' : 'rgba(255,255,255,0.45)' }} />
+                <span>
+                  <span className="block text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>Copy another game</span>
+                  <span className="block text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>Already priced something similar? Copy its whole list to start.</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Step 3 — input */}
+          <div className="space-y-2 pl-7">
+            {mode === 'pricingTable' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">One gamepass per line — name, then the Robux amount (e.g. <span className="font-mono">VIP 100</span>)</Label>
+                  {presets.length > 0 && (
+                    <Select value="" onValueChange={v => { const p = presets.find(p => p.id === v); if (p) setPasteText(p.raw_input) }}>
+                      <SelectTrigger className="bg-input h-7 w-40 text-[11px]"><SelectValue placeholder="Load saved list…" /></SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {presets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <Textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={6} placeholder={'VIP 100\nPremium 250\nLegendary 750\nUltimate 1000'} className="bg-input resize-none font-mono text-[12px]" />
+                <div className="flex items-center gap-2">
+                  <Input value={presetNameInput} onChange={e => setPresetNameInput(e.target.value)} placeholder="Name this list to reuse later (optional)" className="bg-input h-8 text-[12px]" />
+                  <Button type="button" variant="outline" size="sm" disabled={!presetNameInput.trim() || !pasteText.trim() || savingPreset} onClick={handleSavePreset}>
+                    {savingPreset ? 'Saving…' : 'Save'}
+                  </Button>
+                </div>
+                {parseErrors.length > 0 && (
+                  <p className="text-[11px] font-semibold" style={{ color: '#f87171' }}>
+                    Could not read line{parseErrors.length !== 1 ? 's' : ''} {parseErrors.map(e => e.lineNumber).join(', ')} — each line needs a name and a Robux number, like &ldquo;VIP 100&rdquo;.
+                  </p>
+                )}
+                {duplicateNames.length > 0 && (
+                  <p className="text-[11px] font-semibold" style={{ color: '#f59e0b' }}>
+                    These names appear more than once in your list: {duplicateNames.join(', ')}
+                  </p>
+                )}
+                <Button type="button" onClick={runGenerateFromPricingTable} disabled={!canGenerate} className="btn-primary">
+                  Find Prices
                 </Button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs">Which game do you want to copy gamepasses from?</Label>
+                <div className="flex items-center gap-2">
+                  <Select value={copyFromGameId} onValueChange={v => setCopyFromGameId(v ?? '')}>
+                    <SelectTrigger className="bg-input flex-1"><SelectValue placeholder="Select a game…" /></SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {games.filter(g => g.id !== targetGameId).map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" onClick={runLoadFromExistingGame} disabled={!canGenerate} className="btn-primary flex-shrink-0">
+                    Copy Gamepasses
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Missing Pricing Tiers */}
           {missingAmounts.length > 0 && (
             <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
-              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#f59e0b' }}>Missing Pricing Tiers</p>
+              <p className="text-[12px] font-bold" style={{ color: '#f59e0b' }}>
+                We don&apos;t have a saved price for these amounts yet
+              </p>
+              <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
+                Add a price below and that gamepass will update automatically — no need to redo anything.
+              </p>
               {missingAmounts.map(amount => (
                 <div key={amount} className="flex items-center gap-2">
                   <span className="text-[12px] font-semibold w-24 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.78)' }}>{amount.toLocaleString()} R$</span>
@@ -326,27 +391,36 @@ export default function BulkGenerateGamepassesDialog({
                     className="bg-input h-8 w-24 text-[12px]"
                   />
                   <Button type="button" size="sm" variant="outline" onClick={() => handleAddMissingTier(amount)}>
-                    Add to Master Table
+                    Add Price
                   </Button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Review table */}
+          {/* Step 4 — review */}
           {generatedRows.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Review ({generatedRows.length})</Label>
-                {duplicateCount > 0 && (
-                  <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
-                    Apply to all {duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''}:
-                    <button type="button" onClick={() => applyBulkAction('skip')} className="underline">Skip</button>
-                    <button type="button" onClick={() => applyBulkAction('update')} className="underline">Update</button>
-                    <button type="button" onClick={() => applyBulkAction('replace')} className="underline">Replace</button>
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <StepBadge n={4} />
+                <Label className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>Check everything before saving</Label>
               </div>
+
+              <div className="flex flex-wrap items-center gap-3 pl-7 text-[11px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" style={{ color: MATCH_COLOR.exact }} /> Found a saved price</span>
+                <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3" style={{ color: MATCH_COLOR.closest }} /> Used the closest price — double-check this one</span>
+                <span className="flex items-center gap-1"><XCircle className="w-3 h-3" style={{ color: MATCH_COLOR.none }} /> No price found — fill it in manually</span>
+              </div>
+
+              {duplicateCount > 0 && (
+                <div className="flex items-center gap-1.5 pl-7 text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>
+                  {duplicateCount} of these already exist in this game. Apply to all of them:
+                  <button type="button" onClick={() => applyBulkAction('skip')} className="underline font-semibold">Skip</button>
+                  <button type="button" onClick={() => applyBulkAction('update')} className="underline font-semibold">Update</button>
+                  <button type="button" onClick={() => applyBulkAction('replace')} className="underline font-semibold">Replace</button>
+                </div>
+              )}
+
               <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.090)' }}>
                 <table className="w-full text-[12px]">
                   <thead>
@@ -355,57 +429,65 @@ export default function BulkGenerateGamepassesDialog({
                       <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Robux</th>
                       <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Price</th>
                       <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Profit</th>
-                      <th className="text-left px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Match</th>
-                      <th className="text-left px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Duplicate</th>
+                      <th className="text-left px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Status</th>
                       <th className="w-6" />
                     </tr>
                   </thead>
                   <tbody>
                     {generatedRows.map(row => (
-                      <tr key={row.key} style={{ borderTop: '1px solid rgba(255,255,255,0.060)', opacity: row.action === 'skip' ? 0.4 : 1 }}>
-                        <td className="px-2 py-1.5">
-                          <input value={row.name} onChange={e => updateRow(row.key, { name: e.target.value })} className="w-full bg-transparent font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }} />
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          <input type="number" value={row.robux_amount} onChange={e => updateRow(row.key, { robux_amount: Number(e.target.value) })} className="w-16 bg-transparent text-right" />
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          <input type="number" step="0.01" value={row.price} onChange={e => updateRow(row.key, { price: Number(e.target.value) })} className="w-16 bg-transparent text-right" />
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          <input type="number" step="0.01" value={row.profit} onChange={e => updateRow(row.key, { profit: Number(e.target.value) })} className="w-16 bg-transparent text-right" style={{ color: '#34d399' }} />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <span style={{ color: MATCH_COLOR[row.matchStatus] }}>
-                            {MATCH_LABEL[row.matchStatus]}{row.closestAmount ? ` (${row.closestAmount})` : ''}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {row.duplicate ? (
-                            <div className="space-y-1">
-                              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                                &ldquo;{row.duplicate.name}&rdquo; · {formatPHP(row.duplicate.your_price)} / {formatPHP(row.duplicate.profit)}
-                              </p>
-                              <select
-                                value={row.action}
-                                onChange={e => updateRow(row.key, { action: e.target.value as GeneratedRow['action'] })}
-                                className="bg-input rounded px-1.5 py-0.5 text-[11px]"
-                              >
-                                <option value="skip">Skip</option>
-                                <option value="update">Update Existing</option>
-                                <option value="replace">Replace</option>
-                              </select>
-                            </div>
-                          ) : (
-                            <span style={{ color: 'rgba(255,255,255,0.35)' }}>New</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <button type="button" onClick={() => removeRow(row.key)} style={{ color: 'rgba(255,255,255,0.40)' }}>
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
+                      <Fragment key={row.key}>
+                        <tr style={{ borderTop: '1px solid rgba(255,255,255,0.060)', opacity: row.action === 'skip' ? 0.4 : 1 }}>
+                          <td className="px-2 py-1.5">
+                            <input value={row.name} onChange={e => updateRow(row.key, { name: e.target.value })} className="w-full bg-transparent font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }} />
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <input type="number" value={row.robux_amount} onChange={e => updateRow(row.key, { robux_amount: Number(e.target.value) })} className="w-16 bg-transparent text-right" />
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <input type="number" step="0.01" value={row.price} onChange={e => updateRow(row.key, { price: Number(e.target.value) })} className="w-16 bg-transparent text-right" />
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <input type="number" step="0.01" value={row.profit} onChange={e => updateRow(row.key, { profit: Number(e.target.value) })} className="w-16 bg-transparent text-right" style={{ color: '#34d399' }} />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {row.matchStatus === 'exact' && <CheckCircle2 className="w-4 h-4" style={{ color: MATCH_COLOR.exact }} />}
+                            {row.matchStatus === 'copied' && <CheckCircle2 className="w-4 h-4" style={{ color: MATCH_COLOR.copied }} />}
+                            {row.matchStatus === 'closest' && <AlertTriangle className="w-4 h-4" style={{ color: MATCH_COLOR.closest }} />}
+                            {row.matchStatus === 'none' && <XCircle className="w-4 h-4" style={{ color: MATCH_COLOR.none }} />}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <button type="button" onClick={() => removeRow(row.key)} style={{ color: 'rgba(255,255,255,0.40)' }} title="Remove this row">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                        {row.duplicate && (
+                          <tr style={{ background: 'rgba(245,158,11,0.05)' }}>
+                            <td colSpan={6} className="px-2 py-1.5">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                                  Already in this game as &ldquo;{row.duplicate.name}&rdquo; ({formatPHP(row.duplicate.your_price)} / {formatPHP(row.duplicate.profit)} profit)
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {(['skip', 'update', 'replace'] as const).map(opt => (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      onClick={() => updateRow(row.key, { action: opt })}
+                                      className="px-2 py-0.5 rounded text-[11px] font-semibold capitalize"
+                                      style={row.action === opt
+                                        ? { background: 'rgba(167,139,250,0.20)', color: '#a78bfa' }
+                                        : { background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.50)' }}
+                                    >
+                                      {opt}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -414,10 +496,10 @@ export default function BulkGenerateGamepassesDialog({
               {/* Profit Impact Preview */}
               <div className="rounded-xl p-3 space-y-1" style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.18)' }}>
                 <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.82)' }}>
-                  {summary.count} Gamepass{summary.count !== 1 ? 'es' : ''} · Total Listed Value: {formatPHP(summary.totalPrice)} · Expected Profit: {formatPHP(summary.totalProfit)}
+                  Before you save: {summary.count} gamepass{summary.count !== 1 ? 'es' : ''} · {formatPHP(summary.totalPrice)} total listed value · {formatPHP(summary.totalProfit)} expected profit
                 </p>
                 <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  ✓ {summary.exact} Exact / Copied · ⚠ {summary.closest} Closest · ❌ {summary.none} Missing
+                  {summary.exact} found / copied · {summary.closest} closest match · {summary.none} missing a price
                 </p>
               </div>
             </div>
