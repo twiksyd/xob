@@ -425,11 +425,11 @@ export default function BulkGenerateGamepassesDialog({
                 <table className="w-full text-[12px]">
                   <thead>
                     <tr style={{ background: 'rgba(255,255,255,0.045)' }}>
-                      <th className="text-left px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Name</th>
-                      <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Robux</th>
-                      <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Price</th>
-                      <th className="text-right px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Profit</th>
-                      <th className="text-left px-2 py-2 font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>Status</th>
+                      <th className="text-left px-2 py-2 label-caps">Name</th>
+                      <th className="text-right px-2 py-2 label-caps">Robux</th>
+                      <th className="text-right px-2 py-2 label-caps">Price</th>
+                      <th className="text-right px-2 py-2 label-caps">Profit</th>
+                      <th className="text-left px-2 py-2 label-caps">Status</th>
                       <th className="w-6" />
                     </tr>
                   </thead>

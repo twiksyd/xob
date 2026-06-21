@@ -175,10 +175,10 @@ export default function ImportCatalogDialog({ open, onClose, games, gamepasses, 
                   <thead>
                     <tr style={{ background: 'rgba(255,255,255,0.045)' }}>
                       <th className="w-8" />
-                      <th className="text-left px-2 py-1.5">Robux</th>
-                      <th className="text-right px-2 py-1.5">Price</th>
-                      <th className="text-right px-2 py-1.5">Profit</th>
-                      <th className="text-center px-2 py-1.5">Kind</th>
+                      <th className="text-left px-2 py-1.5 label-caps">Robux</th>
+                      <th className="text-right px-2 py-1.5 label-caps">Price</th>
+                      <th className="text-right px-2 py-1.5 label-caps">Profit</th>
+                      <th className="text-center px-2 py-1.5 label-caps">Kind</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -196,7 +196,16 @@ export default function ImportCatalogDialog({ open, onClose, games, gamepasses, 
                           <td className="px-2 py-1 text-left font-semibold">{row.robux_amount.toLocaleString()} R$</td>
                           <td className="px-2 py-1 text-right">{formatPHP(row.selling_price)}</td>
                           <td className="px-2 py-1 text-right" style={{ color: '#34d399' }}>{formatPHP(row.profit)}</td>
-                          <td className="px-2 py-1 text-center text-[10px] font-bold uppercase" style={{ color: row.kind === 'new' ? '#22d3ee' : '#f59e0b' }}>{row.kind}</td>
+                          <td className="px-2 py-1 text-center">
+                            <span
+                              className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                              style={row.kind === 'new'
+                                ? { background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.28)' }
+                                : { background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.28)' }}
+                            >
+                              {row.kind}
+                            </span>
+                          </td>
                         </tr>
                       )
                     })}
@@ -223,8 +232,13 @@ export default function ImportCatalogDialog({ open, onClose, games, gamepasses, 
                       <span className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>
                         {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         {name}
-                        <span className="text-[10px] font-semibold" style={{ color: gameExists ? 'rgba(255,255,255,0.40)' : '#22d3ee' }}>
-                          {gameExists ? '(existing game)' : '(new game)'}
+                        <span
+                          className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
+                          style={gameExists
+                            ? { background: 'rgba(255,255,255,0.055)', color: 'rgba(255,255,255,0.44)', border: '1px solid rgba(255,255,255,0.090)' }
+                            : { background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.28)' }}
+                        >
+                          {gameExists ? 'Existing' : 'New'}
                         </span>
                       </span>
                       <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{rows.length} passes</span>
@@ -233,11 +247,11 @@ export default function ImportCatalogDialog({ open, onClose, games, gamepasses, 
                       <table className="w-full text-[12px]">
                         <thead>
                           <tr style={{ background: 'rgba(255,255,255,0.025)' }}>
-                            <th className="text-left px-2 py-1.5" style={{ color: 'rgba(255,255,255,0.50)' }}>Name</th>
-                            <th className="text-right px-2 py-1.5" style={{ color: 'rgba(255,255,255,0.50)' }}>Robux</th>
-                            <th className="text-right px-2 py-1.5" style={{ color: 'rgba(255,255,255,0.50)' }}>Price</th>
-                            <th className="text-right px-2 py-1.5" style={{ color: 'rgba(255,255,255,0.50)' }}>Profit</th>
-                            <th className="text-left px-2 py-1.5" style={{ color: 'rgba(255,255,255,0.50)' }}>Duplicate</th>
+                            <th className="text-left px-2 py-1.5 label-caps">Name</th>
+                            <th className="text-right px-2 py-1.5 label-caps">Robux</th>
+                            <th className="text-right px-2 py-1.5 label-caps">Price</th>
+                            <th className="text-right px-2 py-1.5 label-caps">Profit</th>
+                            <th className="text-left px-2 py-1.5 label-caps">Duplicate</th>
                             <th className="w-6" />
                           </tr>
                         </thead>

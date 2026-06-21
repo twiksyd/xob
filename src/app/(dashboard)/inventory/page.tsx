@@ -295,18 +295,30 @@ function InventoryPageContent() {
 
       <div className="p-5 space-y-5">
         {/* ── Bulk Generate Gamepasses — fast path for new game launches ── */}
-        <div
-          className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
-          style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.18)' }}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap"
+          style={{ background: 'rgba(167,139,250,0.055) padding-box, linear-gradient(135deg, rgba(167,139,250,0.35), rgba(34,211,238,0.16)) border-box', border: '1px solid transparent' }}
         >
-          <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
-            New game releasing? Generate its whole gamepass list from the master pricing table or by copying another game.
-          </p>
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(167,139,250,0.16)', border: '1px solid rgba(167,139,250,0.32)', boxShadow: '0 0 14px rgba(167,139,250,0.18)' }}
+            >
+              <Sparkles className="w-4 h-4" style={{ color: '#a78bfa' }} />
+            </div>
+            <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+              New game releasing? Generate its whole gamepass list from the master pricing table or by copying another game.
+            </p>
+          </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => setDuplicatesOpen(true)}
-              className="px-3 py-1.5 rounded-xl text-[12px] font-bold"
+              className="px-3 py-2 rounded-xl text-[12px] font-bold transition-colors"
               style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
             >
               Find Duplicates
@@ -314,7 +326,7 @@ function InventoryPageContent() {
             <button
               type="button"
               onClick={() => setImportCatalogOpen(true)}
-              className="px-3 py-1.5 rounded-xl text-[12px] font-bold"
+              className="px-3 py-2 rounded-xl text-[12px] font-bold transition-colors"
               style={{ background: 'rgba(255,255,255,0.045)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.090)' }}
             >
               Import Catalog (CSV)
@@ -322,13 +334,17 @@ function InventoryPageContent() {
             <button
               type="button"
               onClick={() => setBulkGenerateOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold"
-              style={{ background: 'rgba(167,139,250,0.14)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.30)' }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-bold transition-all"
+              style={{
+                background: 'linear-gradient(135deg, #a78bfa, #818cf8)',
+                color: 'oklch(0.040 0.008 265)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 3px rgba(0,0,0,0.40), 0 0 20px rgba(167,139,250,0.25)',
+              }}
             >
               <Sparkles className="w-3.5 h-3.5" /> Bulk Generate Gamepasses
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── 01 · Catalog Overview ── */}
         <SectionLabel index="01" label="Catalog Overview" />

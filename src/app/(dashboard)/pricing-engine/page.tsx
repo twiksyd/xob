@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
 import EmptyState from '@/components/shared/EmptyState'
+import CountUp from '@/components/shared/CountUp'
 import { SkeletonTable } from '@/components/shared/Skeleton'
 import { useToast } from '@/components/shared/Toast'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
@@ -13,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PricingEngineTier } from '@/lib/types/database'
 import { formatPHP } from '@/lib/utils/pricing'
 import { parsePricingTierCSV, diffPricingTiers, TierDiffRow } from '@/lib/utils/pricingEngine'
+import { cardStagger, cardStaggerItem } from '@/lib/motion'
 import { Plus, Trash2, Pencil, Check, X, Calculator } from 'lucide-react'
 
 function SectionLabel({ index, label }: { index: string; label: string }) {
@@ -82,6 +84,14 @@ export default function PricingEnginePage() {
   }, [diffRows, showUnchanged])
 
   const changeCount = useMemo(() => diffRows?.filter(r => r.kind !== 'unchanged').length ?? 0, [diffRows])
+
+  const tierStats = useMemo(() => {
+    if (tiers.length === 0) return { count: 0, avgPrice: 0, avgProfit: 0, highest: 0 }
+    const avgPrice = tiers.reduce((s, t) => s + t.selling_price, 0) / tiers.length
+    const avgProfit = tiers.reduce((s, t) => s + t.profit, 0) / tiers.length
+    const highest = Math.max(...tiers.map(t => t.robux_amount))
+    return { count: tiers.length, avgPrice, avgProfit, highest }
+  }, [tiers])
 
   async function handleApplyImport() {
     if (!diffRows) return
@@ -166,15 +176,55 @@ export default function PricingEnginePage() {
       />
 
       <div className="p-5 space-y-5">
+        <SectionLabel index="01" label="Pricing Overview" />
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5"
+          variants={cardStagger}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          {([
+            { label: 'Total Tiers',    value: tierStats.count,    format: (v: number) => `${Math.round(v)}`, color: '#a78bfa', featured: true },
+            { label: 'Avg. Price',     value: tierStats.avgPrice, format: (v: number) => formatPHP(v), color: '#22d3ee', featured: false },
+            { label: 'Avg. Profit',    value: tierStats.avgProfit,format: (v: number) => formatPHP(v), color: '#34d399', featured: false },
+            { label: 'Highest Tier',  value: tierStats.highest,  format: (v: number) => `${Math.round(v).toLocaleString()} R$`, color: '#f59e0b', featured: false },
+          ] as const).map(({ label, value, format, color, featured }) => (
+            <motion.div
+              key={label}
+              variants={cardStaggerItem}
+              className="summary-card"
+              style={featured
+                ? { background: `rgba(255,255,255,0.052) padding-box, linear-gradient(135deg, ${color}55, rgba(34,211,238,0.24) 50%, rgba(232,121,249,0.16)) border-box`, border: '1px solid transparent', boxShadow: `0 0 28px ${color}22` }
+                : { background: `rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, ${color}38, rgba(34,211,238,0.14)) border-box`, border: '1px solid transparent' }}
+            >
+              <p className="label-caps mb-1">{label}</p>
+              <CountUp
+                value={loading ? 0 : value}
+                format={format}
+                duration={1.2}
+                className="stat-value block"
+                style={featured ? { color, fontSize: '34px', textShadow: `0 0 24px ${color}40, 0 0 48px ${color}18` } : { color }}
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+
         {diffRows && (
           <>
-            <SectionLabel index="01" label="Review Import" />
+            <SectionLabel index="02" label="Review Import" />
             {importErrors.length > 0 && (
               <p className="text-[12px] font-semibold" style={{ color: '#f87171' }}>
                 {importErrors.length} row{importErrors.length !== 1 ? 's' : ''} skipped (could not parse): lines {importErrors.map(e => e.lineNumber).join(', ')}
               </p>
             )}
-            <div className="glass-card overflow-hidden">
+            <motion.div
+              className="glass-card overflow-hidden"
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            >
               <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.082)' }}>
                 <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>
                   {changeCount} new/changed row{changeCount !== 1 ? 's' : ''}
@@ -227,7 +277,12 @@ export default function PricingEnginePage() {
                             {diff == null ? '—' : `${diff >= 0 ? '+' : ''}${formatPHP(diff)}`}
                           </td>
                           <td className="text-center">
-                            <span className="text-[10px] font-bold uppercase" style={{ color: row.kind === 'new' ? '#22d3ee' : row.kind === 'changed' ? '#f59e0b' : 'rgba(255,255,255,0.40)' }}>
+                            <span
+                              className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                              style={row.kind === 'new'
+                                ? { background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.28)' }
+                                : { background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.28)' }}
+                            >
                               {row.kind}
                             </span>
                           </td>
@@ -245,11 +300,11 @@ export default function PricingEnginePage() {
                   {applying ? 'Applying…' : 'Apply Changes'}
                 </button>
               </div>
-            </div>
+            </motion.div>
           </>
         )}
 
-        <SectionLabel index={diffRows ? '02' : '01'} label="Pricing Tiers" />
+        <SectionLabel index={diffRows ? '03' : '02'} label="Pricing Tiers" />
 
         {loading ? (
           <SkeletonTable rows={6} cols={4} />
@@ -262,7 +317,13 @@ export default function PricingEnginePage() {
             onAction={() => fileInputRef.current?.click()}
           />
         ) : (
-          <div className="glass-card overflow-hidden">
+          <motion.div
+            className="glass-card overflow-hidden"
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full data-table">
                 <thead>
@@ -317,7 +378,7 @@ export default function PricingEnginePage() {
                 <Plus className="w-3.5 h-3.5" /> Add Tier
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

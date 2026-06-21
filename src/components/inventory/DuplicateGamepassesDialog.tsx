@@ -130,7 +130,12 @@ export default function DuplicateGamepassesDialog({ open, onClose, gamepasses, o
                         <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.50)' }}>{formatPHP(entry.your_price)} / {formatPHP(entry.profit)} profit</span>
                         <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{format(new Date(entry.created_at), 'MMM d, h:mm a')}</span>
                         {keepById[group.key] === entry.id && (
-                          <span className="text-[10px] font-bold uppercase" style={{ color: '#34d399' }}>Keep</span>
+                          <span
+                            className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.28)' }}
+                          >
+                            Keep
+                          </span>
                         )}
                       </label>
                     ))}
