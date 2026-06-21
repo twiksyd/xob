@@ -10,7 +10,7 @@ import AccountBadgeRow from '@/components/shared/AccountBadgeRow'
 import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
-  MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2,
+  MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2, ChevronDown,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -58,6 +58,7 @@ export default function AccountCard({
   const [customPending, setCustomPending] = useState(false)
   const [pendingAmount, setPendingAmount] = useState<number | null>(null)
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(null)
+  const [historyExpanded, setHistoryExpanded] = useState(false)
 
   const available    = getAvailableRobux(account)
   const depleted      = isDepleted(account)
@@ -479,36 +480,48 @@ export default function AccountCard({
           </motion.button>
 
           {history.length > 0 && (
-            <div className="rounded-xl p-2.5 space-y-1" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.065)' }}>
-              <p className="label-caps">Sent Today</p>
-              <div className="space-y-0.5 max-h-24 overflow-y-auto">
-                {history.map(log => (
-                  <div key={log.id} className="group/log flex items-center gap-2 text-[11px]">
-                    <span className="font-semibold flex-shrink-0" style={{ color: '#34d399' }}>+{formatRobux(log.amount)}</span>
-                    <span className="flex-1 text-right" style={{ color: 'rgba(255,255,255,0.40)' }}>{format(new Date(log.sent_at), 'h:mm a')}</span>
-                    <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/log:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); onEditTransferLog?.(log) }}
-                        className="w-5 h-5 rounded flex items-center justify-center"
-                        style={{ color: 'rgba(255,255,255,0.50)' }}
-                        title="Edit this entry"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); onDeleteTransferLog?.(log) }}
-                        className="w-5 h-5 rounded flex items-center justify-center"
-                        style={{ color: '#f87171' }}
-                        title="Delete this entry"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+            <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.065)' }}>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setHistoryExpanded(v => !v) }}
+                className="w-full flex items-center justify-between gap-2 p-2.5"
+              >
+                <span className="label-caps">Sent Today ({history.length})</span>
+                <ChevronDown
+                  className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-150"
+                  style={{ color: 'rgba(255,255,255,0.45)', transform: historyExpanded ? 'rotate(180deg)' : 'none' }}
+                />
+              </button>
+              {historyExpanded && (
+                <div className="space-y-0.5 max-h-24 overflow-y-auto px-2.5 pb-2.5">
+                  {history.map(log => (
+                    <div key={log.id} className="group/log flex items-center gap-2 text-[11px]">
+                      <span className="font-semibold flex-shrink-0" style={{ color: '#34d399' }}>+{formatRobux(log.amount)}</span>
+                      <span className="flex-1 text-right" style={{ color: 'rgba(255,255,255,0.40)' }}>{format(new Date(log.sent_at), 'h:mm a')}</span>
+                      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/log:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onEditTransferLog?.(log) }}
+                          className="w-5 h-5 rounded flex items-center justify-center"
+                          style={{ color: 'rgba(255,255,255,0.50)' }}
+                          title="Edit this entry"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onDeleteTransferLog?.(log) }}
+                          className="w-5 h-5 rounded flex items-center justify-center"
+                          style={{ color: '#f87171' }}
+                          title="Delete this entry"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
