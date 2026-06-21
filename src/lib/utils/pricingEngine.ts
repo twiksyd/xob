@@ -104,16 +104,27 @@ export function matchTier(amount: number, tiers: PricingEngineTier[]): TierMatch
 }
 
 // ── Duplicate gamepass detection ────────────────────────────────────────────
-// Priority 1: same robux_amount (survives renames — the amount is the stable
-// anchor, not the title). Priority 2 (fallback only if no amount match):
-// case-insensitive name match.
-
+// Priority 1: same robux_amount, but ONLY when it's unambiguous (exactly one
+// existing gamepass at that amount) — this is what lets a rename survive
+// ("VIP" -> "Premium VIP" at the same price still matches). If a game has
+// MULTIPLE different gamepasses at the same price (e.g. "2x Luck" and
+// "2x Speed" both at 100 R$, which is common), amount alone can't tell them
+// apart — picking the first one found previously caused real data loss
+// (silently overwriting an unrelated gamepass instead of creating the
+// missing one). In that case, only an exact name match among the
+// same-amount candidates counts; otherwise treat it as no match at all
+// rather than guessing. Priority 2 (no amount match whatsoever): fall back
+// to a name-only match.
 export function findExistingGamepass(
   row: { name: string; robux_amount: number },
   existing: Gamepass[]
 ): Gamepass | null {
-  const byAmount = existing.find(g => g.robux_amount === row.robux_amount)
-  if (byAmount) return byAmount
+  const amountMatches = existing.filter(g => g.robux_amount === row.robux_amount)
+  if (amountMatches.length === 1) return amountMatches[0]
+  if (amountMatches.length > 1) {
+    const byName = amountMatches.find(g => g.name.trim().toLowerCase() === row.name.trim().toLowerCase())
+    return byName ?? null
+  }
   const byName = existing.find(g => g.name.trim().toLowerCase() === row.name.trim().toLowerCase())
   return byName ?? null
 }
