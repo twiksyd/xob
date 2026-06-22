@@ -247,7 +247,7 @@ function OrdersPageContent() {
       const prevStatus = editOrder.status
       const newStatus  = data.status
 
-      await supabase.from('orders').update({
+      const { error: updateError } = await supabase.from('orders').update({
         buyer_name: data.buyer_name, buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
         notes: data.notes, gamepass_id: first?.gamepass_id || null,
@@ -256,6 +256,11 @@ function OrdersPageContent() {
         effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
         updated_at: new Date().toISOString(),
       }).eq('id', editOrder.id)
+      if (updateError) {
+        toast.error(`Could not update order: ${updateError.message}`)
+        setSaving(false)
+        return
+      }
       await supabase.from('order_items').delete().eq('order_id', editOrder.id)
       if (cart.validItems.length > 0) {
         await supabase.from('order_items').insert(cart.validItems.map(item => ({
@@ -283,7 +288,7 @@ function OrdersPageContent() {
       setWorkspaceOpen(false)
       toast.success('Order updated.')
     } else {
-      const { data: newOrder } = await supabase.from('orders').insert({
+      const { data: newOrder, error: insertError } = await supabase.from('orders').insert({
         user_id: user.id, buyer_name: data.buyer_name, buyer_roblox_username: data.buyer_roblox_username,
         roblox_account_id: data.roblox_account_id, payment_method: data.payment_method,
         status: 'pending', notes: data.notes, gamepass_id: first?.gamepass_id || null,
@@ -291,14 +296,19 @@ function OrdersPageContent() {
         account_rate_used: rateUsed || null,
         effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
       }).select().single()
-      if (newOrder && cart.validItems.length > 0) {
+      if (insertError || !newOrder) {
+        toast.error(`Could not create order: ${insertError?.message ?? 'unknown error'}`)
+        setSaving(false)
+        return
+      }
+      if (cart.validItems.length > 0) {
         await supabase.from('order_items').insert(cart.validItems.map(item => ({
           order_id: newOrder.id, gamepass_id: item.gamepass_id || null,
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
         })))
       }
-      if (newOrder && data.roblox_account_id && tRobux > 0) {
+      if (data.roblox_account_id && tRobux > 0) {
         await supabase.rpc('reserve_order_robux', {
           p_order_id:       newOrder.id,
           p_account_id:     data.roblox_account_id,
@@ -306,7 +316,7 @@ function OrdersPageContent() {
           p_gamepass_names: gpNames,
         })
       }
-      if (newOrder && data.status !== 'pending') {
+      if (data.status !== 'pending') {
         await supabase.rpc('transition_order', { p_order_id: newOrder.id, p_new_status: data.status })
       }
       setJustCreated(true)
@@ -815,7 +825,10 @@ function OrdersPageContent() {
                     watch={watch}
                     setValue={setValue}
                     errors={errors}
-                    onFormSubmit={handleSubmit(onSubmit)}
+                    onFormSubmit={handleSubmit(onSubmit, (formErrors) => {
+                      const firstMessage = Object.values(formErrors)[0]?.message
+                      toast.error(typeof firstMessage === 'string' ? firstMessage : 'Please fix the highlighted fields before submitting.')
+                    })}
                     isEditMode={isEditMode}
                     editOrder={editOrder}
                     onCancelEdit={cancelEdit}
