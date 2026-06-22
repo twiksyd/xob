@@ -240,6 +240,9 @@ function OrdersPageContent() {
     const {
       totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit, effectiveRobux,
     } = calculateOrderTotals(cart.validItems, rateUsed, orderAccount?.is_plus_account ?? false)
+    // effectiveRobux is a Plus-discounted float (e.g. 228 * 0.9 = 205.20000000000002) —
+    // effective_robux_amount is an integer column, so this must be rounded before storage.
+    const roundedEffectiveRobux = Math.round(effectiveRobux)
     const first = cart.validItems[0]
     const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
 
@@ -253,7 +256,7 @@ function OrdersPageContent() {
         notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
         account_rate_used: rateUsed || null,
-        effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
+        effective_robux_amount: tRobux > 0 ? roundedEffectiveRobux : null,
         updated_at: new Date().toISOString(),
       }).eq('id', editOrder.id)
       if (updateError) {
@@ -274,7 +277,7 @@ function OrdersPageContent() {
         await supabase.rpc('reserve_order_robux', {
           p_order_id:       editOrder.id,
           p_account_id:     data.roblox_account_id,
-          p_robux_amount:   Math.round(effectiveRobux),
+          p_robux_amount:   roundedEffectiveRobux,
           p_gamepass_names: gpNames,
         })
       }
@@ -294,7 +297,7 @@ function OrdersPageContent() {
         status: 'pending', notes: data.notes, gamepass_id: first?.gamepass_id || null,
         robux_amount: tRobux, selling_price: tPrice, cost: tCost, profit: tProfit,
         account_rate_used: rateUsed || null,
-        effective_robux_amount: tRobux > 0 ? effectiveRobux : null,
+        effective_robux_amount: tRobux > 0 ? roundedEffectiveRobux : null,
       }).select().single()
       if (insertError || !newOrder) {
         toast.error(`Could not create order: ${insertError?.message ?? 'unknown error'}`)
@@ -312,7 +315,7 @@ function OrdersPageContent() {
         await supabase.rpc('reserve_order_robux', {
           p_order_id:       newOrder.id,
           p_account_id:     data.roblox_account_id,
-          p_robux_amount:   Math.round(effectiveRobux),
+          p_robux_amount:   roundedEffectiveRobux,
           p_gamepass_names: gpNames,
         })
       }
