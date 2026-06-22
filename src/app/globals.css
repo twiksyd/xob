@@ -191,20 +191,35 @@
    the .dashboard-snap-scroll class toggled on <html> only while the
    Dashboard is mounted (see DashboardChapters), so every other route
    is unaffected. Each chapter still sizes to roughly one viewport
-   via min-height — never clipped, never an independent scroll
-   container of its own. Do NOT add overflow-y: auto/scroll to any
-   element inside a chapter — that's the exact anti-pattern that
-   caused the original stuck-scroll bug. ─────────────────────────── */
+   via min-height (MIN, not fixed — some chapters genuinely render
+   taller, e.g. Command Center with several recommendations, or
+   Inventory Health with a longer at-risk-accounts list) — never
+   clipped, never an independent scroll container of its own. Do NOT
+   add overflow-y: auto/scroll to any element inside a chapter —
+   that's the exact anti-pattern that caused the original stuck-
+   scroll bug.
+
+   `proximity` (not `mandatory`) is deliberate: `mandatory` forces the
+   browser to snap BACK to the current chapter's start whenever a
+   gesture doesn't travel far enough to clear it — which is exactly
+   what made scrolling feel "stuck" and need 3-4 gestures on any
+   chapter taller than one viewport. `proximity` only snaps when a
+   gesture naturally comes to rest near a boundary, so a chapter
+   taller than the viewport never bounces a scroll back to where it
+   started — the next gesture just keeps making forward progress. We
+   also dropped scroll-snap-stop: always — its only purpose is
+   preventing a single strong gesture from skipping an entire chapter
+   under `mandatory`; under `proximity` it isn't needed and removing
+   it eliminates any residual snap-back risk. ─────────────────────── */
 .chapter-section {
   min-height: calc(100svh - 5rem);
   overflow-x: hidden;
   overflow-y: visible;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
 }
 
 html.dashboard-snap-scroll {
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity;
 }
 
 /* ─── Ambient orb keyframes ─────────────────────────────────── */

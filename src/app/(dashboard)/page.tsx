@@ -583,18 +583,24 @@ function DashboardChapters(props: DashboardChaptersProps) {
   const chapter4Parallax = useTransform(scrollY, (y) => piecewiseLerp(localProgress(4, y), [0, 1], [-35, 35]))
 
   // ── Chapter visibility tracking — tracks against the window, since the
-  //    page scrolls naturally instead of through a custom container ──────────
+  //    page scrolls naturally instead of through a custom container. Threshold
+  //    is 0.35, not 0.5 — intersectionRatio is computed against each chapter's
+  //    OWN height, so a chapter taller than ~2x the viewport (e.g. Command
+  //    Center with several recommendations, or Inventory Health with a long
+  //    at-risk list) could never reach 0.5 even while fully on screen, leaving
+  //    the dot indicator stuck on the previous chapter. 0.35 stays accurate up
+  //    to ~3x viewport height. ─────────────────────────────────────────────
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
             const idx = Number(entry.target.getAttribute('data-chapter'))
             if (!Number.isNaN(idx)) setActiveChapter(idx)
           }
         })
       },
-      { root: null, threshold: [0.5, 0.6, 0.75] }
+      { root: null, threshold: [0.35, 0.5, 0.6, 0.75] }
     )
     sectionRefs.forEach((r) => { if (r.current) observer.observe(r.current) })
     return () => observer.disconnect()
