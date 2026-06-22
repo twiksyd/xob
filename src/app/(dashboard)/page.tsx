@@ -13,7 +13,7 @@ import { motion, useScroll, useTransform, useMotionValueEvent, type Variants, ty
 import { ambientFloat, ambientDrift } from '@/lib/motion'
 import {
   ShoppingCart, ArrowUpRight, Coins, TrendingUp, Wallet,
-  PiggyBank, Trophy, ShieldCheck, ChevronDown,
+  PiggyBank, Trophy, ShieldCheck, ChevronDown, CheckCircle2,
 } from 'lucide-react'
 import CountUp from '@/components/shared/CountUp'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
@@ -311,6 +311,7 @@ export default function DashboardPage() {
   const outstandingCount = useMemo(() =>
     orders.filter(o => o.status === 'pending' || o.status === 'paid').length,
     [orders])
+  const completedCount = completedOrders.length
 
   // ── Inventory Health — single source of truth for account tiering, shared
   //    by the Inventory Health chapter and the Supplier Decision card ────────
@@ -346,7 +347,7 @@ export default function DashboardPage() {
   // ── Operational Status + Supplier Decision — "am I safe today" and "what do
   //    I tell my supplier," both driven by available Robux vs. recent burn
   //    rate, never by wallet balance ───────────────────────────────────────
-  const totalAvailableRobux = useMemo(() => accounts.reduce((s, a) => s + getAvailableRobux(a), 0), [accounts])
+  const totalAvailableRobux = useMemo(() => activeAccounts.reduce((s, a) => s + getAvailableRobux(a), 0), [activeAccounts])
   const weeklyVelocity = useMemo(() => calculateWeeklyRobuxVelocity(orders), [orders])
   const runwayDays = weeklyVelocity > 0 ? totalAvailableRobux / weeklyVelocity : null
 
@@ -419,6 +420,7 @@ export default function DashboardPage() {
         supplierDecision={supplierDecision}
         recommendations={recommendations}
         outstandingCount={outstandingCount}
+        completedCount={completedCount}
         weekRevenue={weekRevenue}
         revenueData={revenueData}
         ordersThisWeek={ordersThisWeek}
@@ -458,6 +460,7 @@ interface DashboardChaptersProps {
   supplierDecision: { verdict: string; message: string }
   recommendations: ReturnType<typeof buildRecommendations>
   outstandingCount: number
+  completedCount: number
   weekRevenue: number
   revenueData: { day: string; revenue: number; profit: number }[]
   ordersThisWeek: number
@@ -673,7 +676,7 @@ interface ChapterSectionsProps extends DashboardChaptersProps {
 
 const ChapterSections = memo(function ChapterSections({
   totalRobux, walletBalance, todayProfit, totalProfit,
-  operationalStatus, supplierDecision, recommendations, outstandingCount,
+  operationalStatus, supplierDecision, recommendations, outstandingCount, completedCount,
   weekRevenue, revenueData, ordersThisWeek, avgOrderValue, topGame,
   totalActiveAccounts, criticalAccounts, accountHealth, atRiskAccounts,
   businessValue, isCapitalRecovered, capitalRecoveryPct, withdrawableProfit,
@@ -836,9 +839,15 @@ const ChapterSections = memo(function ChapterSections({
             <NextBestAction recommendations={recommendations} />
           </motion.div>
 
-          <div className="flex items-center justify-center gap-1.5 mt-3">
-            <ShoppingCart style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.30)' }} />
-            <span className="label-caps">{outstandingCount} outstanding</span>
+          <div className="flex items-center justify-center gap-4 mt-3">
+            <span className="flex items-center gap-1.5">
+              <ShoppingCart style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.30)' }} />
+              <span className="label-caps">{outstandingCount} outstanding</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 style={{ width: 11, height: 11, color: 'rgba(255,255,255,0.30)' }} />
+              <span className="label-caps">{completedCount} completed</span>
+            </span>
           </div>
 
           <div><FooterLink href="/orders" label="Go to Orders" /></div>
