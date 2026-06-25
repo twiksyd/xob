@@ -389,6 +389,29 @@ function OrdersPageContent() {
     fetchData()
   }
 
+  // ── Game Selector activity — last completed-sale timestamp per game, from
+  //    order_items (which carries gamepass_id, unlike orders' own legacy
+  //    single gamepass_id which only reflects an order's first item) joined
+  //    against the live gamepasses list to resolve game_id. Computed entirely
+  //    from already-loaded order history (bounded to loaded pages — fine
+  //    since the most recent sale for any actively-sold game is almost
+  //    always within the first page anyway), so no extra query is needed. ──
+  const gameActivity = useMemo(() => {
+    const gamepassToGame = new Map(gamepasses.map(gp => [gp.id, gp.game_id]))
+    const map = new Map<string, Date>()
+    orders.forEach(order => {
+      if (order.status !== 'completed') return
+      order.order_items?.forEach(item => {
+        const gameId = item.gamepass_id ? gamepassToGame.get(item.gamepass_id) : null
+        if (!gameId) return
+        const at = new Date(item.created_at)
+        const existing = map.get(gameId)
+        if (!existing || at > existing) map.set(gameId, at)
+      })
+    })
+    return map
+  }, [orders, gamepasses])
+
   // ── Derived metrics ─────────────────────────────────────────────────────────
   const orderStats = useMemo(() => {
     const active = orders.filter(isActiveOrder)
@@ -870,6 +893,7 @@ function OrdersPageContent() {
                     onCancelEdit={cancelEdit}
                     gamepasses={gamepasses}
                     accounts={accounts}
+                    gameActivity={gameActivity}
                     cartGroups={cart.cartGroups}
                     cartCounts={cart.cartCounts}
                     validItemsCount={cart.validItems.length}

@@ -5,6 +5,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { getGameNameStyle } from '@/lib/utils/games'
+import GameIcon from '@/components/shared/GameIcon'
 
 interface GameManagerDialogProps {
   open: boolean
@@ -43,10 +44,7 @@ export default function GameManagerDialog({
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
                 style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}
               >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: game.color, boxShadow: `0 0 6px ${game.color}80` }}
-                />
+                <GameIcon iconUrl={game.icon_url} color={game.color} size={20} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold truncate" style={getGameNameStyle(game.is_discounted)}>
                     {game.name}

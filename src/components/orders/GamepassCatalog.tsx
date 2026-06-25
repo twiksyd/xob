@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useMemo, useDeferredValue, useEffect, useRef } from 'react'
-import { GamepassWithGame } from '@/lib/types/database'
+import { GamepassWithGame, Game } from '@/lib/types/database'
 import GamepassTile from './GamepassTile'
+import GameSelector from '@/components/shared/GameSelector'
+import GameIcon from '@/components/shared/GameIcon'
 import { Search, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { getGameNameStyle } from '@/lib/utils/games'
 
 interface GamepassCatalogProps {
@@ -12,11 +13,15 @@ interface GamepassCatalogProps {
   cartCounts: Map<string, number>
   onAdd: (gamepassId: string) => void
   onRemove: (gamepassId: string) => void
+  /** Last completed-sale timestamp per game, computed by the parent from
+   *  already-loaded order history — keeps GameSelector's activity column
+   *  meaningful without this component needing its own order query. */
+  gameActivity?: Map<string, Date | null>
 }
 
-export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemove }: GamepassCatalogProps) {
+export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemove, gameActivity }: GamepassCatalogProps) {
   const [search, setSearch] = useState('')
-  const [filterGame, setFilterGame] = useState('all')
+  const [filterGame, setFilterGame] = useState<string | null>(null)
   const deferredSearch = useDeferredValue(search)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -25,11 +30,9 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
   useEffect(() => { searchRef.current?.focus() }, [])
 
   const games = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; color: string; isDiscounted: boolean }>()
+    const map = new Map<string, Game>()
     gamepasses.forEach(gp => {
-      if (gp.game_id && gp.games?.name) {
-        map.set(gp.game_id, { id: gp.game_id, name: gp.games.name, color: gp.games.color, isDiscounted: gp.games.is_discounted })
-      }
+      if (gp.game_id && gp.games) map.set(gp.game_id, gp.games)
     })
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [gamepasses])
@@ -41,15 +44,16 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
       const matchSearch = !q ||
         gp.name.toLowerCase().includes(q) ||
         (gp.games?.name ?? '').toLowerCase().includes(q)
-      const matchGame = filterGame === 'all' || gp.game_id === filterGame
+      const matchGame = !filterGame || gp.game_id === filterGame
       return matchSearch && matchGame
     })
   }, [gamepasses, deferredSearch, filterGame])
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { name: string; color: string; isDiscounted: boolean; items: GamepassWithGame[] }>()
+    const map = new Map<string, { name: string; color: string; iconUrl: string | null; isDiscounted: boolean; items: GamepassWithGame[] }>()
     filtered.forEach(gp => {
       const accent = gp.games?.color ?? '#8b5cf6'
+      const iconUrl = gp.games?.icon_url ?? null
       const isDiscounted = gp.games?.is_discounted ?? false
       const lower = gp.name.toLowerCase()
       let key = gp.game_id ?? 'none'
@@ -65,7 +69,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
         name = `${gp.games?.name ?? 'Other'} — In-Game Currency`
       }
       if (!map.has(key)) {
-        map.set(key, { name, color: accent, isDiscounted, items: [] })
+        map.set(key, { name, color: accent, iconUrl, isDiscounted, items: [] })
       }
       map.get(key)!.items.push(gp)
     })
@@ -98,42 +102,15 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
         )}
       </div>
 
-      {/* Game filter chips */}
+      {/* Game selector — compact popover, page stays fully visible; Ctrl+K opens the full palette */}
       {games.length > 1 && (
-        <div className="flex flex-wrap gap-1.5 pb-0.5">
-          <button
-            type="button"
-            onClick={() => setFilterGame('all')}
-            className={cn(
-              'px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-all flex-shrink-0',
-              filterGame === 'all'
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            )}
-          >
-            All Games
-          </button>
-          {games.map(g => {
-            const active = filterGame === g.id
-            return (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setFilterGame(active ? 'all' : g.id)}
-                className="px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-all flex-shrink-0"
-                style={active
-                  // White text for contrast against the solid color fill — the
-                  // active state already has maximal emphasis via fill + glow,
-                  // so the discount color isn't needed (and risks low contrast
-                  // against an arbitrary game accent color).
-                  ? { background: g.color, color: 'white', boxShadow: `0 0 10px ${g.color}50` }
-                  : getGameNameStyle(g.isDiscounted)}
-              >
-                {g.name}
-              </button>
-            )
-          })}
-        </div>
+        <GameSelector
+          games={games}
+          value={filterGame}
+          onChange={setFilterGame}
+          allowClear
+          gameActivity={gameActivity}
+        />
       )}
 
       {/* Grid grouped by game */}
@@ -146,10 +123,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
           grouped.map(group => (
             <div key={group.name}>
               <div className="flex items-center gap-2 mb-2">
-                <span
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ background: group.color, boxShadow: `0 0 6px ${group.color}80` }}
-                />
+                <GameIcon iconUrl={group.iconUrl} color={group.color} size={16} />
                 <p className="text-[10px] font-bold uppercase tracking-wider" style={getGameNameStyle(group.isDiscounted)}>
                   {group.name}
                 </p>

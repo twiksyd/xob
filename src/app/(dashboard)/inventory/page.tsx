@@ -7,6 +7,8 @@ import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
 import GamepassModal from '@/components/inventory/GamepassModal'
 import GameManagerDialog from '@/components/inventory/GameManagerDialog'
+import GameSelector from '@/components/shared/GameSelector'
+import GameIcon from '@/components/shared/GameIcon'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CountUp from '@/components/shared/CountUp'
 import { Gamepass, Game, RobloxAccount } from '@/lib/types/database'
@@ -55,6 +57,7 @@ function InventoryPageContent() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editGamepass, setEditGamepass] = useState<Gamepass | null>(null)
   const [gameManagerOpen, setGameManagerOpen] = useState(false)
+  const [gameActivity, setGameActivity] = useState<Map<string, Date>>(new Map())
   const [search, setSearch] = useState('')
   const [filterGame, setFilterGame] = useUrlState<string>('game', 'all')
   const [filterStatus, setFilterStatus] = useUrlState<typeof STATUS_FILTERS[number]>('status', 'all', STATUS_FILTERS)
@@ -65,14 +68,35 @@ function InventoryPageContent() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [gpRes, gameRes, accRes] = await Promise.all([
+    const [gpRes, gameRes, accRes, activityRes] = await Promise.all([
       supabase.from('gamepasses').select('*, games(*)').order('created_at', { ascending: false }),
       supabase.from('games').select('*').order('name'),
       supabase.from('roblox_accounts').select('*').eq('status', 'active'),
+      // Game Selector activity column — bounded sample of recent completed
+      // sales, resolved to game_id via the gamepasses list below. Inventory
+      // doesn't otherwise load order history, so this is the one new query
+      // this redesign needs (Orders already had everything in memory).
+      supabase.from('order_items')
+        .select('gamepass_id, created_at, orders!inner(status)')
+        .eq('orders.status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(500),
     ])
     if (gpRes.data) setGamepasses(gpRes.data as GamepassWithGame[])
     if (gameRes.data) setGames(gameRes.data)
     if (accRes.data) setAccounts(accRes.data)
+    if (activityRes.data && gpRes.data) {
+      const gamepassToGame = new Map((gpRes.data as GamepassWithGame[]).map(gp => [gp.id, gp.game_id]))
+      const map = new Map<string, Date>()
+      ;(activityRes.data as any[]).forEach(item => {
+        const gameId = item.gamepass_id ? gamepassToGame.get(item.gamepass_id) : null
+        if (!gameId) return
+        const at = new Date(item.created_at)
+        const existing = map.get(gameId)
+        if (!existing || at > existing) map.set(gameId, at)
+      })
+      setGameActivity(map)
+    }
     setLoading(false)
   }, [supabase])
 
@@ -224,47 +248,14 @@ function InventoryPageContent() {
           </button>
         </div>
 
-        {/* Game filter chips */}
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            onClick={() => setFilterGame('all')}
-            className={cn('chip', filterGame === 'all' ? 'chip-active' : '')}
-          >
-            All Games
-            <span className="ml-1 opacity-50">({gamepasses.length})</span>
-          </button>
-          {games.map(game => {
-            const count = gamepasses.filter(gp => gp.game_id === game.id).length
-            if (count === 0) return null
-            const isActive = filterGame === game.id
-            const color = game.color || '#a78bfa'
-            return (
-              <button
-                key={game.id}
-                onClick={() => setFilterGame(isActive ? 'all' : game.id)}
-                className="chip"
-                style={isActive ? {
-                  background: `rgba(255,255,255,0.050) padding-box, linear-gradient(135deg, ${color}55, ${color}28) border-box`,
-                  border: '1px solid transparent',
-                  boxShadow: `0 0 14px ${color}28`,
-                  transform: 'translateY(-1px)',
-                  ...getGameNameStyle(game.is_discounted),
-                } : {
-                  borderColor: `${color}22`,
-                  transition: 'all 0.18s ease',
-                  ...getGameNameStyle(game.is_discounted),
-                }}
-              >
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
-                  style={{ backgroundColor: color, boxShadow: isActive ? `0 0 5px ${color}90` : 'none' }}
-                />
-                {game.name}
-                <span className="ml-1 opacity-50">({count})</span>
-              </button>
-            )
-          })}
-        </div>
+        {/* Game selector — compact popover, page stays fully visible; Ctrl+K opens the full palette */}
+        <GameSelector
+          games={games}
+          value={filterGame === 'all' ? null : filterGame}
+          onChange={(id) => setFilterGame(id ?? 'all')}
+          allowClear
+          gameActivity={gameActivity}
+        />
 
         {/* Status filter + count row */}
         <div className="flex items-center justify-between">
@@ -330,7 +321,10 @@ function InventoryPageContent() {
                     <tr key={gp.id} className="group">
                       <td>
                         <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>{gp.name}</p>
-                        <p className="text-[11px] mt-0.5" style={getGameNameStyle(gp.games?.is_discounted)}>{gp.games?.name ?? '—'}</p>
+                        <p className="flex items-center gap-1.5 text-[11px] mt-0.5">
+                          {gp.games && <GameIcon iconUrl={gp.games.icon_url} color={gp.games.color} size={14} />}
+                          <span style={getGameNameStyle(gp.games?.is_discounted)}>{gp.games?.name ?? '—'}</span>
+                        </p>
                       </td>
                       <td className="text-right">
                         <span className="text-[12px] font-mono font-semibold" style={{ color: 'rgba(255,255,255,0.76)' }}>{gp.robux_amount.toLocaleString()} R$</span>
