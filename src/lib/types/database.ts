@@ -86,6 +86,7 @@ export type Database = {
           name: string
           category: string | null
           color: string
+          is_discounted: boolean
           created_at: string
         }
         Insert: {
@@ -94,11 +95,13 @@ export type Database = {
           name: string
           category?: string | null
           color?: string
+          is_discounted?: boolean
         }
         Update: {
           name?: string
           category?: string | null
           color?: string
+          is_discounted?: boolean
         }
       }
       gamepasses: {

@@ -13,6 +13,7 @@ import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
 import { isActiveOrder } from '@/lib/utils/orders'
+import { getGameNameStyle } from '@/lib/utils/games'
 import { motion, AnimatePresence } from 'framer-motion'
 import { staggerContainer, staggerItem } from '@/lib/motion'
 import CountUp from '@/components/shared/CountUp'
@@ -669,9 +670,13 @@ function OrdersPageContent() {
                       <p className="text-[14px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                         {order.buyer_name ?? '—'}
                       </p>
-                      <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                        {order.gamepasses?.games?.name ?? order.gamepasses?.name ?? '—'}
-                        {order.robux_amount ? ` · ${order.robux_amount.toLocaleString()} R$` : ''}
+                      <p className="text-[11px] mt-0.5 truncate">
+                        <span style={getGameNameStyle(order.gamepasses?.games?.is_discounted)}>
+                          {order.gamepasses?.games?.name ?? order.gamepasses?.name ?? '—'}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.38)' }}>
+                          {order.robux_amount ? ` · ${order.robux_amount.toLocaleString()} R$` : ''}
+                        </span>
                       </p>
                     </div>
 

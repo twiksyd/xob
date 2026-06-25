@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select'
 import StatusBadge from '@/components/shared/StatusBadge'
+import { getGameNameStyle } from '@/lib/utils/games'
 
 const schema = z.object({
   game_id: z.string().min(1, 'Select a game'),
@@ -93,7 +94,9 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   {games.map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                    <SelectItem key={g.id} value={g.id}>
+                      <span style={getGameNameStyle(g.is_discounted)}>{g.name}</span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

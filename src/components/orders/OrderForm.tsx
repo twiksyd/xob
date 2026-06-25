@@ -15,6 +15,7 @@ import {
 import { Gamepass, Game, RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { formatRobux, formatPHP, OrderTotals } from '@/lib/utils/pricing'
 import { rankAccountsForOrder } from '@/lib/utils/accounts'
+import { getGameNameStyle } from '@/lib/utils/games'
 import { CartGroup } from '@/hooks/useOrderCart'
 
 export type GamepassWithGame = Gamepass & { games: Game | null }
@@ -185,7 +186,11 @@ export default function OrderForm({
           {/* Cart — grouped line items with quantity steppers */}
           {cartGroups.length > 0 && (
             <div className="mt-3 space-y-1.5">
-              {cartGroups.map(g => (
+              {cartGroups.map(g => {
+                // Resolved live (not from the cart's own game_name snapshot) so
+                // the discount badge always reflects the game's current status.
+                const isDiscounted = gamepasses.find(gp => gp.id === g.gamepass_id)?.games?.is_discounted
+                return (
                 <div
                   key={g.gamepass_id}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
@@ -195,8 +200,9 @@ export default function OrderForm({
                     <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {g.gamepass_name}
                     </p>
-                    <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                      {g.game_name ?? '—'} · {formatRobux(g.robux_amount)} · {formatPHP(g.selling_price)} each
+                    <p className="text-[10px] truncate">
+                      <span style={getGameNameStyle(isDiscounted)}>{g.game_name ?? '—'}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.48)' }}> · {formatRobux(g.robux_amount)} · {formatPHP(g.selling_price)} each</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -227,7 +233,8 @@ export default function OrderForm({
                     {formatPHP(g.selling_price * g.count)}
                   </span>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

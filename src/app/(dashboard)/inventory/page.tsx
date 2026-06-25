@@ -6,11 +6,12 @@ import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
 import GamepassModal from '@/components/inventory/GamepassModal'
+import GameManagerDialog from '@/components/inventory/GameManagerDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CountUp from '@/components/shared/CountUp'
 import { Gamepass, Game, RobloxAccount } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { Package, SearchX } from 'lucide-react'
+import { Package, SearchX, Tag } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { cardStagger, cardStaggerItem } from '@/lib/motion'
 import { useToast } from '@/components/shared/Toast'
 import { formatPHP } from '@/lib/utils/pricing'
+import { getGameNameStyle } from '@/lib/utils/games'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { SkeletonTable } from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
@@ -52,6 +54,7 @@ function InventoryPageContent() {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editGamepass, setEditGamepass] = useState<Gamepass | null>(null)
+  const [gameManagerOpen, setGameManagerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterGame, setFilterGame] = useUrlState<string>('game', 'all')
   const [filterStatus, setFilterStatus] = useUrlState<typeof STATUS_FILTERS[number]>('status', 'all', STATUS_FILTERS)
@@ -92,6 +95,18 @@ function InventoryPageContent() {
     toast.success(wasEdit ? 'Gamepass updated.' : 'Gamepass added.')
   }
 
+  async function handleToggleDiscounted(gameId: string, next: boolean) {
+    const { error } = await supabase.from('games').update({ is_discounted: next }).eq('id', gameId)
+    if (error) {
+      toast.error(`Could not update discount status: ${error.message}`)
+      return
+    }
+    setGames(prev => prev.map(g => g.id === gameId ? { ...g, is_discounted: next } : g))
+    setGamepasses(prev => prev.map(gp =>
+      gp.game_id === gameId && gp.games ? { ...gp, games: { ...gp.games, is_discounted: next } } : gp
+    ))
+  }
+
   async function handleDelete(id: string) {
     const gamepass = gamepasses.find(gp => gp.id === id)
     const ok = await confirm({
@@ -126,6 +141,14 @@ function InventoryPageContent() {
     Okay: filtered.filter(g => g.status === 'Okay').length,
     Bad: filtered.filter(g => g.status === 'Bad').length,
   }), [filtered])
+
+  const gamepassCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    gamepasses.forEach(gp => {
+      if (gp.game_id) map.set(gp.game_id, (map.get(gp.game_id) ?? 0) + 1)
+    })
+    return map
+  }, [gamepasses])
 
   const catalogStats = useMemo(() => ({
     total: gamepasses.length,
@@ -189,7 +212,17 @@ function InventoryPageContent() {
         </motion.div>
 
         {/* ── 02 · Gamepass Catalog ── */}
-        <SectionLabel index="02" label="Gamepass Catalog" />
+        <div className="flex items-center justify-between">
+          <SectionLabel index="02" label="Gamepass Catalog" />
+          <button
+            type="button"
+            onClick={() => setGameManagerOpen(true)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+            style={{ color: 'rgba(255,255,255,0.47)' }}
+          >
+            <Tag className="w-3.5 h-3.5" /> Manage Games
+          </button>
+        </div>
 
         {/* Game filter chips */}
         <div className="flex flex-wrap gap-1.5">
@@ -213,13 +246,13 @@ function InventoryPageContent() {
                 style={isActive ? {
                   background: `rgba(255,255,255,0.050) padding-box, linear-gradient(135deg, ${color}55, ${color}28) border-box`,
                   border: '1px solid transparent',
-                  color,
                   boxShadow: `0 0 14px ${color}28`,
                   transform: 'translateY(-1px)',
+                  ...getGameNameStyle(game.is_discounted),
                 } : {
                   borderColor: `${color}22`,
-                  color: `${color}BB`,
                   transition: 'all 0.18s ease',
+                  ...getGameNameStyle(game.is_discounted),
                 }}
               >
                 <span
@@ -297,7 +330,7 @@ function InventoryPageContent() {
                     <tr key={gp.id} className="group">
                       <td>
                         <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>{gp.name}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.44)' }}>{gp.games?.name ?? '—'}</p>
+                        <p className="text-[11px] mt-0.5" style={getGameNameStyle(gp.games?.is_discounted)}>{gp.games?.name ?? '—'}</p>
                       </td>
                       <td className="text-right">
                         <span className="text-[12px] font-mono font-semibold" style={{ color: 'rgba(255,255,255,0.76)' }}>{gp.robux_amount.toLocaleString()} R$</span>
@@ -359,6 +392,14 @@ function InventoryPageContent() {
         gamepass={editGamepass}
         games={games}
         loading={saving}
+      />
+
+      <GameManagerDialog
+        open={gameManagerOpen}
+        onClose={() => setGameManagerOpen(false)}
+        games={games}
+        gamepassCounts={gamepassCounts}
+        onToggleDiscounted={handleToggleDiscounted}
       />
     </div>
   )

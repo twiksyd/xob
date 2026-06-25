@@ -15,6 +15,7 @@ import { cardStagger, cardStaggerItem } from '@/lib/motion'
 import { useToast } from '@/components/shared/Toast'
 import { useUrlState } from '@/hooks/useUrlState'
 import { formatPHP } from '@/lib/utils/pricing'
+import { getGameNameStyle } from '@/lib/utils/games'
 
 function SectionLabel({ index, label }: { index: string; label: string }) {
   return (
@@ -48,10 +49,10 @@ const METHODS = ['GCash', 'GCash', 'GCash', 'GCash', 'Maya', 'Bank'] as const
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PoolGP = { name: string; game: string; price: number; profit: number }
+type PoolGP = { name: string; game: string; price: number; profit: number; isDiscounted: boolean }
 
 type FakeSale = {
-  id: string; buyer: string; gamepass: string; game: string
+  id: string; buyer: string; gamepass: string; game: string; isDiscounted: boolean
   qty: number; account: string; price: number; profit: number
   method: string; status: 'completed' | 'paid' | 'pending' | 'refunded'; at: Date
 }
@@ -123,6 +124,7 @@ function generateSales(seed: number, pool: PoolGP[]): FakeSale[] {
       buyer:    pick(BUYERS, r),
       gamepass: gp.name,
       game:     gp.game,
+      isDiscounted: gp.isDiscounted,
       qty,
       account:  pick(ACCTS, r),
       price:    Math.round(gp.price * qty * 100) / 100,
@@ -185,7 +187,7 @@ function OverallSalesPageContent() {
   useEffect(() => {
     supabase
       .from('gamepasses')
-      .select('name, your_price, profit, games(name)')
+      .select('name, your_price, profit, games(name, is_discounted)')
       .then(({ data }) => {
         if (data && data.length > 0) {
           setPool(
@@ -194,6 +196,7 @@ function OverallSalesPageContent() {
               game:   (gp.games as any)?.name ?? '',
               price:  gp.your_price,
               profit: gp.profit,
+              isDiscounted: (gp.games as any)?.is_discounted ?? false,
             }))
           )
         }
@@ -406,7 +409,7 @@ function OverallSalesPageContent() {
                       </td>
                       <td>
                         <p className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>{sale.gamepass}</p>
-                        <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>{sale.game}</p>
+                        <p className="text-[11px]" style={getGameNameStyle(sale.isDiscounted)}>{sale.game}</p>
                       </td>
                       <td className="text-center">
                         <span

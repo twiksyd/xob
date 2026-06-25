@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import CountUp from '@/components/shared/CountUp'
 import { formatRobux, formatPHP } from '@/lib/utils/pricing'
+import { getGameNameStyle } from '@/lib/utils/games'
 import {
   getAvailableRobux, classifyAccountHealth, estimateRunwayOrders, type AccountHealthTier,
 } from '@/lib/utils/accounts'
@@ -373,12 +374,16 @@ export default function DashboardPage() {
 
   const topGame = useMemo(() => {
     const counts: Record<string, number> = {}
+    const discounted: Record<string, boolean> = {}
     completedOrders.forEach(o => {
       const name = o.gamepasses?.games?.name
-      if (name) counts[name] = (counts[name] ?? 0) + 1
+      if (name) {
+        counts[name] = (counts[name] ?? 0) + 1
+        discounted[name] = o.gamepasses?.games?.is_discounted ?? false
+      }
     })
     const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
-    return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1] } : null
+    return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1], isDiscounted: discounted[sorted[0][0]] } : null
   }, [completedOrders])
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -465,7 +470,7 @@ interface DashboardChaptersProps {
   revenueData: { day: string; revenue: number; profit: number }[]
   ordersThisWeek: number
   avgOrderValue: number
-  topGame: { name: string; count: number } | null
+  topGame: { name: string; count: number; isDiscounted: boolean } | null
   totalActiveAccounts: number
   criticalAccounts: number
   accountHealth: { healthy: number; low: number; depleted: number }
@@ -913,7 +918,7 @@ const ChapterSections = memo(function ChapterSections({
             </motion.div>
             <motion.div variants={chapterItem} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.032)', border: '1px solid rgba(255,255,255,0.065)' }}>
               <p className="label-caps mb-1 flex items-center justify-center gap-1"><Trophy className="w-2.5 h-2.5" style={{ color: '#fbbf24' }} /> Best Seller</p>
-              <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{topGame ? topGame.name : '—'}</p>
+              <p className="text-[13px] font-bold truncate" style={topGame ? getGameNameStyle(topGame.isDiscounted) : { color: 'rgba(255,255,255,0.88)' }}>{topGame ? topGame.name : '—'}</p>
             </motion.div>
           </motion.div>
 

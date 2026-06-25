@@ -5,6 +5,7 @@ import { GamepassWithGame } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 import { springToggle } from '@/lib/motion'
 import { formatPHP } from '@/lib/utils/pricing'
+import { getGameNameStyle } from '@/lib/utils/games'
 
 interface GamepassTileProps {
   gamepass: GamepassWithGame
@@ -64,7 +65,7 @@ export default function GamepassTile({ gamepass, quantity, onAdd, onRemove }: Ga
           <p className="text-[13px] font-bold leading-snug truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
             {gamepass.name}
           </p>
-          <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.48)' }}>
+          <p className="text-[10px] truncate" style={getGameNameStyle(gamepass.games?.is_discounted)}>
             {gamepass.games?.name ?? 'No game'}
           </p>
         </div>
