@@ -266,8 +266,8 @@ function OverallSalesPageContent() {
           <div className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0 w-3 h-3">
-                <span className="absolute inset-0 rounded-full animate-ping" style={{ background: 'rgba(244,63,94,0.55)' }} />
-                <span className="relative block w-3 h-3 rounded-full" style={{ background: '#f43f5e', boxShadow: '0 0 10px rgba(244,63,94,0.9), 0 0 24px rgba(244,63,94,0.55)' }} />
+                <span className="absolute inset-0 rounded-full animate-ping" style={{ background: 'rgba(244,63,94,0.20)' }} />
+                <span className="relative block w-3 h-3 rounded-full" style={{ background: '#f43f5e', boxShadow: '0 0 8px rgba(244,63,94,0.20)' }} />
               </div>
               <div>
                 <p className="text-[13px] font-black uppercase leading-tight" style={{ color: '#f43f5e', letterSpacing: '0.18em' }}>Sold Out</p>

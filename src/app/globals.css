@@ -684,12 +684,6 @@ html.dashboard-snap-scroll {
 .data-table tbody tr:nth-child(8)  { animation-delay: 0.16s; }
 .data-table tbody tr:nth-child(n+9) { animation-delay: 0.18s; }
 
-/* ─── Glow breathe ──────────────────────────────────────────── */
-@keyframes summary-glow-breathe {
-  0%, 100% { box-shadow: 0 2px 16px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255,255,255,0.060); }
-  50%       { box-shadow: 0 4px 28px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255,255,255,0.090), 0 0 40px rgba(167,139,246,0.040); }
-}
-
 /* ─── Stat card hover ───────────────────────────────────────── */
 .stat-card {
   transition: transform 0.22s ease, box-shadow 0.22s ease;
@@ -708,7 +702,6 @@ html.dashboard-snap-scroll {
     inset 0 1px 0 rgba(255, 255, 255, 0.050),
     0 2px 12px rgba(0, 0, 0, 0.40),
     0 8px 28px rgba(0, 0, 0, 0.32);
-  animation: summary-glow-breathe 8s ease-in-out infinite;
   transition: transform 0.20s ease, box-shadow 0.20s ease;
 }
 .summary-card:hover {
@@ -977,14 +970,12 @@ input::selection, textarea::selection {
   opacity: 1;
 }
 
-/* Same slow breathing-glow language as .summary-card, applied to the order
-   history table specifically (not the shared .glass-secondary class, which
-   is also used by unrelated panels) so the table reads as alive at rest,
-   not only on hover. One container-level animation, not per-row — cheap,
-   no risk of the per-element continuous-animation cost this app has
-   deliberately moved away from elsewhere. */
+/* Static glow on the order history table container — previously an
+   infinite "breathing" animation, removed since a perpetually-animating
+   glow is exactly the kind of ambient motion that never lets the screen
+   settle, working against a deliberate, premium feel. */
 .order-table-glow {
-  animation: summary-glow-breathe 8s ease-in-out infinite;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255,255,255,0.060);
 }
 
 /* ─── Form section stagger entry ─────────────────────────────── */
@@ -1102,20 +1093,6 @@ input::selection, textarea::selection {
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.025) !important;
 }
 
-/* ── TwicksHero glow ────────────────────────────────────────── */
-@keyframes twicks-glow-breath {
-  0%, 100% {
-    filter:
-      drop-shadow(0 0 14px rgba(255,255,255,0.08))
-      drop-shadow(0 0 40px rgba(255,255,255,0.03));
-  }
-  50% {
-    filter:
-      drop-shadow(0 0 26px rgba(255,255,255,0.16))
-      drop-shadow(0 0 60px rgba(255,255,255,0.06));
-  }
-}
-.twicks-glow { animation: twicks-glow-breath 5s ease-in-out infinite; }
 
 /* ── Account trait badges (PLUS, DISCOUNT ACTIVE, …) ─────────────
    Shared base for every .account-badge--<type> variant rendered by
@@ -1139,53 +1116,30 @@ input::selection, textarea::selection {
   text-shadow: 0 1px 2px rgba(0,0,0,0.50);
 }
 
-@keyframes discount-badge-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
+/* All three account badges below are deliberately STATIC — no animation.
+   Three independently-animating badges (rainbow rotation / shimmer sweep /
+   pulse) could previously co-occur on a single AccountCard's username row,
+   which was the single biggest concrete cause of the app feeling like
+   "everything competes for attention." Distinctness now comes from color
+   and shape alone, same principle as everywhere else premium SaaS products
+   use static status chips. Glow alphas capped at ~0.20, consistent with
+   the rest of the app's restrained glow usage. */
 .account-badge--discount {
   letter-spacing: 0.05em;
-  background-image: linear-gradient(
-    90deg,
-    #ff3b3b, #ff9d3b, #ffe93b, #3bff6e, #3bdcff, #6e3bff, #ff3bdc, #ff3b3b
-  );
-  background-size: 220% 100%;
-  animation: discount-badge-flow 5s linear infinite;
-  box-shadow: 0 0 8px rgba(255,255,255,0.30), 0 0 16px rgba(140,100,255,0.30);
-}
-@media (prefers-reduced-motion: reduce) {
-  .account-badge--discount { animation: none; background-position: 50% 50%; }
+  background-image: linear-gradient(135deg, #f43b6e, #8b5cf6);
+  box-shadow: 0 0 6px rgba(244,59,110,0.20), 0 0 10px rgba(139,92,246,0.16);
 }
 
-/* Roblox Plus — deep reddish-orange, distinct from Discount's full-rainbow
-   rotation: a single bright "shine" band sweeping across a deep orange base. */
-@keyframes plus-badge-shimmer {
-  0%   { background-position: -150% 0; }
-  100% { background-position: 250% 0; }
-}
 .account-badge--plus {
   letter-spacing: 0.06em;
-  background-image: linear-gradient(
-    100deg,
-    #ff5a1f 0%, #ff5a1f 32%, #ffc24d 50%, #ff7a1a 68%, #ff5a1f 100%
-  );
-  background-size: 250% 100%;
-  animation: plus-badge-shimmer 3.2s linear infinite;
-  box-shadow: 0 0 9px rgba(255,90,31,0.55), 0 0 18px rgba(255,157,0,0.30);
-}
-@media (prefers-reduced-motion: reduce) {
-  .account-badge--plus { animation: none; background-position: 0% 0; }
+  background-image: linear-gradient(135deg, #ff5a1f, #ffae3b);
+  box-shadow: 0 0 6px rgba(255,90,31,0.20);
 }
 
 /* ── Chrome Profile badge ─────────────────────────────────────────
-   Distinct again: a solid, color-coded background (deterministic per
-   profile name, set inline via style — same color always means same
-   profile) with a pulsing glow instead of a moving gradient, so it reads
-   differently from both badges above at a glance. */
-@keyframes chrome-profile-badge-pulse {
-  0%, 100% { box-shadow: 0 0 6px var(--chrome-glow, rgba(255,255,255,0.30)); }
-  50%      { box-shadow: 0 0 14px var(--chrome-glow, rgba(255,255,255,0.30)), 0 0 22px var(--chrome-glow, rgba(255,255,255,0.16)); }
-}
+   A solid, color-coded background (deterministic per profile name, set
+   inline via style — same color always means same profile), so it reads
+   differently from both badges above at a glance without needing motion. */
 .chrome-profile-badge {
   display: inline-flex;
   align-items: center;
@@ -1197,11 +1151,8 @@ input::selection, textarea::selection {
   letter-spacing: 0.04em;
   color: #ffffff;
   white-space: nowrap;
-  animation: chrome-profile-badge-pulse 2.4s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--chrome-glow, rgba(255,255,255,0.20));
   text-shadow: 0 1px 2px rgba(0,0,0,0.50);
-}
-@media (prefers-reduced-motion: reduce) {
-  .chrome-profile-badge { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
