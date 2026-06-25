@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -185,15 +185,8 @@ function TransactionsPageContent() {
 
           {/* Profit — hero card */}
           <div
-            className="summary-card relative overflow-hidden"
-            style={{
-              background: metrics.profit > 0
-                ? 'rgba(52,211,153,0.07) padding-box, linear-gradient(140deg, rgba(52,211,153,0.28), rgba(34,211,238,0.18) 55%, rgba(52,211,153,0.12)) border-box'
-                : 'rgba(167,139,250,0.05) padding-box, linear-gradient(140deg, rgba(167,139,250,0.24), rgba(34,211,238,0.14) 55%, rgba(167,139,250,0.10)) border-box',
-              boxShadow: metrics.profit > 0
-                ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 12px rgba(52,211,153,0.10), 0 8px 28px rgba(0,0,0,0.32)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 12px rgba(167,139,250,0.08), 0 8px 28px rgba(0,0,0,0.32)',
-            }}
+            className="summary-card featured-card relative overflow-hidden"
+            style={{ '--featured-color': metrics.profit > 0 ? '#34d399' : '#a78bfa' } as CSSProperties}
           >
             <div className="flex items-center justify-between mb-2">
               <p className="label-caps">{periodLabel} Profit</p>
@@ -211,8 +204,8 @@ function TransactionsPageContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.18 }}
-                className="profit-counter-value"
-                style={{ color: metrics.profit > 0 ? '#34d399' : 'rgba(255,255,255,0.80)', fontSize: '24px' }}
+                className={cn('profit-counter-value', metrics.profit > 0 && 'featured-value')}
+                style={metrics.profit > 0 ? { fontSize: '24px' } : { color: 'rgba(255,255,255,0.80)', fontSize: '24px' }}
               >
                 <CountUp value={metrics.profit} format={formatPHP} duration={1.4} />
               </motion.p>

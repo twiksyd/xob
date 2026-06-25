@@ -709,6 +709,33 @@ html.dashboard-snap-scroll {
   border-color: rgba(255, 255, 255, 0.110);
 }
 
+/* ─── Featured/hero metric card ────────────────────────────────
+   One shared treatment for "this is the important number" — previously
+   four different hand-built recipes across Inventory, Seller-Inventory,
+   Wallet, and Transactions (a stat-grid boolean flag with its own inline
+   styles in two pages, two separately-designed bespoke hero-card
+   gradients in the other two). Parameterized by --featured-color so each
+   page keeps its own accent while sharing one recognizable pattern.
+   Apply to the card container; .featured-value is the companion glow
+   treatment for the metric text itself. */
+.featured-card {
+  --fc: var(--featured-color, #22d3ee);
+  background:
+    rgba(255, 255, 255, 0.042) padding-box,
+    linear-gradient(135deg, color-mix(in srgb, var(--fc) 38%, transparent), color-mix(in srgb, var(--fc) 16%, transparent)) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 28px color-mix(in srgb, var(--fc) 16%, transparent),
+    0 8px 28px rgba(0, 0, 0, 0.32);
+}
+.featured-value {
+  color: var(--fc);
+  text-shadow:
+    0 0 24px color-mix(in srgb, var(--fc) 35%, transparent),
+    0 0 48px color-mix(in srgb, var(--fc) 16%, transparent);
+}
+
 /* ─── Metric view toggle ────────────────────────────────────── */
 .metric-toggle {
   display: inline-flex;

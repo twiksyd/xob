@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense, type CSSProperties } from 'react'
 import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -218,9 +218,9 @@ function InventoryPageContent() {
             <motion.div
               key={label}
               variants={cardStaggerItem}
-              className="summary-card"
+              className={cn('summary-card', featured && 'featured-card')}
               style={featured
-                ? { background: `rgba(255,255,255,0.052) padding-box, linear-gradient(135deg, ${color}55, rgba(34,211,238,0.24) 50%, rgba(232,121,249,0.16)) border-box`, border: '1px solid transparent', boxShadow: `0 0 28px ${color}22` }
+                ? ({ '--featured-color': color } as CSSProperties)
                 : { background: `rgba(255,255,255,0.038) padding-box, linear-gradient(135deg, ${color}38, rgba(34,211,238,0.14)) border-box`, border: '1px solid transparent' }}
             >
               <p className="label-caps mb-1">{label}</p>
@@ -228,8 +228,8 @@ function InventoryPageContent() {
                 value={value}
                 format={(v) => `${Math.round(v)}`}
                 duration={1.2}
-                className="stat-value block"
-                style={featured ? { color, fontSize: '34px', textShadow: `0 0 24px ${color}40, 0 0 48px ${color}18` } : { color }}
+                className={cn('stat-value block', featured && 'featured-value')}
+                style={featured ? { fontSize: '34px' } : { color }}
               />
             </motion.div>
           ))}

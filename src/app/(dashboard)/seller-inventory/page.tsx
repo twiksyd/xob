@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -9,6 +9,7 @@ import CountUp from '@/components/shared/CountUp'
 import { SellerAccountWithVehicles } from '@/lib/types/database'
 import { formatPHP } from '@/lib/utils/pricing'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -517,8 +518,8 @@ function SellerInventoryPageContent() {
             <motion.div
               key={title}
               variants={cardStaggerItem}
-              className="summary-card"
-              style={featured ? { boxShadow: `0 0 28px ${color}22`, border: `1px solid ${color}30` } : undefined}
+              className={cn('summary-card', featured && 'featured-card')}
+              style={featured ? ({ '--featured-color': color } as CSSProperties) : undefined}
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="label-caps">{title}</p>
@@ -533,8 +534,8 @@ function SellerInventoryPageContent() {
                 value={value}
                 format={format}
                 duration={1.2}
-                className="stat-value block"
-                style={featured ? { color, fontSize: '28px', textShadow: `0 0 24px ${color}40, 0 0 48px ${color}18` } : { color, fontSize: '22px' }}
+                className={cn('stat-value block', featured && 'featured-value')}
+                style={featured ? { fontSize: '28px' } : { color, fontSize: '22px' }}
               />
             </motion.div>
           ))}

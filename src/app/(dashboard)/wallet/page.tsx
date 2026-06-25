@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import { motion } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -160,17 +160,15 @@ export default function WalletPage() {
         {/* ── 01 · Financial Position ── */}
         <SectionLabel index="01" label="Financial Position" />
         <motion.div
-          className="rounded-2xl p-6"
+          className="rounded-2xl p-6 featured-card"
           initial={{ opacity: 0, y: 20, scale: 0.97 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            background: 'rgba(255,255,255,0.042) padding-box, linear-gradient(135deg, rgba(34,211,238,0.30), rgba(167,139,250,0.22), rgba(232,121,249,0.14)) border-box',
-            border: '1px solid transparent',
+            '--featured-color': balance >= 0 ? '#22d3ee' : '#f43f5e',
             backdropFilter: 'blur(24px) saturate(170%)',
-            boxShadow: '0 4px 32px rgba(34,211,238,0.08), 0 8px 48px rgba(139,92,246,0.05), inset 0 0 0 1px rgba(255,255,255,0.22)',
-          }}
+          } as CSSProperties}
         >
           <div className="flex items-start justify-between">
             <div>
@@ -179,15 +177,8 @@ export default function WalletPage() {
                 value={balance}
                 format={formatPHP}
                 duration={1.6}
-                className="block"
-                style={{
-                  fontSize: '48px', fontWeight: 900, lineHeight: 1,
-                  color: balance >= 0 ? '#22d3ee' : '#f43f5e',
-                  textShadow: balance >= 0
-                    ? '0 0 32px rgba(34,211,238,0.40)'
-                    : '0 0 32px rgba(244,63,94,0.35)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
+                className="featured-value block"
+                style={{ fontSize: '48px', fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}
               />
               <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.44)' }}>
                 PHP Cash Available · {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
