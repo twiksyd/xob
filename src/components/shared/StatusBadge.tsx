@@ -5,7 +5,12 @@ interface StatusBadgeProps {
   className?: string
 }
 
-const config: Record<string, { dot: string; bg: string; text: string; border: string }> = {
+// Exported so any other surface needing a status color (e.g. chart legends)
+// reads from this same map instead of hand-typing its own — two separately
+// maintained status-color maps had already drifted apart (paid/refunded/
+// cancelled/delivering all rendered different colors in DashboardCharts
+// than here) before this was unified.
+export const STATUS_COLORS: Record<string, { dot: string; bg: string; text: string; border: string }> = {
   // Gamepass status
   Good:       { dot: '#22d3ee', bg: 'rgba(34,211,238,0.10)',  text: '#22d3ee',  border: 'rgba(34,211,238,0.25)'  },
   Okay:       { dot: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  text: '#fbbf24',  border: 'rgba(251,191,36,0.25)'  },
@@ -29,10 +34,10 @@ const config: Record<string, { dot: string; bg: string; text: string; border: st
   refund:     { dot: '#f87171', bg: 'rgba(248,113,113,0.10)', text: '#f87171',  border: 'rgba(248,113,113,0.25)' },
 }
 
-const fallback = { dot: '#94a3b8', bg: 'rgba(148,163,184,0.10)', text: 'rgba(255,255,255,0.50)', border: 'rgba(148,163,184,0.20)' }
+export const STATUS_COLOR_FALLBACK = { dot: '#94a3b8', bg: 'rgba(148,163,184,0.10)', text: 'rgba(255,255,255,0.50)', border: 'rgba(148,163,184,0.20)' }
 
 export default function StatusBadge({ status, className }: StatusBadgeProps) {
-  const c = config[status] ?? fallback
+  const c = STATUS_COLORS[status] ?? STATUS_COLOR_FALLBACK
   return (
     <span
       className={cn(

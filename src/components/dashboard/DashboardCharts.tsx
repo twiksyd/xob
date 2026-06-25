@@ -5,6 +5,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts'
 import { formatPHP } from '@/lib/utils/pricing'
+import { STATUS_COLORS } from '@/components/shared/StatusBadge'
 
 const TT = {
   backgroundColor: 'rgba(10, 8, 24, 0.94)',
@@ -101,13 +102,8 @@ export function TopGamesChart({ data }: { data: { name: string; sales: number }[
   )
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  completed: '#22d3ee', pending: '#94a3b8', delivering: '#f59e0b',
-  paid: '#a78bfa', refunded: '#e879f9', cancelled: '#f43f5e',
-}
-
 export function OrderStatusChart({ data }: { data: { name: string; value: number; color: string }[] }) {
-  const mapped = data.map(d => ({ ...d, color: STATUS_COLORS[d.name.toLowerCase()] ?? d.color }))
+  const mapped = data.map(d => ({ ...d, color: STATUS_COLORS[d.name.toLowerCase()]?.dot ?? d.color }))
   const total = mapped.reduce((s, d) => s + d.value, 0)
   const dominant = mapped.length > 0 ? mapped.reduce((a, b) => b.value > a.value ? b : a) : null
   const dominantPct = dominant && total > 0 ? Math.round((dominant.value / total) * 100) : 0
