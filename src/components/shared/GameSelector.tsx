@@ -71,7 +71,7 @@ export default function GameSelector({
           )}
           <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 ml-auto" style={{ color: 'rgba(255,255,255,0.40)' }} />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[360px] p-0">
+        <PopoverContent align="start" className="p-0" style={{ width: 'min(360px, calc(100vw - 2rem))' }}>
           <GameSelectorList
             games={games}
             value={value}
