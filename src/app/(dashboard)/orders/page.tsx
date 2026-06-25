@@ -189,23 +189,51 @@ function OrdersPageContent() {
   }, [workspaceOpen])
 
   // ── Data fetching ───────────────────────────────────────────────────────────
+  // toast is intentionally not a dependency — useToast() returns a new object
+  // every render (see Toast.tsx), and depending on it here would recreate
+  // fetchData (and retrigger the mount effect below) every time any toast
+  // fires anywhere in the app. The captured closure still calls the underlying
+  // stable push/dismiss callbacks, so this stays correct regardless.
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [ordRes, gpRes, accRes] = await Promise.all([
-      supabase.from('orders')
-        .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
-        .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE + 1),
-      supabase.from('gamepasses').select('*, games(*)').order('is_active', { ascending: false }).order('name'),
-      supabase.from('roblox_accounts').select('*').eq('status', 'active'),
-    ])
-    if (ordRes.data) {
-      setOrders(ordRes.data.slice(0, PAGE_SIZE) as OrderWithDetails[])
-      setHasMore(ordRes.data.length > PAGE_SIZE)
+    try {
+      const [ordRes, gpRes, accRes] = await Promise.all([
+        supabase.from('orders')
+          .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
+          .order('created_at', { ascending: false })
+          .limit(PAGE_SIZE + 1),
+        supabase.from('gamepasses').select('*, games(*)').order('is_active', { ascending: false }).order('name'),
+        supabase.from('roblox_accounts').select('*').eq('status', 'active'),
+      ])
+
+      if (ordRes.error) {
+        if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load orders:', ordRes.error)
+        toast.error(`Could not load orders: ${ordRes.error.message}`)
+      } else if (ordRes.data) {
+        setOrders(ordRes.data.slice(0, PAGE_SIZE) as OrderWithDetails[])
+        setHasMore(ordRes.data.length > PAGE_SIZE)
+      }
+
+      if (gpRes.error) {
+        if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load gamepasses:', gpRes.error)
+        toast.error(`Could not load gamepasses: ${gpRes.error.message}`)
+      } else if (gpRes.data) {
+        setGamepasses(gpRes.data as GamepassWithGame[])
+      }
+
+      if (accRes.error) {
+        if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load accounts:', accRes.error)
+        toast.error(`Could not load accounts: ${accRes.error.message}`)
+      } else if (accRes.data) {
+        setAccounts(accRes.data)
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') console.error('[orders] unexpected error loading page data:', err)
+      toast.error('Could not load orders — check your connection and try again.')
+    } finally {
+      setLoading(false)
     }
-    if (gpRes.data)  setGamepasses(gpRes.data as GamepassWithGame[])
-    if (accRes.data) setAccounts(accRes.data)
-    setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
 
   useEffect(() => { fetchData() }, [fetchData])
