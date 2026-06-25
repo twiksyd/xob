@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { MotionConfig } from 'framer-motion'
 import './globals.css'
 import PwaRegister from '@/components/shared/PwaRegister'
 
@@ -27,7 +28,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <PwaRegister />
-        {children}
+        {/* Every Framer Motion animation app-wide (ambient blob drift, page
+            transitions, stagger reveals) now respects the OS-level "reduce
+            motion" preference automatically — previously only the CSS-based
+            badge/glow animations did this via their own media queries. */}
+        <MotionConfig reducedMotion="user">
+          {children}
+        </MotionConfig>
       </body>
     </html>
   )

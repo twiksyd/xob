@@ -221,6 +221,14 @@
 html.dashboard-snap-scroll {
   scroll-snap-type: y proximity;
 }
+@media (prefers-reduced-motion: reduce) {
+  /* Snapping is itself an automatic-motion behavior — disable it for users
+     who've asked for reduced motion, same principle as every other
+     prefers-reduced-motion rule in this file. Chapter dominance/parallax
+     already key off scroll position, not a separate animation loop, so
+     they degrade gracefully to "just a normal scrolling page" here too. */
+  html.dashboard-snap-scroll { scroll-snap-type: none; }
+}
 
 /* ─── Ambient orb keyframes ─────────────────────────────────── */
 @keyframes orb-drift-1 {
