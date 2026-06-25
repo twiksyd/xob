@@ -155,7 +155,7 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
-            <Button type="submit" disabled={loading} className="btn-primary px-5">
+            <Button type="submit" disabled={loading} variant="primary" className="px-5">
               {loading ? 'Saving...' : gamepass ? 'Save Changes' : 'Add Gamepass'}
             </Button>
           </DialogFooter>

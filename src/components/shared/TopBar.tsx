@@ -1,6 +1,7 @@
 'use client'
 
 import { Search, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface TopBarProps {
   title: string
@@ -74,13 +75,14 @@ export default function TopBar({
       {/* Right — CTA */}
       <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
         {actionLabel && (
-          <button
+          <Button
             onClick={onActionClick}
-            className="btn-outline h-[32px] px-3.5 flex items-center gap-1.5 cursor-pointer text-[11px]"
+            variant="pillOutline"
+            className="h-[32px] px-3.5 gap-1.5"
           >
             <Plus className="w-3 h-3" />
             {actionLabel.replace(/^\+\s*/, '')}
-          </button>
+          </Button>
         )}
       </div>
     </header>

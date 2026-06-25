@@ -395,7 +395,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="border-border">Cancel</Button>
-            <Button type="submit" disabled={loading} className="btn-primary px-5">
+            <Button type="submit" disabled={loading} variant="primary" className="px-5">
               {loading ? 'Saving...' : account ? 'Save Changes' : 'Add Account'}
             </Button>
           </DialogFooter>

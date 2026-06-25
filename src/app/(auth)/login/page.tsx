@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
 import { Eye, EyeOff, AlertCircle, Box } from 'lucide-react'
 
 const LiquidEther = nextDynamic(() => import('@/components/shared/LiquidEther'), { ssr: false })
@@ -124,13 +125,14 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={loading}
-              className="btn-primary w-full py-[10px] flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-[10px] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? 'Signing in…' : 'Sign In'}
-            </button>
+            </Button>
           </form>
 
           <p className="text-center text-[12px] text-muted-foreground">

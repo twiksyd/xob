@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { LucideIcon, ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 interface EmptyStateProps {
   icon: LucideIcon
@@ -36,13 +37,13 @@ export default function EmptyState({ icon: Icon, title, description, actionLabel
       </p>
       {actionLabel && (onAction || actionHref) && (
         actionHref ? (
-          <a href={actionHref} className="btn-primary inline-flex items-center gap-1.5 px-4 h-9 mt-5">
+          <Button render={<a href={actionHref} />} variant="primary" className="gap-1.5 px-4 h-9 mt-5">
             {actionLabel} <ArrowUpRight className="w-3.5 h-3.5" />
-          </a>
+          </Button>
         ) : (
-          <button type="button" onClick={onAction} className="btn-primary inline-flex items-center gap-1.5 px-4 h-9 mt-5">
+          <Button type="button" onClick={onAction} variant="primary" className="gap-1.5 px-4 h-9 mt-5">
             {actionLabel} <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         )
       )}
     </motion.div>

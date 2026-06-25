@@ -7,6 +7,7 @@ import { SavingsGoal } from '@/lib/types/database'
 import { PiggyBank, CheckCircle2, Lock, Edit2, X, Check } from 'lucide-react'
 import { Skeleton } from '@/components/shared/Skeleton'
 import { formatPHP } from '@/lib/utils/pricing'
+import { Button } from '@/components/ui/button'
 
 interface SavingsWidgetProps {
   compact?: boolean
@@ -289,12 +290,13 @@ export default function SavingsWidget({ compact = false, forecasts }: SavingsWid
                     />
                   </div>
                 </div>
-                <button
+                <Button
                   onClick={() => saveEdit(goal.id)}
-                  className="btn-primary h-8 px-4 text-[11px] font-bold flex items-center gap-1.5"
+                  variant="primary"
+                  className="h-8 px-4 gap-1.5"
                 >
                   <Check className="w-3 h-3" /> Save
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="relative group">

@@ -293,13 +293,14 @@ function InventoryCard({
                   >
                     {vehicleLimited ? '◆ Ltd' : '○ Non'}
                   </button>
-                  <button
+                  <Button
                     onClick={handleAddVehicle}
                     disabled={!vehicleName.trim()}
-                    className="btn-primary h-8 px-3 text-[11px] font-bold flex-shrink-0 flex items-center gap-1 disabled:opacity-40"
+                    variant="primary"
+                    className="h-8 px-3 flex-shrink-0 gap-1"
                   >
                     <Plus className="w-3 h-3" /> Add
-                  </button>
+                  </Button>
                 </div>
               </div>
             </motion.div>
@@ -703,7 +704,8 @@ function SellerInventoryPageContent() {
             <Button
               onClick={handleSave}
               disabled={saving || !fUsername.trim()}
-              className="btn-primary px-5"
+              variant="primary"
+              className="px-5"
             >
               {saving ? 'Saving...' : editAccount ? 'Save Changes' : 'Add Account'}
             </Button>

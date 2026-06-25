@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
 import { Eye, EyeOff, AlertCircle, Box, CheckCircle2 } from 'lucide-react'
 
 export default function RegisterPage() {
@@ -148,13 +149,14 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={loading}
-              className="btn-primary w-full py-[10px] flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-[10px] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? 'Creating account…' : 'Create Account'}
-            </button>
+            </Button>
           </form>
 
           <p className="text-center text-[12px] text-muted-foreground">
