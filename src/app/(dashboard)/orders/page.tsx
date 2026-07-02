@@ -902,6 +902,7 @@ function OrdersPageContent() {
                     onClearCart={cart.clearCart}
                     totals={totals}
                     accountRate={accountRate}
+                    isAccountPlus={isAccountPlus}
                     saving={saving}
                     justCreated={justCreated}
                   />

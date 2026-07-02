@@ -54,6 +54,7 @@ interface OrderFormProps {
 
   totals: OrderTotals
   accountRate: number
+  isAccountPlus: boolean
 
   saving: boolean
   justCreated: boolean
@@ -72,7 +73,7 @@ export default function OrderForm({
   isEditMode, editOrder, onCancelEdit,
   gamepasses, accounts, gameActivity,
   cartGroups, cartCounts, validItemsCount, onAddToCart, onRemoveFromCart, onClearCart,
-  totals, accountRate,
+  totals, accountRate, isAccountPlus,
   saving, justCreated,
 }: OrderFormProps) {
   const accountId = watch('roblox_account_id')
@@ -289,8 +290,65 @@ export default function OrderForm({
             selectedId={accountId}
             onSelect={id => setValue('roblox_account_id', id, { shouldValidate: true })}
           />
-          {errors.roblox_account_id && (
-            <p className="text-xs text-red-400 mt-1.5">{errors.roblox_account_id.message}</p>
+          <AnimatePresence>
+            {errors.roblox_account_id && (
+              <motion.p
+                key="acct-err"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="text-xs text-red-400 mt-1.5"
+              >
+                {errors.roblox_account_id.message}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          {/* Plus discount info card */}
+          {isAccountPlus && validItemsCount > 0 && (
+            <div
+              className="mt-3 rounded-xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(251,191,36,0.07), rgba(245,158,11,0.03))',
+                border: '1px solid rgba(251,191,36,0.20)',
+              }}
+            >
+              <div
+                className="flex items-center gap-2 px-4 py-2"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(251,191,36,0.10), transparent)',
+                  borderBottom: '1px solid rgba(251,191,36,0.12)',
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: '#fbbf24' }}>
+                  ★ ROBLOX PLUS
+                </span>
+              </div>
+              <div className="px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Nominal Gamepass</span>
+                  <span className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.70)' }}>
+                    {formatRobux(totals.totalRobux)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Actual Inventory Consumption</span>
+                  <span className="text-[12px] font-bold tabular-nums" style={{ color: '#fbbf24' }}>
+                    {formatRobux(totals.effectiveRobux)}
+                  </span>
+                </div>
+                <div
+                  className="flex items-center justify-between pt-1.5"
+                  style={{ borderTop: '1px solid rgba(251,191,36,0.10)' }}
+                >
+                  <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>Roblox Plus Discount</span>
+                  <span className="text-[12px] font-bold tabular-nums" style={{ color: '#34d399' }}>
+                    −{formatRobux(totals.totalRobux - totals.effectiveRobux)}
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

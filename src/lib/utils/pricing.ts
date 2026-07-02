@@ -16,7 +16,7 @@ export function calculateCost(robuxAmount: number, rate = ROBUX_RATE): number {
 export const PLUS_ROBUX_DISCOUNT = 0.10
 
 export function getEffectivePlusRobuxCost(robuxAmount: number, isPlusAccount: boolean): number {
-  return isPlusAccount ? robuxAmount * (1 - PLUS_ROBUX_DISCOUNT) : robuxAmount
+  return isPlusAccount ? Math.round(robuxAmount * (1 - PLUS_ROBUX_DISCOUNT)) : robuxAmount
 }
 
 export function calculateProfit(yourPrice: number, robuxAmount: number, rate = ROBUX_RATE): number {

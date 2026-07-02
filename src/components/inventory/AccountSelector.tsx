@@ -8,6 +8,7 @@ import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountBadgeRow from '@/components/shared/AccountBadgeRow'
 import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import { rankAccountsForOrder } from '@/lib/utils/accounts'
+import { getEffectivePlusRobuxCost } from '@/lib/utils/pricing'
 
 interface AccountSelectorProps {
   accounts: RobloxAccount[]
@@ -54,7 +55,8 @@ export default function AccountSelector({ accounts, robuxRequired, selectedId, o
         {ranked.map((acc) => {
           const isSelected = selectedId === acc.id
           const isBest     = best?.id === acc.id
-          const afterRobux = acc.available - robuxRequired
+          const effectiveRequired = getEffectivePlusRobuxCost(robuxRequired, acc.is_plus_account)
+          const afterRobux = acc.available - effectiveRequired
           const availDisplayColor = acc.depleted ? COLOR_NEUTRAL : acc.available < 200 ? '#f43f5e' : acc.available < 500 ? COLOR_RESERVED : COLOR_AVAILABLE
 
           // Bar dimensions

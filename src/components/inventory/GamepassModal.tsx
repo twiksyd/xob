@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -100,12 +101,24 @@ export default function GamepassModal({ open, onClose, onSave, gamepass, games, 
                   ))}
                 </SelectContent>
               </Select>
-              {errors.game_id && <p className="text-xs text-red-400">{errors.game_id.message}</p>}
+              <AnimatePresence>
+                {errors.game_id && (
+                  <motion.p key="gid-err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="text-xs text-red-400">
+                    {errors.game_id.message}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Gamepass Name</Label>
               <Input {...register('name')} placeholder="e.g. VIP" className="bg-input" />
-              {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
+              <AnimatePresence>
+                {errors.name && (
+                  <motion.p key="name-err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="text-xs text-red-400">
+                    {errors.name.message}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 

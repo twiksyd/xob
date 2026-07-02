@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -157,7 +158,13 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
           <div className="space-y-1.5">
             <Label className="text-xs">Roblox Username</Label>
             <Input {...register('username')} placeholder="e.g. SellerAccount1" className="bg-input" />
-            {errors.username && <p className="text-xs text-red-400">{errors.username.message}</p>}
+            <AnimatePresence>
+              {errors.username && (
+                <motion.p key="un-err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="text-xs text-red-400">
+                  {errors.username.message}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="space-y-1.5">
@@ -351,7 +358,13 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
                   className="bg-input"
                 />
               </div>
-              {adjustError && <p className="text-xs text-red-400">{adjustError}</p>}
+              <AnimatePresence>
+                {adjustError && (
+                  <motion.p key="adj-err" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="text-xs text-red-400">
+                    {adjustError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
               <Button
                 type="button"
                 variant="outline"
