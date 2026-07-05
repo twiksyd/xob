@@ -48,6 +48,7 @@ export type Database = {
           has_active_discount: boolean
           is_plus_account: boolean
           chrome_profile: string | null
+          batch_id: string | null
           created_at: string
           updated_at: string
         }
@@ -64,6 +65,7 @@ export type Database = {
           has_active_discount?: boolean
           is_plus_account?: boolean
           chrome_profile?: string | null
+          batch_id?: string | null
         }
         Update: {
           username?: string
@@ -76,6 +78,33 @@ export type Database = {
           has_active_discount?: boolean
           is_plus_account?: boolean
           chrome_profile?: string | null
+          batch_id?: string | null
+          updated_at?: string
+        }
+      }
+      account_batches: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          color: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          color?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          name?: string
+          color?: string
+          sort_order?: number
           updated_at?: string
         }
       }
@@ -422,6 +451,7 @@ export type Database = {
 // Convenience types
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type RobloxAccount = Database['public']['Tables']['roblox_accounts']['Row']
+export type AccountBatch = Database['public']['Tables']['account_batches']['Row']
 export type TransferReservation = Database['public']['Tables']['transfer_reservations']['Row']
 export type TransferLog = Database['public']['Tables']['transfer_logs']['Row']
 export type InstantSendPriceTier = Database['public']['Tables']['instant_send_price_tiers']['Row']

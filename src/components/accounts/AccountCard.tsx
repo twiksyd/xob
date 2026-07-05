@@ -1,16 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
-import { RobloxAccount, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
+import { RobloxAccount, AccountBatch, AllowanceSummary, TransferLog, TransferReservation } from '@/lib/types/database'
 import StatusBadge from '@/components/shared/StatusBadge'
 import AccountBadgeRow from '@/components/shared/AccountBadgeRow'
 import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
-  MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, Circle, ArrowRight, Archive, Check, X, Loader2, ChevronDown,
+  MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2, ArrowRight, Archive, Check, X, Loader2, ChevronDown,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -18,13 +18,17 @@ import {
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS, DAILY_TRANSFER_LIMIT, LIFETIME_TRANSFER_LIMIT } from '@/lib/utils/transfers'
+import { getBatchColor } from '@/lib/constants/batches'
 
 interface AccountCardProps {
   account: RobloxAccount
   onEdit: (account: RobloxAccount) => void
   onDelete: (id: string) => void
+  batch?: AccountBatch | null
   isSelected?: boolean
-  onToggleSelect?: () => void
+  onRenameBatch?: (batch: AccountBatch) => void
+  onChangeBatchColor?: (batch: AccountBatch) => void
+  onRemoveFromBatch?: (accountId: string) => void
   /** Daily Transfer Tracker — omit to hide the whole section (e.g. on depleted
    *  accounts, where sending 500 R$/day doesn't make sense). */
   allowance?: AllowanceSummary
@@ -47,7 +51,8 @@ const COLOR_RESERVED  = '#f59e0b'
 const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 
 export default function AccountCard({
-  account, onEdit, onDelete, isSelected = false, onToggleSelect,
+  account, onEdit, onDelete, batch = null, isSelected = false,
+  onRenameBatch, onChangeBatchColor, onRemoveFromBatch,
   allowance, history = [], reservationQueue = [],
   onQuickTransfer, onOpenReserveDialog, onOpenLogDialog, onEditTransferLog, onDeleteTransferLog,
   onFulfillReservation, onCancelReservation, onOpenSaleDialog,
@@ -71,6 +76,7 @@ export default function AccountCard({
 
   const band = allowance ? getAllowanceBand(allowance.available) : 'green'
   const bandColors = ALLOWANCE_BAND_COLORS[band]
+  const batchColor = getBatchColor(batch?.color)
   // When available hits 0, distinguish which cap is binding — daily resets
   // tonight, lifetime never does, so the message the operator sees matters.
   const lifetimeExhausted = allowance ? allowance.lifetime_sent + allowance.reserved >= LIFETIME_TRANSFER_LIMIT : false
@@ -103,22 +109,86 @@ export default function AccountCard({
     }
   }
 
-  const cardStyle = isSelected
-    ? {
-        background: 'rgba(34,211,238,0.028) padding-box, linear-gradient(140deg, rgba(34,211,238,0.42), rgba(139,92,246,0.28) 55%, rgba(34,211,238,0.24)) border-box',
-        boxShadow: '0 2px 20px rgba(34,211,238,0.12), 0 4px 24px rgba(255,255,255,0.065), inset 0 1.5px 0 rgba(34,211,238,0.30)',
-      }
-    : isHigh
-    ? { boxShadow: '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(255,255,255,0.065), inset 0 1px 0 rgba(52,211,153,0.14)' }
-    : undefined
+  const cardStyle: CSSProperties = {
+    opacity: depleted && !isSelected ? 0.62 : undefined,
+  }
+
+  if (batch) {
+    cardStyle.background = `${batchColor.soft} padding-box, linear-gradient(140deg, ${batchColor.value}55, rgba(255,255,255,0.09) 46%, ${batchColor.value}2e) border-box`
+    cardStyle.border = '1px solid transparent'
+    cardStyle.boxShadow = `0 2px 18px ${batchColor.value}16, 0 4px 24px rgba(255,255,255,0.055), inset 0 1px 0 ${batchColor.value}24`
+  }
+
+  if (isHigh && !batch) {
+    cardStyle.boxShadow = '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(255,255,255,0.065), inset 0 1px 0 rgba(52,211,153,0.14)'
+  }
+
+  if (isSelected) {
+    cardStyle.background = batch
+      ? `linear-gradient(0deg, ${batchColor.value}18, ${batchColor.value}18) padding-box, linear-gradient(140deg, ${batchColor.value}, rgba(34,211,238,0.88) 48%, rgba(255,255,255,0.40)) border-box`
+      : 'rgba(34,211,238,0.055) padding-box, linear-gradient(140deg, rgba(34,211,238,0.86), rgba(139,92,246,0.58) 55%, rgba(34,211,238,0.48)) border-box'
+    cardStyle.border = '1px solid transparent'
+    cardStyle.boxShadow = batch
+      ? `0 6px 28px ${batchColor.value}24, 0 4px 26px rgba(34,211,238,0.14), inset 0 1.5px 0 rgba(255,255,255,0.18)`
+      : '0 6px 28px rgba(34,211,238,0.20), 0 4px 26px rgba(255,255,255,0.090), inset 0 1.5px 0 rgba(34,211,238,0.42)'
+    cardStyle.transform = 'scale(1.01)'
+  }
 
   return (
     <div
-      className="glass-card p-5 space-y-4 transition-all duration-200 group"
-      style={{ ...cardStyle, opacity: depleted && !isSelected ? 0.62 : undefined }}
+      data-account-card-id={account.id}
+      className={`glass-card relative p-5 space-y-4 transition-all duration-200 group ${batch ? 'pt-8' : ''}`}
+      style={cardStyle}
     >
+      {isSelected && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[16px] transition-opacity duration-200"
+          style={{
+            background: batch
+              ? `linear-gradient(135deg, ${batchColor.value}1f, rgba(34,211,238,0.10))`
+              : 'linear-gradient(135deg, rgba(34,211,238,0.16), rgba(167,139,250,0.10))',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+          }}
+        />
+      )}
+
+      {batch && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            data-no-card-select
+            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-xl px-4 py-2 text-[11px] font-black text-white transition-all duration-200 hover:-translate-y-[56%] hover:scale-[1.035]"
+            style={{
+              minWidth: 112,
+              background: `linear-gradient(135deg, ${batchColor.value}, ${batchColor.value}cc 48%, rgba(255,255,255,0.22))`,
+              border: '1px solid rgba(255,255,255,0.28)',
+              boxShadow: `0 8px 22px ${batchColor.value}38, inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -10px 18px rgba(0,0,0,0.12)`,
+              textShadow: '0 1px 2px rgba(0,0,0,0.45)',
+              backdropFilter: 'blur(10px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+            }}
+            title="Batch actions"
+          >
+            {batch.name}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="bg-popover border-border text-[12px]">
+            <DropdownMenuItem onClick={() => onRenameBatch?.(batch)} className="cursor-pointer text-[12px]">
+              Rename Batch
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onChangeBatchColor?.(batch)} className="cursor-pointer text-[12px]">
+              Change Color
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onRemoveFromBatch?.(account.id)}
+              className="cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+            >
+              Remove From Batch
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="relative z-10 flex items-start justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <RobloxAvatar
             username={account.username}
@@ -185,25 +255,9 @@ export default function AccountCard({
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0 ml-2">
           {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
           <div className="flex items-center gap-0.5">
-            {/* Selection checkbox */}
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onToggleSelect?.() }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150"
-              style={{
-                color: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.50)',
-                background: isSelected ? 'rgba(34,211,238,0.12)' : 'transparent',
-              }}
-              title={isSelected ? 'Deselect account' : 'Select account'}
-            >
-              {isSelected
-                ? <CheckCircle2 className="w-4 h-4" />
-                : <Circle className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity duration-150" />
-              }
-            </button>
-
             <DropdownMenu>
               <DropdownMenuTrigger
+                data-no-card-select
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 group-hover:opacity-100"
                 style={{ color: 'rgba(255,255,255,0.45)' }}
               >
@@ -226,7 +280,7 @@ export default function AccountCard({
       </div>
 
       {/* Three-stat balance row — Robux stock, separate from the daily transfer allowance below */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="relative z-10 grid grid-cols-3 gap-2">
         <div
           className="rounded-xl p-2.5 text-center"
           style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.078)' }}
@@ -269,7 +323,7 @@ export default function AccountCard({
       </div>
 
       {/* Segmented allocation bar */}
-      <div>
+      <div className="relative z-10">
         <div className="flex justify-between items-center mb-1.5">
           <span className="label-caps">Allocation</span>
           <div className="flex items-center gap-3">
@@ -320,7 +374,7 @@ export default function AccountCard({
 
       {/* ── Daily Transfer Tracker — 500 R$/day, 1000 R$ lifetime per account ── */}
       {showTransferTracker && (
-        <div className="space-y-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
+        <div className="relative z-10 space-y-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.082)' }}>
           <span className="label-caps">Daily Transfer</span>
 
           {/* Sent / Reserved / Available — bold, scannable at a glance, not buried in a caption line */}
@@ -576,7 +630,7 @@ export default function AccountCard({
 
       {account.notes && (
         <p
-          className="text-[11px] leading-snug truncate pt-2"
+          className="relative z-10 text-[11px] leading-snug truncate pt-2"
           style={{ borderTop: '1px solid rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.45)' }}
         >
           {account.notes}
@@ -585,8 +639,9 @@ export default function AccountCard({
 
       <Link
         href={`/accounts/${account.id}`}
+        data-no-card-select
         onClick={e => e.stopPropagation()}
-        className="flex items-center justify-center gap-1.5 pt-2.5 text-[11px] font-bold transition-colors"
+        className="relative z-10 flex items-center justify-center gap-1.5 pt-2.5 text-[11px] font-bold transition-colors"
         style={{ borderTop: '1px solid rgba(255,255,255,0.082)', color: 'rgba(255,255,255,0.47)' }}
         onMouseEnter={e => e.currentTarget.style.color = '#0e7490'}
         onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.47)'}

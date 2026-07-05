@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense, type PointerEvent as ReactPointerEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '@/components/shared/TopBar'
 import PageHero from '@/components/shared/PageHero'
@@ -14,7 +14,7 @@ import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTrack
 import RestockAdvisor from '@/components/accounts/RestockAdvisor'
 import {
   RobloxAccount, ReservationWithDetails, OrderWithItems,
-  TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier,
+  TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier, AccountBatch,
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
@@ -27,7 +27,8 @@ import LogInstantSendSaleDialog from '@/components/accounts/LogInstantSendSaleDi
 import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceTierManager'
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
-  CheckSquare, Square, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
+  CheckSquare, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
+  MousePointer2, Tag, Palette, Eraser,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -39,6 +40,10 @@ import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { SkeletonChart, SkeletonCard } from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
 import { useUrlState } from '@/hooks/useUrlState'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { BATCH_COLORS, BatchColorKey, getBatchColor } from '@/lib/constants/batches'
 
 type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
@@ -65,6 +70,27 @@ const TRANSFER_SORTS: readonly { value: TransferSort; label: string }[] = [
   { value: 'mostReserved',     label: 'Most Reserved' },
   { value: 'mostRecentlyUsed', label: 'Most Recently Used' },
 ]
+
+type AccountSort = 'robux' | 'name' | 'status' | 'batch'
+const ACCOUNT_SORTS: readonly { value: AccountSort; label: string }[] = [
+  { value: 'robux',  label: 'Sort by Robux' },
+  { value: 'name',   label: 'Sort by Name' },
+  { value: 'status', label: 'Sort by Status' },
+  { value: 'batch',  label: 'Sort by Batch' },
+]
+
+type BatchDialogState =
+  | { mode: 'assign' }
+  | { mode: 'rename'; batch: AccountBatch }
+  | { mode: 'color'; batch: AccountBatch }
+  | null
+
+type DragSelectionBox = {
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
 
 // Roblox Discount Active — purely operational tagging, never read by any
 // inventory/profit/capital/forecast calculation.
@@ -112,6 +138,7 @@ function SectionLabel({ index, label }: { index: string; label: string }) {
 
 function AccountsPageContent() {
   const [accounts, setAccounts]         = useState<RobloxAccount[]>([])
+  const [batches, setBatches]           = useState<AccountBatch[]>([])
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([])
   const [completedOrders, setCompletedOrders] = useState<OrderWithItems[]>([])
   const [walletBalance, setWalletBalance] = useState(0)
@@ -127,6 +154,8 @@ function AccountsPageContent() {
   // ── Selection state ────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [statsMode, setStatsMode]       = useState<StatsMode>('all')
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
+  const [dragSelection, setDragSelection] = useState<DragSelectionBox | null>(null)
 
   // ── Daily Transfer Tracker state ────────────────────────────────────────────
   const [allowanceByAccount, setAllowanceByAccount] = useState<Map<string, AllowanceSummary>>(new Map())
@@ -134,6 +163,7 @@ function AccountsPageContent() {
   const [transferQueueByAccount, setTransferQueueByAccount] = useState<Map<string, TransferReservation[]>>(new Map())
   const [transferFilter, setTransferFilter] = useState<TransferFilter>('all')
   const [transferSort, setTransferSort] = useState<TransferSort>('none')
+  const [accountSort, setAccountSort] = useState<AccountSort>('robux')
   const [discountFilter, setDiscountFilter] = useState<DiscountFilter>('all')
   const [discountSort, setDiscountSort] = useState<DiscountSort>('none')
   const [plusFilter, setPlusFilter] = useState<PlusFilter>('all')
@@ -146,11 +176,18 @@ function AccountsPageContent() {
   const [priceTiers, setPriceTiers] = useState<InstantSendPriceTier[]>([])
   const [saleDialogAccount, setSaleDialogAccount] = useState<RobloxAccount | null>(null)
   const [priceTierManagerOpen, setPriceTierManagerOpen] = useState(false)
+  const [batchDialog, setBatchDialog] = useState<BatchDialogState>(null)
+  const [batchName, setBatchName] = useState('')
+  const [batchColor, setBatchColor] = useState<BatchColorKey>('blue')
+  const [batchSaving, setBatchSaving] = useState(false)
 
   const toast = useToast()
   const confirm = useConfirm()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
+  const cardRefs = useRef(new Map<string, HTMLDivElement>())
+  const dragBaseIdsRef = useRef<Set<string>>(new Set())
+  const selectionOrderRef = useRef<string[]>([])
 
   // Every account has a row from get_transfer_allowance_summary (it LEFT JOINs
   // from roblox_accounts), so this default is just a defensive fallback.
@@ -184,8 +221,9 @@ function AccountsPageContent() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     const startOfToday = getStartOfTodayISO()
-    const [accRes, resRes, ordersRes, walletRes, allowanceRes, historyRes, queueRes, tiersRes] = await Promise.all([
+    const [accRes, batchRes, resRes, ordersRes, walletRes, allowanceRes, historyRes, queueRes, tiersRes] = await Promise.all([
       supabase.from('roblox_accounts').select('*').order('created_at', { ascending: true }),
+      supabase.from('account_batches').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('robux_reservations')
         .select('*, roblox_accounts(username), orders(order_number, buyer_name, status)')
         .eq('status', 'active')
@@ -198,6 +236,7 @@ function AccountsPageContent() {
       supabase.from('instant_send_price_tiers').select('*').order('robux_amount', { ascending: true }),
     ])
     if (!accRes.error && accRes.data) setAccounts(accRes.data)
+    if (!batchRes.error && batchRes.data) setBatches(batchRes.data)
     if (!resRes.error && resRes.data)  setReservations(resRes.data as ReservationWithDetails[])
     if (!ordersRes.error && ordersRes.data) setCompletedOrders(ordersRes.data as OrderWithItems[])
     if (!walletRes.error && walletRes.data != null) setWalletBalance(Number(walletRes.data))
@@ -513,23 +552,283 @@ function AccountsPageContent() {
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
+    setLastSelectedId(id)
   }
 
-  function selectAll()       { setSelectedIds(new Set(accounts.map(a => a.id))) }
-  function clearAll()        { setSelectedIds(new Set()) }
-  function selectActive()    { setSelectedIds(new Set(accounts.filter(a => a.status === 'active').map(a => a.id))) }
-  function selectHighBal()   { setSelectedIds(new Set(accounts.filter(a => a.current_robux >= 5000).map(a => a.id))) }
-  function selectAvailable() { setSelectedIds(new Set(accounts.filter(a => getAvailableRobux(a) > 0).map(a => a.id))) }
+  function selectOnly(id: string) {
+    setSelectedIds(new Set([id]))
+    setLastSelectedId(id)
+  }
+
+  function selectRange(toId: string) {
+    const order = selectionOrderRef.current
+    const fromId = lastSelectedId && order.includes(lastSelectedId) ? lastSelectedId : order[0]
+    if (!fromId) { selectOnly(toId); return }
+    const fromIndex = order.indexOf(fromId)
+    const toIndex = order.indexOf(toId)
+    if (fromIndex < 0 || toIndex < 0) { selectOnly(toId); return }
+    const [start, end] = fromIndex < toIndex ? [fromIndex, toIndex] : [toIndex, fromIndex]
+    setSelectedIds(new Set(order.slice(start, end + 1)))
+    setLastSelectedId(toId)
+  }
+
+  function selectAll() {
+    const ids = selectionOrderRef.current
+    setSelectedIds(new Set(ids))
+    setLastSelectedId(ids[0] ?? null)
+  }
+
+  function clearAll() {
+    setSelectedIds(new Set())
+    setLastSelectedId(null)
+  }
+
+  function selectActive() {
+    const ids = accounts.filter(a => a.status === 'active').map(a => a.id)
+    setSelectedIds(new Set(ids))
+    setLastSelectedId(ids[0] ?? null)
+  }
+
+  function selectHighBal() {
+    const ids = accounts.filter(a => a.current_robux >= 5000).map(a => a.id)
+    setSelectedIds(new Set(ids))
+    setLastSelectedId(ids[0] ?? null)
+  }
+
+  function selectAvailable() {
+    const ids = accounts.filter(a => getAvailableRobux(a) > 0).map(a => a.id)
+    setSelectedIds(new Set(ids))
+    setLastSelectedId(ids[0] ?? null)
+  }
+
   function selectWithRes() {
     const ids = new Set(reservations.map(r => r.account_id))
-    setSelectedIds(new Set(accounts.filter(a => ids.has(a.id)).map(a => a.id)))
+    const selected = accounts.filter(a => ids.has(a.id)).map(a => a.id)
+    setSelectedIds(new Set(selected))
+    setLastSelectedId(selected[0] ?? null)
+  }
+
+  function registerAccountCard(id: string) {
+    return (node: HTMLDivElement | null) => {
+      if (node) cardRefs.current.set(id, node)
+      else cardRefs.current.delete(id)
+    }
+  }
+
+  function selectionRect(box: DragSelectionBox) {
+    return {
+      left: Math.min(box.startX, box.currentX),
+      right: Math.max(box.startX, box.currentX),
+      top: Math.min(box.startY, box.currentY),
+      bottom: Math.max(box.startY, box.currentY),
+    }
+  }
+
+  const rectsTouch = useCallback((a: ReturnType<typeof selectionRect>, b: DOMRect) => {
+    return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top
+  }, [])
+
+  const applyDragSelection = useCallback((box: DragSelectionBox) => {
+    const rect = selectionRect(box)
+    const touched = new Set(dragBaseIdsRef.current)
+    for (const id of selectionOrderRef.current) {
+      const node = cardRefs.current.get(id)
+      if (node && rectsTouch(rect, node.getBoundingClientRect())) touched.add(id)
+    }
+    setSelectedIds(touched)
+  }, [rectsTouch])
+
+  function isSelectionControl(target: EventTarget | null) {
+    return target instanceof Element && !!target.closest(
+      'button,a,input,textarea,select,[role="button"],[data-no-card-select],[data-slot="dialog-content"],[data-slot="dropdown-menu-content"],[data-slot="popover-content"]'
+    )
+  }
+
+  function handleAccountCardPointerDown(event: ReactPointerEvent<HTMLDivElement>, accountId: string) {
+    if (event.button !== 0 || isSelectionControl(event.target)) return
+    event.preventDefault()
+
+    if (event.shiftKey) {
+      selectRange(accountId)
+      return
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      toggleSelect(accountId)
+      return
+    }
+
+    dragBaseIdsRef.current = new Set()
+    const nextBox = {
+      startX: event.clientX,
+      startY: event.clientY,
+      currentX: event.clientX,
+      currentY: event.clientY,
+    }
+    setLastSelectedId(accountId)
+    setDragSelection(nextBox)
+    applyDragSelection(nextBox)
+  }
+
+  function handleAccountsAreaPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || isSelectionControl(event.target)) return
+    const card = event.target instanceof Element ? event.target.closest('[data-account-card-id]') : null
+    const floating = event.target instanceof Element ? event.target.closest('[data-batch-action-bar]') : null
+    if (!card && !floating && selectedIds.size > 0) clearAll()
+  }
+
+  useEffect(() => {
+    if (!dragSelection) return
+
+    function handleMove(event: PointerEvent) {
+      setDragSelection(prev => {
+        if (!prev) return prev
+        const next = { ...prev, currentX: event.clientX, currentY: event.clientY }
+        applyDragSelection(next)
+        return next
+      })
+    }
+
+    function handleUp() {
+      setDragSelection(prev => {
+        if (prev) applyDragSelection(prev)
+        return null
+      })
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [dragSelection, applyDragSelection])
+
+  function openAssignBatchDialog() {
+    setBatchDialog({ mode: 'assign' })
+    setBatchName(`Batch ${batches.length + 1}`)
+    setBatchColor('blue')
+  }
+
+  function openRenameBatchDialog(batch: AccountBatch) {
+    setBatchDialog({ mode: 'rename', batch })
+    setBatchName(batch.name)
+    setBatchColor(getBatchColor(batch.color).key)
+  }
+
+  function openChangeBatchColorDialog(batch: AccountBatch) {
+    setBatchDialog({ mode: 'color', batch })
+    setBatchName(batch.name)
+    setBatchColor(getBatchColor(batch.color).key)
+  }
+
+  async function assignBatchToSelection(batchId: string) {
+    if (selectedIds.size === 0) return
+    setBatchSaving(true)
+    const ids = [...selectedIds]
+    const { error } = await supabase
+      .from('roblox_accounts')
+      .update({ batch_id: batchId, updated_at: new Date().toISOString() })
+      .in('id', ids)
+    setBatchSaving(false)
+    if (error) { toast.error(error.message || 'Could not assign the batch.'); return }
+    setAccounts(prev => prev.map(account => ids.includes(account.id) ? { ...account, batch_id: batchId } : account))
+    setBatchDialog(null)
+    toast.success(`${ids.length} account${ids.length !== 1 ? 's' : ''} assigned to batch.`)
+  }
+
+  async function clearBatchFromSelection() {
+    if (selectedIds.size === 0) return
+    setBatchSaving(true)
+    const ids = [...selectedIds]
+    const { error } = await supabase
+      .from('roblox_accounts')
+      .update({ batch_id: null, updated_at: new Date().toISOString() })
+      .in('id', ids)
+    setBatchSaving(false)
+    if (error) { toast.error(error.message || 'Could not clear the batch.'); return }
+    setAccounts(prev => prev.map(account => ids.includes(account.id) ? { ...account, batch_id: null } : account))
+    toast.success('Batch cleared from selected accounts.')
+  }
+
+  async function removeAccountFromBatch(accountId: string) {
+    const { error } = await supabase
+      .from('roblox_accounts')
+      .update({ batch_id: null, updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+    if (error) { toast.error(error.message || 'Could not remove the batch.'); return }
+    setAccounts(prev => prev.map(account => account.id === accountId ? { ...account, batch_id: null } : account))
+    toast.success('Account removed from batch.')
+  }
+
+  async function saveBatchDialog() {
+    const name = batchName.trim()
+    if (!batchDialog || !name) { toast.error('Batch name is required.'); return }
+    setBatchSaving(true)
+
+    if (batchDialog.mode === 'assign') {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setBatchSaving(false); return }
+      const nextSortOrder = batches.reduce((max, batch) => Math.max(max, batch.sort_order), -1) + 1
+      const { data, error } = await supabase
+        .from('account_batches')
+        .insert({ user_id: user.id, name, color: batchColor, sort_order: nextSortOrder })
+        .select('*')
+        .single()
+      if (error || !data) {
+        setBatchSaving(false)
+        toast.error(error?.message || 'Could not create the batch.')
+        return
+      }
+      setBatches(prev => [...prev, data as AccountBatch])
+      await assignBatchToSelection((data as AccountBatch).id)
+      return
+    }
+
+    const target = batchDialog.batch
+    const { data, error } = await supabase
+      .from('account_batches')
+      .update({ name, color: batchColor, updated_at: new Date().toISOString() })
+      .eq('id', target.id)
+      .select('*')
+      .single()
+    setBatchSaving(false)
+    if (error || !data) { toast.error(error?.message || 'Could not update the batch.'); return }
+    setBatches(prev => prev.map(batch => batch.id === target.id ? data as AccountBatch : batch))
+    setBatchDialog(null)
+    toast.success('Batch updated.')
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => b.current_robux - a.current_robux),
-    [accounts]
+  const batchById = useMemo(
+    () => new Map(batches.map(batch => [batch.id, batch])),
+    [batches]
   )
+
+  const sortedAccounts = useMemo(() => {
+    const statusRank: Record<RobloxAccount['status'], number> = { active: 0, low: 1, inactive: 2, banned: 3 }
+    return [...accounts].sort((a, b) => {
+      switch (accountSort) {
+        case 'name':
+          return a.username.localeCompare(b.username)
+        case 'status':
+          return statusRank[a.status] - statusRank[b.status] || a.username.localeCompare(b.username)
+        case 'batch': {
+          const ba = a.batch_id ? batchById.get(a.batch_id) : null
+          const bb = b.batch_id ? batchById.get(b.batch_id) : null
+          if (ba && bb) {
+            return ba.sort_order - bb.sort_order || ba.name.localeCompare(bb.name) || a.username.localeCompare(b.username)
+          }
+          if (ba) return -1
+          if (bb) return 1
+          return a.username.localeCompare(b.username)
+        }
+        case 'robux':
+        default:
+          return b.current_robux - a.current_robux
+      }
+    })
+  }, [accounts, accountSort, batchById])
 
   // Stock lifecycle: accounts at/below the low-stock threshold are "depleted" —
   // excluded from active inventory views and capital/restock planning.
@@ -606,15 +905,23 @@ function AccountsPageContent() {
     return list
   }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort, plusFilter, chromeProfileFilter])
 
+  const visibleSelectionIds = useMemo(
+    () => [
+      ...transferFilteredAccounts.map(a => a.id),
+      ...(depletedExpanded ? depletedInventoryAccounts.map(a => a.id) : []),
+    ],
+    [transferFilteredAccounts, depletedInventoryAccounts, depletedExpanded]
+  )
+
+  useEffect(() => {
+    selectionOrderRef.current = visibleSelectionIds
+  }, [visibleSelectionIds])
+
   // Accounts used for summary bar (always selection-based)
   const selectedAccounts = useMemo(
     () => accounts.filter(a => selectedIds.has(a.id)),
     [accounts, selectedIds]
   )
-  const selTotal     = selectedAccounts.reduce((s, a) => s + a.current_robux, 0)
-  const selReserved  = selectedAccounts.reduce((s, a) => s + a.reserved_robux, 0)
-  const selAvailable = selectedAccounts.reduce((s, a) => s + getAvailableRobux(a), 0)
-
   // "Selected" is only a meaningful mode once something is selected — otherwise
   // it's silently treated as "All" so there's no toggle to reason about on first load.
   const effectiveStatsMode: StatsMode = selectedIds.size > 0 ? statsMode : 'all'
@@ -649,10 +956,11 @@ function AccountsPageContent() {
   }, [reservations, accounts])
 
   const hasSelection    = selectedIds.size > 0
-  const allSelected     = accounts.length > 0 && selectedIds.size === accounts.length
+  const allSelected     = visibleSelectionIds.length > 0 && selectedIds.size === visibleSelectionIds.length
   const statsSubtitle   = effectiveStatsMode === 'selected'
     ? `${selectedIds.size} account${selectedIds.size !== 1 ? 's' : ''} selected`
     : `Across ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`
+  const dragRect = dragSelection ? selectionRect(dragSelection) : null
 
   return (
     <div>
@@ -668,7 +976,23 @@ function AccountsPageContent() {
         subtitle="Robux inventory, restock tracking, reservation management, and capital allocation."
       />
 
-      <div className="p-5 space-y-5">
+      {dragRect && (
+        <div
+          className="pointer-events-none fixed z-[60] rounded-lg"
+          style={{
+            left: dragRect.left,
+            top: dragRect.top,
+            width: dragRect.right - dragRect.left,
+            height: dragRect.bottom - dragRect.top,
+            background: 'rgba(34,211,238,0.12)',
+            border: '1px solid rgba(34,211,238,0.55)',
+            boxShadow: '0 0 22px rgba(34,211,238,0.16), inset 0 1px 0 rgba(255,255,255,0.18)',
+            backdropFilter: 'blur(2px)',
+          }}
+        />
+      )}
+
+      <div className="p-5 space-y-5" onPointerDown={handleAccountsAreaPointerDown}>
 
         {/* ── Page section toggle ── */}
         <div className="metric-toggle w-full">
@@ -908,10 +1232,10 @@ function AccountsPageContent() {
                 style={{ color: allSelected ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
               >
                 {allSelected
-                  ? <CheckSquare className="w-3.5 h-3.5" />
-                  : <Square className="w-3.5 h-3.5" />
+                  ? <X className="w-3.5 h-3.5" />
+                  : <MousePointer2 className="w-3.5 h-3.5" />
                 }
-                {allSelected ? 'Deselect All' : 'Select All'}
+                {allSelected ? 'Clear Selection' : 'Select Visible'}
               </button>
               {/* Situational selection shortcuts — tucked behind a menu instead of four always-visible chips */}
               <DropdownMenu>
@@ -927,6 +1251,23 @@ function AccountsPageContent() {
                   <DropdownMenuItem onClick={selectHighBal} className="cursor-pointer text-[12px]">High Balance</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectAvailable} className="cursor-pointer text-[12px]">Has Available</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectWithRes} className="cursor-pointer text-[12px]">Has Reservations</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
+                  style={{ color: accountSort !== 'robux' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  {ACCOUNT_SORTS.find(s => s.value === accountSort)?.label}
+                  <ChevronDown className="w-3 h-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border">
+                  {ACCOUNT_SORTS.map(s => (
+                    <DropdownMenuItem key={s.value} onClick={() => setAccountSort(s.value)} className="cursor-pointer text-[12px]">
+                      {s.label}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {/* Daily Transfer Tracker filter — Can Send Today / Has Reservations / Fully Reserved / Daily Limit Reached / All */}
@@ -1045,67 +1386,58 @@ function AccountsPageContent() {
             </div>
           </div>
 
-          {/* Selection summary bar */}
+          {/* Batch action bar */}
           <AnimatePresence>
             {hasSelection && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.20, ease: [0.16, 1, 0.3, 1] }}
-                style={{ overflow: 'hidden' }}
+                data-batch-action-bar
+                initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 18, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="fixed left-1/2 bottom-5 z-50 w-[min(92vw,680px)] -translate-x-1/2"
               >
                 <div
-                  className="glass-secondary rounded-2xl overflow-hidden"
+                  className="glass-floating rounded-2xl overflow-hidden"
                   style={{
-                    background: 'rgba(34,211,238,0.030) padding-box, linear-gradient(140deg, rgba(34,211,238,0.22), rgba(139,92,246,0.14) 55%, rgba(34,211,238,0.12)) border-box',
+                    background: 'rgba(14,12,32,0.90) padding-box, linear-gradient(140deg, rgba(34,211,238,0.42), rgba(139,92,246,0.30) 55%, rgba(255,255,255,0.14)) border-box',
                     border: '1px solid transparent',
                   }}
                 >
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3">
-                    {/* Count */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <CheckSquare className="w-4 h-4" style={{ color: '#22d3ee' }} />
+                      <MousePointer2 className="w-4 h-4" style={{ color: '#22d3ee' }} />
                       <span className="text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                        {selectedIds.size} account{selectedIds.size !== 1 ? 's' : ''} selected
+                        {selectedIds.size} Account{selectedIds.size !== 1 ? 's' : ''} Selected
                       </span>
                     </div>
-
-                    <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.110)' }} />
-
-                    {/* Totals */}
-                    <div className="flex items-center gap-4 flex-1">
-                      <div>
-                        <p className="label-caps mb-0.5">Total</p>
-                        <p className="text-[13px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                          {selTotal.toLocaleString()} R$
-                        </p>
-                      </div>
-                      <div>
-                        <p className="label-caps mb-0.5" style={{ color: '#34d399', opacity: 0.75 }}>Available</p>
-                        <p className="text-[13px] font-bold tabular-nums" style={{ color: '#34d399' }}>
-                          {selAvailable.toLocaleString()} R$
-                        </p>
-                      </div>
-                      {selReserved > 0 && (
-                        <div>
-                          <p className="label-caps mb-0.5" style={{ color: '#f59e0b', opacity: 0.75 }}>Reserved</p>
-                          <p className="text-[13px] font-bold tabular-nums" style={{ color: '#f59e0b' }}>
-                            {selReserved.toLocaleString()} R$
-                          </p>
-                        </div>
-                      )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={openAssignBatchDialog}
+                        className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-all hover:-translate-y-px"
+                        style={{ background: 'linear-gradient(135deg, #22d3ee, #a78bfa)', color: 'rgb(5,5,10)', boxShadow: '0 0 18px rgba(34,211,238,0.22)' }}
+                      >
+                        <Tag className="w-3.5 h-3.5" /> Assign Batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearBatchFromSelection}
+                        disabled={batchSaving}
+                        className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors disabled:opacity-50"
+                        style={{ background: 'rgba(255,255,255,0.060)', color: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.110)' }}
+                      >
+                        <Eraser className="w-3.5 h-3.5" /> Clear Batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        className="flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-semibold transition-colors"
+                        style={{ color: 'rgba(255,255,255,0.48)' }}
+                      >
+                        <X className="w-3.5 h-3.5" /> Cancel
+                      </button>
                     </div>
-
-                    <button
-                      onClick={clearAll}
-                      className="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                      style={{ color: 'oklch(0.50 0.016 265)' }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#be123c'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'oklch(0.50 0.016 265)'}
-                    >
-                      <X className="w-3.5 h-3.5" /> Clear
-                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -1150,13 +1482,21 @@ function AccountsPageContent() {
               viewport={{ once: true, amount: 0.2 }}
             >
               {transferFilteredAccounts.map(account => (
-                <motion.div key={account.id} variants={staggerItem}>
+                <motion.div
+                  key={account.id}
+                  ref={registerAccountCard(account.id)}
+                  variants={staggerItem}
+                  onPointerDown={event => handleAccountCardPointerDown(event, account.id)}
+                >
                   <AccountCard
                     account={account}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
                     isSelected={selectedIds.has(account.id)}
-                    onToggleSelect={() => toggleSelect(account.id)}
+                    onRenameBatch={openRenameBatchDialog}
+                    onChangeBatchColor={openChangeBatchColorDialog}
+                    onRemoveFromBatch={removeAccountFromBatch}
                     allowance={getAllowance(account.id)}
                     history={historyByAccount.get(account.id) ?? []}
                     reservationQueue={transferQueueByAccount.get(account.id) ?? []}
@@ -1206,14 +1546,22 @@ function AccountsPageContent() {
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                       {depletedInventoryAccounts.map(account => (
-                        <AccountCard
+                        <div
                           key={account.id}
-                          account={account}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          isSelected={selectedIds.has(account.id)}
-                          onToggleSelect={() => toggleSelect(account.id)}
-                        />
+                          ref={registerAccountCard(account.id)}
+                          onPointerDown={event => handleAccountCardPointerDown(event, account.id)}
+                        >
+                          <AccountCard
+                            account={account}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
+                            isSelected={selectedIds.has(account.id)}
+                            onRenameBatch={openRenameBatchDialog}
+                            onChangeBatchColor={openChangeBatchColorDialog}
+                            onRemoveFromBatch={removeAccountFromBatch}
+                          />
+                        </div>
                       ))}
                     </div>
                   </motion.div>
@@ -1377,6 +1725,94 @@ function AccountsPageContent() {
         </AnimatePresence>
 
       </div>
+
+      <Dialog open={batchDialog !== null} onOpenChange={open => { if (!open) setBatchDialog(null) }}>
+        <DialogContent className="sm:max-w-lg p-5">
+          <DialogHeader>
+            <DialogTitle>
+              {batchDialog?.mode === 'assign' ? 'Assign Batch' : batchDialog?.mode === 'rename' ? 'Rename Batch' : 'Change Batch Color'}
+            </DialogTitle>
+            <DialogDescription>
+              {batchDialog?.mode === 'assign'
+                ? `${selectedIds.size} selected account${selectedIds.size !== 1 ? 's' : ''}`
+                : batchDialog?.batch.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {batchDialog?.mode === 'assign' && batches.length > 0 && (
+            <div className="space-y-2">
+              <p className="label-caps">Existing Batches</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {batches.map(batch => {
+                  const color = getBatchColor(batch.color)
+                  return (
+                    <button
+                      key={batch.id}
+                      type="button"
+                      onClick={() => assignBatchToSelection(batch.id)}
+                      disabled={batchSaving}
+                      className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-all hover:-translate-y-px disabled:opacity-50"
+                      style={{ background: `${color.soft}`, border: `1px solid ${color.value}55`, boxShadow: `0 0 14px ${color.value}12` }}
+                    >
+                      <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>{batch.name}</span>
+                      <span className="h-3 w-3 rounded-full" style={{ background: color.value, boxShadow: `0 0 10px ${color.value}80` }} />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="label-caps" htmlFor="batch-name">Name</label>
+              <Input
+                id="batch-name"
+                value={batchName}
+                onChange={event => setBatchName(event.target.value)}
+                placeholder="Batch 1"
+                disabled={batchSaving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.48)' }} />
+                <p className="label-caps">Color</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {BATCH_COLORS.map(color => {
+                  const active = batchColor === color.key
+                  return (
+                    <button
+                      key={color.key}
+                      type="button"
+                      onClick={() => setBatchColor(color.key)}
+                      className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-bold transition-all"
+                      style={{
+                        background: active ? `${color.soft}` : 'rgba(255,255,255,0.040)',
+                        border: active ? `1px solid ${color.value}` : '1px solid rgba(255,255,255,0.090)',
+                        color: active ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.62)',
+                        boxShadow: active ? `0 0 14px ${color.value}20` : undefined,
+                      }}
+                    >
+                      <span className="h-3 w-3 rounded-full" style={{ background: color.value }} />
+                      {color.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="bg-transparent border-t border-white/10">
+            <Button variant="pillOutline" onClick={() => setBatchDialog(null)} disabled={batchSaving}>Cancel</Button>
+            <Button variant="primary" onClick={saveBatchDialog} disabled={batchSaving || !batchName.trim()}>
+              {batchDialog?.mode === 'assign' ? 'Create & Assign' : 'Save Batch'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AccountModal
         open={modalOpen}
