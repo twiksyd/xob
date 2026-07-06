@@ -1207,62 +1207,74 @@ function AccountsPageContent() {
         <div className="space-y-3">
           <SectionLabel index="05" label="Detailed Accounts" />
 
-          {/* Grid header + selection controls */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.40)' }}>
-              Active Accounts ({activeInventoryAccounts.length})
-            </p>
-            <div className="flex items-center gap-3">
+          {/* Control bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-medium" style={{ color: 'rgba(255,255,255,0.36)' }}>
+                {activeInventoryAccounts.length} active account{activeInventoryAccounts.length !== 1 ? 's' : ''}
+              </span>
               {accounts.some(a => !a.roblox_user_id) && (
                 <button
                   onClick={refreshAvatars}
                   disabled={refreshingAvatars}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                  style={{ color: 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 text-[11px] font-medium transition-colors disabled:opacity-40"
+                  style={{ color: 'rgba(255,255,255,0.36)' }}
                   title="Look up Roblox avatars for accounts that don't have one yet"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} />
-                  {refreshingAvatars ? 'Refreshing avatars…' : 'Refresh Avatars'}
+                  <RefreshCw className={`w-3 h-3 ${refreshingAvatars ? 'animate-spin' : ''}`} />
+                  {refreshingAvatars ? 'Refreshing…' : 'Refresh Avatars'}
                 </button>
               )}
-              {/* Select all / none toggle — the one most-used action stays a single click */}
+            </div>
+
+            {/* Grouped control bar — selection / sort / filters */}
+            <div
+              className="flex items-center flex-wrap gap-px p-1 rounded-xl"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+            >
+              {/* — Selection — */}
               <button
                 onClick={allSelected ? clearAll : selectAll}
-                className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                style={{ color: allSelected ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                style={{
+                  color: allSelected ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                  background: allSelected ? 'rgba(255,255,255,0.07)' : 'transparent',
+                }}
               >
-                {allSelected
-                  ? <X className="w-3.5 h-3.5" />
-                  : <MousePointer2 className="w-3.5 h-3.5" />
-                }
-                {allSelected ? 'Clear Selection' : 'Select Visible'}
+                {allSelected ? <X className="w-3 h-3" /> : <MousePointer2 className="w-3 h-3" />}
+                {allSelected ? 'Clear' : 'Select All'}
               </button>
-              {/* Situational selection shortcuts — tucked behind a menu instead of four always-visible chips */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.40)' }}
                 >
-                  Select by…
-                  <ChevronDown className="w-3 h-3" />
+                  By… <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   <DropdownMenuItem onClick={selectActive} className="cursor-pointer text-[12px]">Active Only</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectHighBal} className="cursor-pointer text-[12px]">High Balance</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectAvailable} className="cursor-pointer text-[12px]">Has Available</DropdownMenuItem>
                   <DropdownMenuItem onClick={selectWithRes} className="cursor-pointer text-[12px]">Has Reservations</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <div className="self-stretch w-px mx-0.5 my-1" style={{ background: 'rgba(255,255,255,0.09)' }} />
+
+              {/* — Sort — */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: accountSort !== 'robux' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: accountSort !== 'robux' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: accountSort !== 'robux' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <ArrowUpDown className="w-3 h-3" />
                   {ACCOUNT_SORTS.find(s => s.value === accountSort)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   {ACCOUNT_SORTS.map(s => (
                     <DropdownMenuItem key={s.value} onClick={() => setAccountSort(s.value)} className="cursor-pointer text-[12px]">
                       {s.label}
@@ -1270,17 +1282,23 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Daily Transfer Tracker filter — Can Send Today / Has Reservations / Fully Reserved / Daily Limit Reached / All */}
+
+              <div className="self-stretch w-px mx-0.5 my-1" style={{ background: 'rgba(255,255,255,0.09)' }} />
+
+              {/* — Filters — */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: transferFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: transferFilter !== 'all' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: transferFilter !== 'all' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <Zap className="w-3.5 h-3.5" />
+                  <Zap className="w-3 h-3" />
                   {TRANSFER_FILTERS.find(f => f.value === transferFilter)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   {TRANSFER_FILTERS.map(f => (
                     <DropdownMenuItem key={f.value} onClick={() => setTransferFilter(f.value)} className="cursor-pointer text-[12px]">
                       {f.label}
@@ -1288,17 +1306,19 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Daily Transfer Tracker sort — Most/Least Available, Most Reserved, Most Recently Used */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: transferSort !== 'none' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: transferSort !== 'none' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: transferSort !== 'none' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <ArrowUpDown className="w-3 h-3" />
                   {TRANSFER_SORTS.find(s => s.value === transferSort)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   {TRANSFER_SORTS.map(s => (
                     <DropdownMenuItem key={s.value} onClick={() => setTransferSort(s.value)} className="cursor-pointer text-[12px]">
                       {s.label}
@@ -1306,17 +1326,19 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Roblox Discount Active filter — All / Discount Active / No Active Discount */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: discountFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: discountFilter !== 'all' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: discountFilter !== 'all' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3 h-3" />
                   {DISCOUNT_FILTERS.find(f => f.value === discountFilter)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   {DISCOUNT_FILTERS.map(f => (
                     <DropdownMenuItem key={f.value} onClick={() => setDiscountFilter(f.value)} className="cursor-pointer text-[12px]">
                       {f.label}
@@ -1324,17 +1346,19 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Roblox Discount Active sort — Discount Active First / Last */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: discountSort !== 'none' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: discountSort !== 'none' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: discountSort !== 'none' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <ArrowUpDown className="w-3 h-3" />
                   {DISCOUNT_SORTS.find(s => s.value === discountSort)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border-border">
+                <DropdownMenuContent align="start" className="bg-popover border-border">
                   {DISCOUNT_SORTS.map(s => (
                     <DropdownMenuItem key={s.value} onClick={() => setDiscountSort(s.value)} className="cursor-pointer text-[12px]">
                       {s.label}
@@ -1342,15 +1366,17 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Roblox Plus filter — All / Plus / Non-Plus */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                  style={{ color: plusFilter !== 'all' ? '#38bdf8' : 'rgba(255,255,255,0.47)' }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    color: plusFilter !== 'all' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                    background: plusFilter !== 'all' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
                 >
-                  <BadgeCheck className="w-3.5 h-3.5" />
+                  <BadgeCheck className="w-3 h-3" />
                   {PLUS_FILTERS.find(f => f.value === plusFilter)?.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover border-border">
                   {PLUS_FILTERS.map(f => (
@@ -1360,16 +1386,18 @@ function AccountsPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Chrome Profile filter — dynamic list of distinct profiles in use */}
               {chromeProfiles.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
-                    className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors"
-                    style={{ color: chromeProfileFilter !== 'all' ? '#22d3ee' : 'rgba(255,255,255,0.47)' }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{
+                      color: chromeProfileFilter !== 'all' ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.40)',
+                      background: chromeProfileFilter !== 'all' ? 'rgba(255,255,255,0.07)' : 'transparent',
+                    }}
                   >
-                    <Layers className="w-3.5 h-3.5" />
+                    <Layers className="w-3 h-3" />
                     {chromeProfileFilter === 'all' ? 'All Profiles' : chromeProfileFilter}
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-popover border-border">
                     <DropdownMenuItem onClick={() => setChromeProfileFilter('all')} className="cursor-pointer text-[12px]">

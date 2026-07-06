@@ -1,19 +1,19 @@
 export const BATCH_COLORS = [
   // ── Primary palette (shown in the color picker) ───────────────────────────
-  { key: 'green',  label: 'Sage',    value: '#52A878', soft: 'rgba(82,168,120,0.14)',  border: 'rgba(82,168,120,0.52)'  },
-  { key: 'blue',   label: 'Cobalt',  value: '#4870A8', soft: 'rgba(72,112,168,0.14)',  border: 'rgba(72,112,168,0.52)'  },
-  { key: 'purple', label: 'Dusk',    value: '#7B6EAB', soft: 'rgba(123,110,171,0.14)', border: 'rgba(123,110,171,0.52)' },
-  { key: 'amber',  label: 'Amber',   value: '#C49A36', soft: 'rgba(196,154,54,0.14)',  border: 'rgba(196,154,54,0.52)'  },
-  { key: 'rose',   label: 'Rose',    value: '#B8607A', soft: 'rgba(184,96,122,0.14)',  border: 'rgba(184,96,122,0.52)'  },
-  { key: 'cyan',   label: 'Steel',   value: '#4A8EA2', soft: 'rgba(74,142,162,0.14)',  border: 'rgba(74,142,162,0.52)'  },
-  { key: 'slate',  label: 'Slate',   value: '#607888', soft: 'rgba(96,120,136,0.14)',  border: 'rgba(96,120,136,0.50)'  },
-  { key: 'red',    label: 'Crimson', value: '#A85E5E', soft: 'rgba(168,94,94,0.14)',   border: 'rgba(168,94,94,0.52)'   },
+  { key: 'green',  label: 'Emerald',  value: '#10A86E', soft: 'rgba(16,168,110,0.10)',  border: 'rgba(16,168,110,0.42)'  },
+  { key: 'blue',   label: 'Sapphire', value: '#2B72D8', soft: 'rgba(43,114,216,0.10)',  border: 'rgba(43,114,216,0.42)'  },
+  { key: 'purple', label: 'Violet',   value: '#7040D0', soft: 'rgba(112,64,208,0.10)',  border: 'rgba(112,64,208,0.42)'  },
+  { key: 'amber',  label: 'Amber',    value: '#C07A12', soft: 'rgba(192,122,18,0.10)',  border: 'rgba(192,122,18,0.42)'  },
+  { key: 'rose',   label: 'Rose',     value: '#B0365E', soft: 'rgba(176,54,94,0.10)',   border: 'rgba(176,54,94,0.42)'   },
+  { key: 'cyan',   label: 'Teal',     value: '#0E87A8', soft: 'rgba(14,135,168,0.10)',  border: 'rgba(14,135,168,0.42)'  },
+  { key: 'slate',  label: 'Slate',    value: '#5A7090', soft: 'rgba(90,112,144,0.10)',  border: 'rgba(90,112,144,0.40)'  },
+  { key: 'red',    label: 'Crimson',  value: '#C03838', soft: 'rgba(192,56,56,0.10)',   border: 'rgba(192,56,56,0.42)'   },
   // ── Legacy aliases — DB compat only, never shown in the picker ────────────
-  { key: 'orange', label: 'Amber',   value: '#C49A36', soft: 'rgba(196,154,54,0.14)',  border: 'rgba(196,154,54,0.52)'  },
-  { key: 'yellow', label: 'Amber',   value: '#C49A36', soft: 'rgba(196,154,54,0.14)',  border: 'rgba(196,154,54,0.52)'  },
-  { key: 'gray',   label: 'Slate',   value: '#607888', soft: 'rgba(96,120,136,0.14)',  border: 'rgba(96,120,136,0.50)'  },
-  { key: 'pink',   label: 'Rose',    value: '#B8607A', soft: 'rgba(184,96,122,0.14)',  border: 'rgba(184,96,122,0.52)'  },
-  { key: 'brown',  label: 'Slate',   value: '#607888', soft: 'rgba(96,120,136,0.14)',  border: 'rgba(96,120,136,0.50)'  },
+  { key: 'orange', label: 'Amber',    value: '#C07A12', soft: 'rgba(192,122,18,0.10)',  border: 'rgba(192,122,18,0.42)'  },
+  { key: 'yellow', label: 'Amber',    value: '#C07A12', soft: 'rgba(192,122,18,0.10)',  border: 'rgba(192,122,18,0.42)'  },
+  { key: 'gray',   label: 'Slate',    value: '#5A7090', soft: 'rgba(90,112,144,0.10)',  border: 'rgba(90,112,144,0.40)'  },
+  { key: 'pink',   label: 'Rose',     value: '#B0365E', soft: 'rgba(176,54,94,0.10)',   border: 'rgba(176,54,94,0.42)'   },
+  { key: 'brown',  label: 'Slate',    value: '#5A7090', soft: 'rgba(90,112,144,0.10)',  border: 'rgba(90,112,144,0.40)'  },
 ] as const
 
 export type BatchColorKey = typeof BATCH_COLORS[number]['key']

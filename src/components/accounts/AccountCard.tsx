@@ -113,88 +113,49 @@ export default function AccountCard({
     opacity: depleted && !isSelected ? 0.62 : undefined,
   }
 
-  // Batch cards keep the glass-card base; a soft outer halo separates them visually
-  if (batch) {
-    cardStyle.boxShadow = `0 0 28px ${batchColor.value}18, 0 4px 24px rgba(0,0,0,0.20)`
-  }
-
-  if (isHigh && !batch) {
-    cardStyle.boxShadow = '0 2px 16px rgba(52,211,153,0.07), 0 4px 24px rgba(255,255,255,0.065), inset 0 1px 0 rgba(52,211,153,0.14)'
+  // All visual differentiation lives in box-shadow so the glass-card base is never tinted.
+  // inset 0 1px creates a colored top-edge highlight that follows the card's border-radius.
+  if (isSelected) {
+    cardStyle.transform = 'translateY(-2px)'
+    cardStyle.boxShadow = batch
+      ? `inset 0 1px 0 ${batchColor.value}55, 0 0 0 2px rgba(59,130,246,0.48), 0 0 0 3px ${batchColor.value}18, 0 14px 30px rgba(0,0,0,0.38)`
+      : '0 0 0 2px rgba(59,130,246,0.48), 0 14px 30px rgba(0,0,0,0.38), 0 0 18px rgba(59,130,246,0.06)'
+  } else if (batch) {
+    cardStyle.boxShadow = `inset 0 1px 0 ${batchColor.value}48, 0 0 0 1px ${batchColor.value}22, 0 4px 20px rgba(0,0,0,0.20)`
+  } else if (isHigh) {
+    cardStyle.boxShadow = 'inset 0 1px 0 rgba(52,211,153,0.18), 0 2px 16px rgba(52,211,153,0.06), 0 4px 24px rgba(255,255,255,0.055)'
   }
 
   return (
     <div
       data-account-card-id={account.id}
-      className={`glass-card relative p-5 space-y-4 transition-all duration-200 group ${batch ? 'pt-8' : ''}`}
+      className={`glass-card relative p-5 space-y-4 transition-all duration-150 group ${batch ? 'pt-8' : ''}`}
       style={cardStyle}
     >
-      {/* Left accent — gradient fade at both ends so it looks inlaid, not pasted */}
-      {batch && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-0 top-5 bottom-5 w-[2px] rounded-full"
-          style={{
-            background: `linear-gradient(to bottom, transparent, ${batchColor.value} 28%, ${batchColor.value} 72%, transparent)`,
-          }}
-        />
-      )}
-
-      {/* Top edge light — thin horizontal line that reads like a colored rim light */}
-      {batch && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-0 left-10 right-10 h-px"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${batchColor.value}a0 40%, ${batchColor.value}a0 60%, transparent)`,
-          }}
-        />
-      )}
-
-      {/* Breathing border — the whole card rim slowly brightens and dims */}
-      {batch && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[16px]"
-          animate={{ opacity: [0.30, 0.90, 0.30] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ border: `1px solid ${batchColor.border}` }}
-        />
-      )}
-
-      {/* Selection ring — soft violet, never fills the card */}
-      {isSelected && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[16px]"
-          animate={{ opacity: [0.50, 1, 0.50] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            border: '1px solid rgba(139,92,246,0.55)',
-            boxShadow: 'inset 0 0 22px rgba(139,92,246,0.05)',
-          }}
-        />
-      )}
-
       {batch && (
         <DropdownMenu>
           <DropdownMenuTrigger
             data-no-card-select
-            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center gap-1.5 px-3 py-1 text-[11px] font-semibold tracking-wide text-white/90 transition-all duration-200 hover:scale-105 hover:brightness-110"
+            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center gap-1.5 px-3 py-1 text-[11px] font-semibold tracking-wide text-white/80 transition-transform duration-150 hover:scale-105 overflow-hidden"
             style={{
               minWidth: 82,
-              background: 'rgba(8, 6, 22, 0.90)',
+              background: 'rgba(10, 8, 26, 0.94)',
               border: `1px solid ${batchColor.border}`,
-              boxShadow: `0 2px 14px rgba(0,0,0,0.60), 0 0 18px ${batchColor.value}22, inset 0 1px 0 rgba(255,255,255,0.06)`,
-              backdropFilter: 'blur(16px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(16px) saturate(120%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(120%)',
             }}
             title="Batch actions"
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0 opacity-90"
-              style={{ background: batchColor.value }}
+            <motion.span
+              aria-hidden
+              className="pointer-events-none absolute top-0 bottom-0 w-8"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)' }}
+              animate={{ x: ['-150%', '420%'] }}
+              transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 7, ease: 'linear' }}
             />
-            {batch.name}
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 relative z-10" style={{ background: batchColor.value, opacity: 0.85 }} />
+            <span className="relative z-10">{batch.name}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="bg-popover border-border text-[12px]">
             <DropdownMenuItem onClick={() => onRenameBatch?.(batch)} className="cursor-pointer text-[12px]">
@@ -222,18 +183,14 @@ export default function AccountCard({
             size={40}
             className="text-base"
             gradient={
-              isSelected
-                ? 'linear-gradient(135deg, #22d3ee, #a78bfa)'
-                : isHigh
+              isHigh
                 ? 'linear-gradient(135deg, #34d399, #22d3ee)'
                 : 'linear-gradient(135deg, rgba(139,92,246,0.55), rgba(34,211,238,0.45))'
             }
             glow={
-              isSelected
-                ? '0 0 14px rgba(34,211,238,0.35)'
-                : isHigh
-                ? '0 0 14px rgba(52,211,153,0.32)'
-                : '0 0 8px rgba(139,92,246,0.16)'
+              isHigh
+                ? '0 0 12px rgba(52,211,153,0.26)'
+                : '0 0 6px rgba(139,92,246,0.12)'
             }
           />
           <div className="min-w-0">
