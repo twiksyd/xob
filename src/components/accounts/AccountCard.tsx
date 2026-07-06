@@ -113,9 +113,9 @@ export default function AccountCard({
     opacity: depleted && !isSelected ? 0.62 : undefined,
   }
 
+  // Batch cards keep the glass-card base; a soft outer halo separates them visually
   if (batch) {
-    cardStyle.background = batchColor.soft
-    cardStyle.border = `1px solid ${batchColor.border}`
+    cardStyle.boxShadow = `0 0 28px ${batchColor.value}18, 0 4px 24px rgba(0,0,0,0.20)`
   }
 
   if (isHigh && !batch) {
@@ -128,32 +128,50 @@ export default function AccountCard({
       className={`glass-card relative p-5 space-y-4 transition-all duration-200 group ${batch ? 'pt-8' : ''}`}
       style={cardStyle}
     >
-      {/* Left accent strip — always visible, marks batch membership at a glance */}
+      {/* Left accent — gradient fade at both ends so it looks inlaid, not pasted */}
       {batch && (
         <div
           aria-hidden
-          className="pointer-events-none absolute left-0 top-4 bottom-4 w-[3px] rounded-full"
-          style={{ background: batchColor.value, opacity: 0.70 }}
+          className="pointer-events-none absolute left-0 top-5 bottom-5 w-[2px] rounded-full"
+          style={{
+            background: `linear-gradient(to bottom, transparent, ${batchColor.value} 28%, ${batchColor.value} 72%, transparent)`,
+          }}
         />
       )}
 
-      {/* Breathing glow — opacity animates so the interpolation is perfectly smooth */}
+      {/* Top edge light — thin horizontal line that reads like a colored rim light */}
+      {batch && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-0 left-10 right-10 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${batchColor.value}a0 40%, ${batchColor.value}a0 60%, transparent)`,
+          }}
+        />
+      )}
+
+      {/* Breathing border — the whole card rim slowly brightens and dims */}
       {batch && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-[16px]"
-          animate={{ opacity: [0.45, 1, 0.45] }}
-          transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ boxShadow: `0 0 28px ${batchColor.value}55, 0 0 55px ${batchColor.value}22` }}
+          animate={{ opacity: [0.30, 0.90, 0.30] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ border: `1px solid ${batchColor.border}` }}
         />
       )}
 
-      {/* Drag-selection indicator — dashed outline only, no fill */}
+      {/* Selection ring — soft violet, never fills the card */}
       {isSelected && (
-        <div
+        <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-[16px]"
-          style={{ border: '1.5px dashed rgba(34,211,238,0.52)' }}
+          animate={{ opacity: [0.50, 1, 0.50] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            border: '1px solid rgba(139,92,246,0.55)',
+            boxShadow: 'inset 0 0 22px rgba(139,92,246,0.05)',
+          }}
         />
       )}
 
@@ -161,20 +179,20 @@ export default function AccountCard({
         <DropdownMenu>
           <DropdownMenuTrigger
             data-no-card-select
-            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white transition-all duration-200 hover:-translate-y-[58%] hover:scale-105"
+            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center gap-1.5 px-3 py-1 text-[11px] font-semibold tracking-wide text-white/90 transition-all duration-200 hover:scale-105 hover:brightness-110"
             style={{
-              minWidth: 88,
-              background: 'rgba(10, 8, 24, 0.80)',
+              minWidth: 82,
+              background: 'rgba(8, 6, 22, 0.90)',
               border: `1px solid ${batchColor.border}`,
-              boxShadow: `0 3px 12px rgba(0,0,0,0.38), 0 0 10px ${batchColor.value}1a, inset 0 1px 0 rgba(255,255,255,0.09)`,
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: `0 2px 14px rgba(0,0,0,0.60), 0 0 18px ${batchColor.value}22, inset 0 1px 0 rgba(255,255,255,0.06)`,
+              backdropFilter: 'blur(16px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(140%)',
             }}
             title="Batch actions"
           >
             <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ background: batchColor.value, boxShadow: `0 0 5px ${batchColor.value}90` }}
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0 opacity-90"
+              style={{ background: batchColor.value }}
             />
             {batch.name}
           </DropdownMenuTrigger>
