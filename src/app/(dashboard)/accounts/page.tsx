@@ -1503,7 +1503,7 @@ function AccountsPageContent() {
             />
           ) : (
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7 pt-4"
               variants={staggerContainer}
               initial="initial"
               whileInView="animate"
@@ -1572,7 +1572,7 @@ function AccountsPageContent() {
                     transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                     style={{ overflow: 'hidden' }}
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7 pt-4">
                       {depletedInventoryAccounts.map(account => (
                         <div
                           key={account.id}
