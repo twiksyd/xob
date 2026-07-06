@@ -43,7 +43,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { BATCH_COLORS, BatchColorKey, getBatchColor } from '@/lib/constants/batches'
+import { BATCH_PALETTE, BatchColorKey, getBatchColor } from '@/lib/constants/batches'
 
 type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
@@ -1780,8 +1780,8 @@ function AccountsPageContent() {
                 <Palette className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.48)' }} />
                 <p className="label-caps">Color</p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {BATCH_COLORS.map(color => {
+              <div className="grid grid-cols-4 gap-2">
+                {BATCH_PALETTE.map(color => {
                   const active = batchColor === color.key
                   return (
                     <button
