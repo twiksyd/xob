@@ -133,18 +133,23 @@ export default function AccountCard({
         <div
           aria-hidden
           className="pointer-events-none absolute left-0 top-4 bottom-4 w-[3px] rounded-full"
-          style={{ background: batchColor.value, opacity: 0.45 }}
+          style={{ background: batchColor.value, opacity: 0.70 }}
         />
       )}
 
-      {/* Breathing glow — slow, premium pulse, never intrusive */}
+      {/* Breathing glow — pulses the shadow so it's clearly visible on the dark background */}
       {batch && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-[16px]"
-          animate={{ opacity: [0.3, 0.85, 0.3] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ boxShadow: `0 0 22px ${batchColor.value}1a` }}
+          animate={{
+            boxShadow: [
+              `0 0 12px ${batchColor.value}28`,
+              `0 0 36px ${batchColor.value}60, 0 0 60px ${batchColor.value}22`,
+              `0 0 12px ${batchColor.value}28`,
+            ],
+          }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
