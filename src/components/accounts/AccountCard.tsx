@@ -137,19 +137,14 @@ export default function AccountCard({
         />
       )}
 
-      {/* Breathing glow — pulses the shadow so it's clearly visible on the dark background */}
+      {/* Breathing glow — opacity animates so the interpolation is perfectly smooth */}
       {batch && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-[16px]"
-          animate={{
-            boxShadow: [
-              `0 0 12px ${batchColor.value}28`,
-              `0 0 36px ${batchColor.value}60, 0 0 60px ${batchColor.value}22`,
-              `0 0 12px ${batchColor.value}28`,
-            ],
-          }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ opacity: [0.45, 1, 0.45] }}
+          transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ boxShadow: `0 0 28px ${batchColor.value}55, 0 0 55px ${batchColor.value}22` }}
         />
       )}
 
