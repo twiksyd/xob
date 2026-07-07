@@ -212,14 +212,14 @@ export default function AccountCard({
           </div>
         </div>
 
-        {/* 2. Badges: PLUS → DISCOUNT → CostRate (each on its own row) */}
+        {/* 2. Badges: PLUS · DISCOUNT · CostRate */}
         {(account.is_plus_account || account.has_active_discount || account.robux_cost_rate > 0) && (
-          <div className="relative z-10 flex flex-col gap-1.5">
+          <div className="relative z-10 flex items-center flex-wrap gap-1.5">
             {account.is_plus_account && <AccountBadge type="plus" />}
             {account.has_active_discount && <AccountBadge type="discount" />}
             {account.robux_cost_rate > 0 && (
               <span
-                className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                 style={{ background: 'rgba(167,139,250,0.07)', color: 'rgba(167,139,250,0.52)', border: '1px solid rgba(167,139,250,0.13)' }}
               >
                 ₱{account.robux_cost_rate}/1k R$
