@@ -176,46 +176,50 @@ export default function AccountCard({
               </div>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              data-no-card-select
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-opacity opacity-20 group-hover:opacity-55"
-              style={{ color: 'rgba(255,255,255,0.60)' }}
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
-              <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
-                <Edit2 className="w-3.5 h-3.5" /> Edit Account
-              </DropdownMenuItem>
-              {batch && onRemoveFromBatch && (
-                <DropdownMenuItem
-                  onClick={() => onRemoveFromBatch(account.id)}
-                  className="gap-2 cursor-pointer text-[12px]"
-                  style={{ color: 'rgba(255,255,255,0.52)' }}
-                >
-                  <X className="w-3.5 h-3.5" /> Remove from Batch
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={() => onDelete(account.id)}
-                className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {account.chrome_profile && (
+              <ChromeProfileBadge profile={account.chrome_profile} />
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                data-no-card-select
+                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-opacity opacity-20 group-hover:opacity-55"
+                style={{ color: 'rgba(255,255,255,0.60)' }}
               >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <MoreHorizontal className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
+                <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
+                  <Edit2 className="w-3.5 h-3.5" /> Edit Account
+                </DropdownMenuItem>
+                {batch && onRemoveFromBatch && (
+                  <DropdownMenuItem
+                    onClick={() => onRemoveFromBatch(account.id)}
+                    className="gap-2 cursor-pointer text-[12px]"
+                    style={{ color: 'rgba(255,255,255,0.52)' }}
+                  >
+                    <X className="w-3.5 h-3.5" /> Remove from Batch
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => onDelete(account.id)}
+                  className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* 2. Badges: PLUS · DISCOUNT · ChromeProfile · CostRate */}
-        {(account.is_plus_account || account.has_active_discount || account.chrome_profile || account.robux_cost_rate > 0) && (
-          <div className="relative z-10 flex items-center flex-wrap gap-1.5">
+        {/* 2. Badges: PLUS → DISCOUNT → CostRate (each on its own row) */}
+        {(account.is_plus_account || account.has_active_discount || account.robux_cost_rate > 0) && (
+          <div className="relative z-10 flex flex-col gap-1.5">
             {account.is_plus_account && <AccountBadge type="plus" />}
             {account.has_active_discount && <AccountBadge type="discount" />}
-            {account.chrome_profile && <ChromeProfileBadge profile={account.chrome_profile} />}
             {account.robux_cost_rate > 0 && (
               <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                 style={{ background: 'rgba(167,139,250,0.07)', color: 'rgba(167,139,250,0.52)', border: '1px solid rgba(167,139,250,0.13)' }}
               >
                 ₱{account.robux_cost_rate}/1k R$
