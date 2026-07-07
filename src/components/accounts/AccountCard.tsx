@@ -22,16 +22,14 @@ import {
   getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS,
   DAILY_TRANSFER_LIMIT, LIFETIME_TRANSFER_LIMIT,
 } from '@/lib/utils/transfers'
-import { getBatchColor } from '@/lib/constants/batches'
 
 interface AccountCardProps {
   account: RobloxAccount
   onEdit: (account: RobloxAccount) => void
   onDelete: (id: string) => void
+  /** Passed so the card can show "Remove from Batch" in its ⋯ menu. */
   batch?: AccountBatch | null
   isSelected?: boolean
-  onRenameBatch?: (batch: AccountBatch) => void
-  onChangeBatchColor?: (batch: AccountBatch) => void
   onRemoveFromBatch?: (accountId: string) => void
   allowance?: AllowanceSummary
   history?: TransferLog[]
@@ -50,16 +48,9 @@ const COLOR_AVAILABLE = '#34d399'
 const COLOR_RESERVED  = '#f59e0b'
 const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
-
 export default function AccountCard({
   account, onEdit, onDelete, batch = null, isSelected = false,
-  onRenameBatch, onChangeBatchColor, onRemoveFromBatch,
+  onRemoveFromBatch,
   allowance, history = [], reservationQueue = [],
   onQuickTransfer, onOpenReserveDialog, onOpenLogDialog,
   onEditTransferLog, onDeleteTransferLog,
@@ -73,10 +64,10 @@ export default function AccountCard({
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
 
-  const available     = getAvailableRobux(account)
-  const depleted      = isDepleted(account)
-  const isLow         = available < 500 && !depleted
-  const isHigh        = account.current_robux >= 8000
+  const available  = getAvailableRobux(account)
+  const depleted   = isDepleted(account)
+  const isLow      = available < 500 && !depleted
+  const isHigh     = account.current_robux >= 8000
 
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
@@ -88,8 +79,6 @@ export default function AccountCard({
 
   const band       = allowance ? getAllowanceBand(allowance.available) : 'green'
   const bandColors = ALLOWANCE_BAND_COLORS[band]
-  const batchColor = getBatchColor(batch?.color)
-  const c          = batchColor.value
 
   const lifetimeExhausted = allowance
     ? allowance.lifetime_sent + allowance.reserved >= LIFETIME_TRANSFER_LIMIT
@@ -119,18 +108,9 @@ export default function AccountCard({
     } finally { setPendingReservationId(null) }
   }
 
-  // ── Card surface styles ──────────────────────────────────────────────────
   const cardStyle: CSSProperties = {}
   if (depleted && !isSelected) cardStyle.opacity = 0.58
-
-  if (batch) {
-    cardStyle.background   = hexToRgba(c, 0.09)
-    cardStyle.borderColor  = hexToRgba(c, 0.26)
-    cardStyle.boxShadow    = isSelected
-      ? `0 0 0 2px ${hexToRgba(c, 0.68)}, 0 8px 28px ${hexToRgba(c, 0.13)}, 0 4px 12px rgba(0,0,0,0.28)`
-      : `0 0 0 1px ${hexToRgba(c, 0.20)}, 0 4px 20px ${hexToRgba(c, 0.08)}, 0 2px 8px rgba(0,0,0,0.18)`
-    if (isSelected) cardStyle.transform = 'scale(1.016)'
-  } else if (isSelected) {
+  if (isSelected) {
     cardStyle.transform = 'scale(1.016)'
     cardStyle.boxShadow = '0 0 0 2px rgba(255,255,255,0.46), 0 8px 28px rgba(0,0,0,0.26)'
   } else if (isHigh) {
@@ -140,10 +120,10 @@ export default function AccountCard({
   return (
     <div
       data-account-card-id={account.id}
-      className={`glass-card relative p-5 transition-all duration-200 group ${batch ? 'pt-8' : ''}`}
+      className="glass-card relative p-5 transition-all duration-200 group"
       style={cardStyle}
     >
-      {/* Selection checkmark — absolute, outside the flow so it never shifts layout */}
+      {/* Selection checkmark — absolute, outside the content flow */}
       {isSelected && (
         <div
           className="absolute top-2.5 left-2.5 z-30 w-[18px] h-[18px] rounded-full flex items-center justify-center pointer-events-none"
@@ -153,50 +133,10 @@ export default function AccountCard({
         </div>
       )}
 
-      {/* Batch pill — straddles the top card border, physically attached */}
-      {batch && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            data-no-card-select
-            className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold tracking-wide transition-opacity duration-150 hover:opacity-70"
-            style={{
-              minWidth: 80,
-              background: hexToRgba(c, 0.22),
-              border: `1px solid ${hexToRgba(c, 0.50)}`,
-              color: c,
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              boxShadow: `0 2px 8px rgba(0,0,0,0.26)`,
-            }}
-            title="Batch actions"
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ background: c, opacity: 0.88 }}
-            />
-            <span>{batch.name}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="bg-popover border-border text-[12px]">
-            <DropdownMenuItem onClick={() => onRenameBatch?.(batch)} className="cursor-pointer text-[12px]">
-              Rename Batch
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onChangeBatchColor?.(batch)} className="cursor-pointer text-[12px]">
-              Change Color
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onRemoveFromBatch?.(account.id)}
-              className="cursor-pointer text-[12px] text-red-500 focus:text-red-500"
-            >
-              Remove From Batch
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-
-      {/* ── Content — space-y-4 scoped here so absolute siblings above don't affect it ── */}
+      {/* Content — space-y-4 is scoped here so the absolute checkmark doesn't affect it */}
       <div className="space-y-4">
 
-        {/* 1. Avatar + Username + Status + Menu */}
+        {/* 1. Avatar + Username + Status */}
         <div className="relative z-10 flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <RobloxAvatar
@@ -248,6 +188,15 @@ export default function AccountCard({
               <DropdownMenuItem onClick={() => onEdit(account)} className="gap-2 cursor-pointer text-[12px]">
                 <Edit2 className="w-3.5 h-3.5" /> Edit Account
               </DropdownMenuItem>
+              {batch && onRemoveFromBatch && (
+                <DropdownMenuItem
+                  onClick={() => onRemoveFromBatch(account.id)}
+                  className="gap-2 cursor-pointer text-[12px]"
+                  style={{ color: 'rgba(255,255,255,0.52)' }}
+                >
+                  <X className="w-3.5 h-3.5" /> Remove from Batch
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => onDelete(account.id)}
                 className="gap-2 cursor-pointer text-[12px] text-red-500 focus:text-red-500"
@@ -439,7 +388,7 @@ export default function AccountCard({
                           whileTap={{ scale: 0.92 }}
                           disabled={amt > allowance!.available || pendingAmount !== null}
                           onClick={e => { e.stopPropagation(); runQuickTransfer(amt) }}
-                          className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-28"
+                          className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-30"
                           style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.18)' }}
                         >
                           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : `+${amt}`}
@@ -451,7 +400,7 @@ export default function AccountCard({
                       whileTap={{ scale: 0.92 }}
                       disabled={pendingAmount !== null}
                       onClick={e => { e.stopPropagation(); setCustomOpen(true) }}
-                      className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-28"
+                      className="flex items-center justify-center py-2 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-30"
                       style={{ background: 'rgba(255,255,255,0.038)', color: 'rgba(255,255,255,0.52)', border: '1px solid rgba(255,255,255,0.072)' }}
                     >
                       Custom
@@ -505,7 +454,7 @@ export default function AccountCard({
                 whileTap={{ scale: 0.96 }}
                 disabled={allowance!.available <= 0}
                 onClick={e => { e.stopPropagation(); onOpenReserveDialog?.() }}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold transition-colors disabled:opacity-28"
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold transition-colors disabled:opacity-30"
                 style={{ background: 'rgba(245,158,11,0.08)', color: COLOR_RESERVED, border: '1px solid rgba(245,158,11,0.20)' }}
               >
                 Reserve Amount
@@ -528,7 +477,7 @@ export default function AccountCard({
               onClick={e => { e.stopPropagation(); onOpenSaleDialog?.() }}
               className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[12px] font-bold transition-colors"
               style={{ background: 'rgba(167,139,250,0.08)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.20)' }}
-              title="Log a priced sale — credits the wallet for the combined price/profit"
+              title="Log a priced sale — credits the wallet"
             >
               Log Instant Send Sale
             </motion.button>

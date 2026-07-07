@@ -28,7 +28,7 @@ import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceT
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
-  MousePointer2, Tag, Palette, Eraser,
+  MousePointer2, Tag, Palette, Eraser, MoreHorizontal,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -44,6 +44,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { BATCH_PALETTE, BatchColorKey, getBatchColor } from '@/lib/constants/batches'
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
 
 type StatsMode = 'all' | 'selected'
 type PageTab = 'accounts' | 'planning'
@@ -905,6 +912,22 @@ function AccountsPageContent() {
     return list
   }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort, plusFilter, chromeProfileFilter])
 
+  // Group filtered active accounts by batch for the folder-style layout.
+  // `batches` is already sorted by sort_order, created_at from the DB query.
+  const batchGroups = useMemo(() => {
+    const result: Array<{ batch: AccountBatch; accounts: RobloxAccount[] }> = []
+    for (const batch of batches) {
+      const batchAccounts = transferFilteredAccounts.filter(a => a.batch_id === batch.id)
+      if (batchAccounts.length > 0) result.push({ batch, accounts: batchAccounts })
+    }
+    return result
+  }, [batches, transferFilteredAccounts])
+
+  const unbatchedFilteredAccounts = useMemo(
+    () => transferFilteredAccounts.filter(a => !a.batch_id),
+    [transferFilteredAccounts]
+  )
+
   const visibleSelectionIds = useMemo(
     () => [
       ...transferFilteredAccounts.map(a => a.id),
@@ -1502,44 +1525,144 @@ function AccountsPageContent() {
               description="Try a different transfer filter, or switch back to All."
             />
           ) : (
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7 pt-4"
-              variants={staggerContainer}
-              initial="initial"
-              whileInView="animate"
-              viewport={{ once: true, amount: 0.2 }}
-            >
-              {transferFilteredAccounts.map(account => (
-                <motion.div
-                  key={account.id}
-                  ref={registerAccountCard(account.id)}
-                  variants={staggerItem}
-                  onPointerDown={event => handleAccountCardPointerDown(event, account.id)}
-                >
-                  <AccountCard
-                    account={account}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
-                    isSelected={selectedIds.has(account.id)}
-                    onRenameBatch={openRenameBatchDialog}
-                    onChangeBatchColor={openChangeBatchColorDialog}
-                    onRemoveFromBatch={removeAccountFromBatch}
-                    allowance={getAllowance(account.id)}
-                    history={historyByAccount.get(account.id) ?? []}
-                    reservationQueue={transferQueueByAccount.get(account.id) ?? []}
-                    onQuickTransfer={amount => handleRecordTransfer(account.id, amount)}
-                    onOpenReserveDialog={() => handleOpenReserveDialog(account)}
-                    onOpenLogDialog={() => handleOpenLogDialog(account)}
-                    onEditTransferLog={log => handleOpenEditLog(account, log)}
-                    onDeleteTransferLog={handleDeleteTransferLog}
-                    onFulfillReservation={handleFulfillReservation}
-                    onCancelReservation={handleCancelReservation}
-                    onOpenSaleDialog={() => handleOpenSaleDialog(account)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
+            <div className="space-y-8">
+
+              {/* ── Batch groups — each batch becomes a labeled glass folder ── */}
+              {batchGroups.map(({ batch, accounts: groupAccounts }) => {
+                const color = getBatchColor(batch.color)
+                const cv = color.value
+                return (
+                  <div key={batch.id} className="space-y-3">
+
+                    {/* Batch section header */}
+                    <div className="flex items-center justify-between px-0.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: cv }}
+                        />
+                        <span
+                          className="text-[13px] font-semibold tracking-tight truncate"
+                          style={{ color: 'rgba(255,255,255,0.76)' }}
+                        >
+                          {batch.name}
+                        </span>
+                        <span
+                          className="text-[11px] font-medium tabular-nums flex-shrink-0"
+                          style={{ color: 'rgba(255,255,255,0.30)' }}
+                        >
+                          {groupAccounts.length} account{groupAccounts.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="w-6 h-6 rounded-md flex items-center justify-center opacity-30 hover:opacity-70 transition-opacity flex-shrink-0"
+                          style={{ color: 'rgba(255,255,255,0.60)' }}
+                        >
+                          <MoreHorizontal className="w-3.5 h-3.5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover border-border text-[12px]">
+                          <DropdownMenuItem onClick={() => openRenameBatchDialog(batch)} className="cursor-pointer text-[12px]">
+                            Rename Batch
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openChangeBatchColorDialog(batch)} className="cursor-pointer text-[12px]">
+                            Change Color
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Glass group container */}
+                    <div
+                      className="rounded-2xl p-4"
+                      style={{
+                        background: `radial-gradient(ellipse at 50% -20%, ${hexToRgba(cv, 0.09)} 0%, ${hexToRgba(cv, 0.04)} 55%, ${hexToRgba(cv, 0.025)} 100%)`,
+                        border: `1px solid ${hexToRgba(cv, 0.18)}`,
+                      }}
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5">
+                        {groupAccounts.map(account => (
+                          <div
+                            key={account.id}
+                            ref={registerAccountCard(account.id)}
+                            onPointerDown={event => handleAccountCardPointerDown(event, account.id)}
+                          >
+                            <AccountCard
+                              account={account}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              batch={batchById.get(account.batch_id!) ?? null}
+                              isSelected={selectedIds.has(account.id)}
+                              onRemoveFromBatch={removeAccountFromBatch}
+                              allowance={getAllowance(account.id)}
+                              history={historyByAccount.get(account.id) ?? []}
+                              reservationQueue={transferQueueByAccount.get(account.id) ?? []}
+                              onQuickTransfer={amount => handleRecordTransfer(account.id, amount)}
+                              onOpenReserveDialog={() => handleOpenReserveDialog(account)}
+                              onOpenLogDialog={() => handleOpenLogDialog(account)}
+                              onEditTransferLog={log => handleOpenEditLog(account, log)}
+                              onDeleteTransferLog={handleDeleteTransferLog}
+                              onFulfillReservation={handleFulfillReservation}
+                              onCancelReservation={handleCancelReservation}
+                              onOpenSaleDialog={() => handleOpenSaleDialog(account)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* ── Unbatched accounts ── */}
+              {unbatchedFilteredAccounts.length > 0 && (
+                <div className="space-y-3">
+                  {batchGroups.length > 0 && (
+                    <div className="flex items-center gap-2.5 px-0.5">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.20)' }}
+                      />
+                      <span className="text-[13px] font-semibold tracking-tight" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                        Unassigned
+                      </span>
+                      <span className="text-[11px] font-medium tabular-nums" style={{ color: 'rgba(255,255,255,0.24)' }}>
+                        {unbatchedFilteredAccounts.length} account{unbatchedFilteredAccounts.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5">
+                    {unbatchedFilteredAccounts.map(account => (
+                      <div
+                        key={account.id}
+                        ref={registerAccountCard(account.id)}
+                        onPointerDown={event => handleAccountCardPointerDown(event, account.id)}
+                      >
+                        <AccountCard
+                          account={account}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          batch={null}
+                          isSelected={selectedIds.has(account.id)}
+                          allowance={getAllowance(account.id)}
+                          history={historyByAccount.get(account.id) ?? []}
+                          reservationQueue={transferQueueByAccount.get(account.id) ?? []}
+                          onQuickTransfer={amount => handleRecordTransfer(account.id, amount)}
+                          onOpenReserveDialog={() => handleOpenReserveDialog(account)}
+                          onOpenLogDialog={() => handleOpenLogDialog(account)}
+                          onEditTransferLog={log => handleOpenEditLog(account, log)}
+                          onDeleteTransferLog={handleDeleteTransferLog}
+                          onFulfillReservation={handleFulfillReservation}
+                          onCancelReservation={handleCancelReservation}
+                          onOpenSaleDialog={() => handleOpenSaleDialog(account)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
           )}
 
           {/* ── Depleted Accounts (collapsed by default) ── */}
@@ -1585,8 +1708,6 @@ function AccountsPageContent() {
                             onDelete={handleDelete}
                             batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
                             isSelected={selectedIds.has(account.id)}
-                            onRenameBatch={openRenameBatchDialog}
-                            onChangeBatchColor={openChangeBatchColorDialog}
                             onRemoveFromBatch={removeAccountFromBatch}
                           />
                         </div>
