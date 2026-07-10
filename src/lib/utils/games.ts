@@ -1,9 +1,39 @@
 import type { CSSProperties } from 'react'
 
-// Discounted Game Status — purely visual, never read by any cost/profit/
-// inventory calculation. One shared style so every render site (gamepass
-// tiles, filter chips, order history, dashboard, etc.) stays in sync —
-// changing the look only ever happens here.
+// ── Deterministic game accent colors ─────────────────────────────────────────
+// Hashes the game name to one of 12 tasteful palette entries. No DB storage —
+// the same game name always produces the same color, everywhere, forever.
+const GAME_ACCENT_PALETTE = [
+  '#10b981', // Emerald
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#6366f1', // Indigo
+  '#8b5cf6', // Violet
+  '#a855f7', // Purple
+  '#f59e0b', // Amber
+  '#f97316', // Orange
+  '#f43f5e', // Rose
+  '#ef4444', // Red
+  '#84cc16', // Lime
+  '#14b8a6', // Teal
+] as const
+
+function djb2(str: string): number {
+  let h = 5381
+  for (let i = 0; i < str.length; i++) {
+    h = (((h << 5) + h) ^ str.charCodeAt(i)) >>> 0
+  }
+  return h
+}
+
+export function getGameAccentColor(gameName: string): string {
+  if (!gameName) return GAME_ACCENT_PALETTE[4] // Violet fallback
+  return GAME_ACCENT_PALETTE[djb2(gameName) % GAME_ACCENT_PALETTE.length]
+}
+
+// ── Discounted Game Status ────────────────────────────────────────────────────
+// Purely visual, never read by any cost/profit/inventory calculation. One
+// shared style so every render site stays in sync.
 export function getGameNameStyle(isDiscounted: boolean | null | undefined): CSSProperties {
   return isDiscounted
     ? { color: '#34d399', textShadow: '0 0 8px rgba(52,211,153,0.50), 0 0 16px rgba(52,211,153,0.22)' }

@@ -6,7 +6,7 @@ import GamepassTile from './GamepassTile'
 import GameSelector from '@/components/shared/GameSelector'
 import GameIcon from '@/components/shared/GameIcon'
 import { Search, X } from 'lucide-react'
-import { getGameNameStyle } from '@/lib/utils/games'
+import { getGameNameStyle, getGameAccentColor } from '@/lib/utils/games'
 
 interface GamepassCatalogProps {
   gamepasses: GamepassWithGame[]
@@ -52,7 +52,7 @@ export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemov
   const grouped = useMemo(() => {
     const map = new Map<string, { name: string; color: string; iconUrl: string | null; isDiscounted: boolean; items: GamepassWithGame[] }>()
     filtered.forEach(gp => {
-      const accent = gp.games?.color ?? '#8b5cf6'
+      const accent = getGameAccentColor(gp.games?.name ?? '')
       const iconUrl = gp.games?.icon_url ?? null
       const isDiscounted = gp.games?.is_discounted ?? false
       const lower = gp.name.toLowerCase()
