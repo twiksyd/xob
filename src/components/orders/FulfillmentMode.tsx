@@ -416,11 +416,14 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
                 )}
               </div>
             </div>
-            <button type="button" onClick={onClose}
-              className="ml-4 w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.50)' }}>
-              <X className="w-4 h-4" />
-            </button>
+            <div className="ml-4 flex items-center gap-2 flex-shrink-0">
+              <button type="button" onClick={onClose}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-colors"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.45)' }}>
+                <X className="w-3 h-3" />
+                Back to orders
+              </button>
+            </div>
           </div>
 
           {/* ── All done: completion screen ─────────────────────────── */}
