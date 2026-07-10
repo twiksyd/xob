@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { OrderWithDetails, OrderItem } from '@/lib/types/database'
 import { getGameAccentColor } from '@/lib/utils/games'
 import { formatPHP } from '@/lib/utils/pricing'
-import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera } from 'lucide-react'
+import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera, RotateCcw, CloudCheck } from 'lucide-react'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -40,6 +40,40 @@ function makeCRC32(): (buf: Uint8Array) => number {
   }
 }
 const crc32 = makeCRC32()
+
+// ── Progress persistence ──────────────────────────────────────────────────────
+
+interface PersistedFulfillmentState {
+  currentIdx: number
+  sentIds: string[]
+  sentAtEntries: [string, string][]  // [itemId, ISO date string]
+  savedAt: string
+}
+
+const storageKey = (orderId: string) => `xob-fulfillment-${orderId}`
+
+function saveProgress(orderId: string, currentIdx: number, sentSet: Set<string>, sentAt: Map<string, Date>) {
+  try {
+    const state: PersistedFulfillmentState = {
+      currentIdx,
+      sentIds: Array.from(sentSet),
+      sentAtEntries: Array.from(sentAt.entries()).map(([id, d]) => [id, d.toISOString()]),
+      savedAt: new Date().toISOString(),
+    }
+    localStorage.setItem(storageKey(orderId), JSON.stringify(state))
+  } catch {}
+}
+
+function loadProgress(orderId: string): PersistedFulfillmentState | null {
+  try {
+    const raw = localStorage.getItem(storageKey(orderId))
+    return raw ? (JSON.parse(raw) as PersistedFulfillmentState) : null
+  } catch { return null }
+}
+
+function clearProgress(orderId: string) {
+  try { localStorage.removeItem(storageKey(orderId)) } catch {}
+}
 
 async function buildStoredZip(files: Array<{ name: string; data: ArrayBuffer }>): Promise<Blob> {
   const enc = new TextEncoder()
@@ -173,11 +207,26 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
   const [completing, setCompleting] = useState(false)
   const [completedExpanded, setCompletedExpanded] = useState(true)
   const [startTime]                 = useState(Date.now())
+  const [resumed, setResumed]       = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const currentIdRef                = useRef<string>('')
 
   useEffect(() => {
     currentIdRef.current = items[currentIdx]?.id ?? ''
   }, [currentIdx, items])
+
+  // Restore saved progress on mount
+  useEffect(() => {
+    const saved = loadProgress(order.id)
+    if (!saved || saved.sentIds.length === 0) return
+    setCurrentIdx(saved.currentIdx)
+    setSentSet(new Set(saved.sentIds))
+    setSentAt(new Map(saved.sentAtEntries.map(([id, iso]) => [id, new Date(iso)])))
+    setLastSavedAt(new Date(saved.savedAt))
+    if (saved.sentIds.length >= items.length) setAllDone(true)
+    setResumed(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Clipboard paste → screenshot for current item
   useEffect(() => {
@@ -216,13 +265,29 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
   function markSent() {
     const item = items[currentIdx]
     if (!item) return
-    setSentSet(prev => { const n = new Set(prev); n.add(item.id); return n })
-    setSentAt(prev => { const n = new Map(prev); n.set(item.id, new Date()); return n })
+    const newSentSet = new Set(sentSet); newSentSet.add(item.id)
+    const newSentAt  = new Map(sentAt);  newSentAt.set(item.id, new Date())
+    const nextIdx    = currentIdx < items.length - 1 ? currentIdx + 1 : currentIdx
+    setSentSet(newSentSet)
+    setSentAt(newSentAt)
     if (currentIdx < items.length - 1) {
-      setCurrentIdx(i => i + 1)
+      setCurrentIdx(nextIdx)
     } else {
       setAllDone(true)
     }
+    saveProgress(order.id, nextIdx, newSentSet, newSentAt)
+    setLastSavedAt(new Date())
+  }
+
+  function startOver() {
+    clearProgress(order.id)
+    setCurrentIdx(0)
+    setSentSet(new Set())
+    setSentAt(new Map())
+    setScreenshots(new Map())
+    setAllDone(false)
+    setResumed(false)
+    setLastSavedAt(null)
   }
 
   function deleteScreenshot(itemId: string, idx: number) {
@@ -237,7 +302,7 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
 
   async function finish() {
     setCompleting(true)
-    try { await onComplete(); onClose() } catch { setCompleting(false) }
+    try { await onComplete(); clearProgress(order.id); onClose() } catch { setCompleting(false) }
   }
 
   async function exportZip() {
@@ -318,9 +383,37 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   />
                 </div>
-                <p className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                  {sentSet.size} / {items.length} Item{items.length !== 1 ? 's' : ''} Completed
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                    {sentSet.size} / {items.length} Item{items.length !== 1 ? 's' : ''} Completed
+                  </p>
+                  {lastSavedAt && (
+                    <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.20)' }}>
+                      <CloudCheck className="w-2.5 h-2.5" />
+                      Saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {(sentSet.size > 0) && (
+                    <button
+                      type="button"
+                      onClick={startOver}
+                      className="flex items-center gap-1 text-[10px] font-semibold ml-auto transition-opacity opacity-40 hover:opacity-70"
+                      style={{ color: 'rgba(255,255,255,0.65)' }}
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" /> Start over
+                    </button>
+                  )}
+                </div>
+                {resumed && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-[10px] font-semibold"
+                    style={{ color: 'rgba(167,139,250,0.65)' }}
+                  >
+                    ↩ Resumed from previous session
+                  </motion.p>
+                )}
               </div>
             </div>
             <button type="button" onClick={onClose}
