@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import OrderForm, { orderFormSchema, OrderFormData, GamepassWithGame } from '@/components/orders/OrderForm'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
+import FulfillmentMode from '@/components/orders/FulfillmentMode'
 import { useOrderCart } from '@/hooks/useOrderCart'
 import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -25,7 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   Plus, ClipboardList, Wallet, TrendingUp, CheckCircle2,
-  Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2,
+  Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2, Zap,
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
@@ -82,6 +83,7 @@ function OrdersPageContent() {
   const [statusChanging, setStatusChanging]   = useState<string | null>(null)
   const [editOrder, setEditOrder]             = useState<OrderWithDetails | null>(null)
   const [inspectOrder, setInspectOrder]       = useState<OrderWithDetails | null>(null)
+  const [fulfillOrder, setFulfillOrder]       = useState<OrderWithDetails | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [justCreated, setJustCreated]         = useState(false)
   const [workspaceOpen, setWorkspaceOpen]     = useState(false)
@@ -373,6 +375,10 @@ function OrdersPageContent() {
     else toast.success(`Order marked ${newStatus}.`)
     setStatusChanging(null)
     fetchData()
+  }
+
+  async function handleFulfillmentComplete(order: OrderWithDetails) {
+    await handleStatusChange(order, 'completed')
   }
 
   async function handleDelete(order: OrderWithDetails) {
@@ -710,6 +716,14 @@ function OrdersPageContent() {
                       </p>
                       <button
                         type="button"
+                        onClick={(e) => { e.stopPropagation(); setFulfillOrder(order) }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                        style={{ background: 'rgba(167,139,250,0.09)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.22)' }}
+                      >
+                        <Zap style={{ width: 11, height: 11 }} /> Fulfill
+                      </button>
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); openEditWorkspace(order) }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
@@ -833,6 +847,17 @@ function OrdersPageContent() {
         onClose={() => setInspectOrder(null)}
         onEdit={(order) => { setInspectOrder(null); openEditWorkspace(order) }}
       />
+
+      <AnimatePresence>
+        {fulfillOrder && (
+          <FulfillmentMode
+            key={fulfillOrder.id}
+            order={fulfillOrder}
+            onClose={() => setFulfillOrder(null)}
+            onComplete={() => handleFulfillmentComplete(fulfillOrder)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ══════════════════════════════════════════════════════════════
           CREATE ORDER WORKSPACE — full-screen modal, deliberately
