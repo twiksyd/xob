@@ -1576,7 +1576,11 @@ function AccountsPageContent() {
                     {/* Glass group container */}
                     <div
                       className="rounded-2xl p-4"
-                      style={{
+                      style={color.dominant ? {
+                        background: `radial-gradient(ellipse at 50% -20%, ${hexToRgba(cv, 0.52)} 0%, ${hexToRgba(cv, 0.30)} 55%, ${hexToRgba(cv, 0.16)} 100%)`,
+                        border: `1px solid ${hexToRgba(cv, 0.70)}`,
+                        boxShadow: `0 0 32px ${hexToRgba(cv, 0.22)}`,
+                      } : {
                         background: `radial-gradient(ellipse at 50% -20%, ${hexToRgba(cv, 0.09)} 0%, ${hexToRgba(cv, 0.04)} 55%, ${hexToRgba(cv, 0.025)} 100%)`,
                         border: `1px solid ${hexToRgba(cv, 0.18)}`,
                       }}
