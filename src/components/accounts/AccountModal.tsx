@@ -31,6 +31,7 @@ const schema = z.object({
   supplier:            z.string().optional(),
   purchase_date:       z.string().optional(),
   has_active_discount: z.boolean().optional(),
+  has_super_discount:  z.boolean().optional(),
   is_plus_account:     z.boolean().optional(),
   chrome_profile:      z.string().optional(),
 })
@@ -70,7 +71,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
       username: '', current_robux: 0, reserved_robux: 0,
       robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
       purchase_cost: 0, supplier: '', purchase_date: '', has_active_discount: false,
-      is_plus_account: false, chrome_profile: '',
+      has_super_discount: false, is_plus_account: false, chrome_profile: '',
     }
   })
 
@@ -95,6 +96,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
         supplier:            '',
         purchase_date:       '',
         has_active_discount: account.has_active_discount ?? false,
+        has_super_discount:  account.has_super_discount ?? false,
         is_plus_account:     account.is_plus_account ?? false,
         chrome_profile:      account.chrome_profile ?? '',
       })
@@ -102,7 +104,7 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
       reset({
         username: '', current_robux: 0, reserved_robux: 0, robux_cost_rate: 0, status: 'active', notes: '', roblox_profile: '',
         purchase_cost: 0, supplier: '', purchase_date: new Date().toISOString().slice(0, 10), has_active_discount: false,
-        is_plus_account: false, chrome_profile: '',
+        has_super_discount: false, is_plus_account: false, chrome_profile: '',
       })
     }
     setAdjustField('current_robux')
@@ -398,6 +400,17 @@ export default function AccountModal({ open, onClose, onSave, onAdjust, account,
             />
             <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.78)' }}>
               Roblox Discount Active
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              {...register('has_super_discount')}
+              className="w-4 h-4 rounded accent-red-600"
+            />
+            <span className="text-xs font-bold" style={{ color: '#ef4444' }}>
+              Super Discounted
             </span>
           </label>
 

@@ -1165,6 +1165,12 @@ input::selection, textarea::selection {
   box-shadow: 0 0 6px rgba(244,59,110,0.20), 0 0 10px rgba(139,92,246,0.16);
 }
 
+.account-badge--super-discount {
+  letter-spacing: 0.06em;
+  background-image: linear-gradient(135deg, #6b0000, #c81c1c);
+  box-shadow: 0 0 8px rgba(200,28,28,0.38), 0 0 16px rgba(107,0,0,0.24);
+}
+
 .account-badge--plus {
   letter-spacing: 0.06em;
   background-image: linear-gradient(135deg, #ff5a1f, #ffae3b);

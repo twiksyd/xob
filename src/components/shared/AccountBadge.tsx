@@ -2,11 +2,12 @@
 // whatever comes next — RESERVED/PRIORITY/VIP, etc.). Add a new entry to
 // BADGE_CONFIG and a matching .account-badge--<type> class in globals.css to
 // introduce a new badge type; nothing else needs to change.
-export type AccountBadgeType = 'plus' | 'discount'
+export type AccountBadgeType = 'plus' | 'discount' | 'super_discount'
 
 const BADGE_CONFIG: Record<AccountBadgeType, { label: string; className: string }> = {
-  plus:     { label: 'PLUS',            className: 'account-badge--plus' },
-  discount: { label: 'DISCOUNT ACTIVE', className: 'account-badge--discount' },
+  plus:           { label: 'PLUS',             className: 'account-badge--plus' },
+  discount:       { label: 'DISCOUNT ACTIVE',  className: 'account-badge--discount' },
+  super_discount: { label: 'SUPER DISCOUNTED', className: 'account-badge--super-discount' },
 }
 
 export default function AccountBadge({ type }: { type: AccountBadgeType }) {

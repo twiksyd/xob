@@ -212,10 +212,11 @@ export default function AccountCard({
           </div>
         </div>
 
-        {/* 2. Badges: PLUS · DISCOUNT · CostRate */}
-        {(account.is_plus_account || account.has_active_discount || account.robux_cost_rate > 0) && (
+        {/* 2. Badges: PLUS · SUPER DISCOUNTED · DISCOUNT · CostRate */}
+        {(account.is_plus_account || account.has_super_discount || account.has_active_discount || account.robux_cost_rate > 0) && (
           <div className="relative z-10 flex items-center flex-wrap gap-1.5">
             {account.is_plus_account && <AccountBadge type="plus" />}
+            {account.has_super_discount && <AccountBadge type="super_discount" />}
             {account.has_active_discount && <AccountBadge type="discount" />}
             {account.robux_cost_rate > 0 && (
               <span

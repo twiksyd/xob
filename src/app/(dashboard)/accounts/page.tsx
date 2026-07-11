@@ -281,6 +281,7 @@ function AccountsPageContent() {
     roblox_profile?: string
     purchase_cost?: number; supplier?: string; purchase_date?: string
     has_active_discount?: boolean
+    has_super_discount?: boolean
     is_plus_account?: boolean
     chrome_profile?: string
   }) {
@@ -308,10 +309,10 @@ function AccountsPageContent() {
       // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
       // once an account exists — they can only change via the order financial engine or
       // adjust_account_field (handleAdjust below), both of which leave an audit trail.
-      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
+      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
-      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
+      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
       const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
 
       // Phase 2: every new stock purchase automatically logs a Capital Event

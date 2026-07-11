@@ -46,6 +46,7 @@ export type Database = {
           roblox_user_id: string | null
           status: 'active' | 'inactive' | 'banned' | 'low'
           has_active_discount: boolean
+          has_super_discount: boolean
           is_plus_account: boolean
           chrome_profile: string | null
           batch_id: string | null
@@ -63,6 +64,7 @@ export type Database = {
           roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
           has_active_discount?: boolean
+          has_super_discount?: boolean
           is_plus_account?: boolean
           chrome_profile?: string | null
           batch_id?: string | null
@@ -76,6 +78,7 @@ export type Database = {
           roblox_user_id?: string | null
           status?: 'active' | 'inactive' | 'banned' | 'low'
           has_active_discount?: boolean
+          has_super_discount?: boolean
           is_plus_account?: boolean
           chrome_profile?: string | null
           batch_id?: string | null
