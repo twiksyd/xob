@@ -52,12 +52,12 @@ export interface RankedAccount extends RobloxAccount {
 // what "best" means. robuxRequired is the nominal gamepass amount — each
 // Plus account's actual requirement is ~10% lower, so affordability is
 // computed per-account rather than against one shared threshold.
-// Returns true when the 24-hour window after enabling Plus has elapsed and
-// the user hasn't yet confirmed that they turned off auto-renewal.
+// Returns true as soon as Plus is enabled and the user hasn't yet confirmed
+// that they turned off auto-renewal.
 export function isPlusReminderActive(account: RobloxAccount): boolean {
   if (!account.is_plus_account || !account.plus_enabled_at) return false
   if (account.plus_reminder_dismissed_at) return false
-  return Date.now() >= new Date(account.plus_enabled_at).getTime() + 24 * 60 * 60 * 1000
+  return true
 }
 
 export function rankAccountsForOrder(accounts: RobloxAccount[], robuxRequired: number): RankedAccount[] {
