@@ -17,7 +17,7 @@ import {
   TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier, AccountBatch,
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted, isPlusReminderActive } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
@@ -28,7 +28,7 @@ import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceT
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
-  MousePointer2, Tag, Palette, Eraser, MoreHorizontal,
+  MousePointer2, Tag, Palette, Eraser, MoreHorizontal, AlertTriangle,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -117,11 +117,12 @@ const DISCOUNT_SORTS: readonly { value: DiscountSort; label: string }[] = [
 
 // Roblox Plus — purely operational tagging too; the actual cost discount
 // lives in getEffectiveCostRate (pricing.ts), not here.
-type PlusFilter = 'all' | 'plus' | 'nonPlus'
+type PlusFilter = 'all' | 'plus' | 'nonPlus' | 'needsAttention'
 const PLUS_FILTERS: readonly { value: PlusFilter; label: string }[] = [
-  { value: 'all',    label: 'All Accounts' },
-  { value: 'plus',   label: 'Plus Accounts' },
-  { value: 'nonPlus', label: 'Non-Plus Accounts' },
+  { value: 'all',            label: 'All Accounts' },
+  { value: 'plus',           label: 'Plus Accounts' },
+  { value: 'nonPlus',        label: 'Non-Plus Accounts' },
+  { value: 'needsAttention', label: 'Needs Plus Attention' },
 ]
 
 const LS_SELECTED = 'xob-selected-accounts'
@@ -309,10 +310,24 @@ function AccountsPageContent() {
       // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
       // once an account exists — they can only change via the order financial engine or
       // adjust_account_field (handleAdjust below), both of which leave an audit trail.
-      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
+      const wasPlus   = editAccount.is_plus_account
+      const isNowPlus = data.is_plus_account ?? false
+      const plusTimestamps: Record<string, string | null> = {}
+      if (!wasPlus && isNowPlus) {
+        plusTimestamps.plus_enabled_at = new Date().toISOString()
+        plusTimestamps.plus_reminder_dismissed_at = null
+      } else if (wasPlus && !isNowPlus) {
+        plusTimestamps.plus_enabled_at = null
+        plusTimestamps.plus_reminder_dismissed_at = null
+      }
+      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: isNowPlus, chrome_profile: data.chrome_profile?.trim() || null, ...plusTimestamps }
       await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
     } else {
-      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: data.is_plus_account ?? false, chrome_profile: data.chrome_profile?.trim() || null }
+      const isNowPlus = data.is_plus_account ?? false
+      const plusTimestamps = isNowPlus
+        ? { plus_enabled_at: new Date().toISOString(), plus_reminder_dismissed_at: null as string | null }
+        : {}
+      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: isNowPlus, chrome_profile: data.chrome_profile?.trim() || null, ...plusTimestamps }
       const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
 
       // Phase 2: every new stock purchase automatically logs a Capital Event
@@ -546,6 +561,21 @@ function AccountsPageContent() {
     setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
     fetchData()
     toast.success('Account deleted.')
+  }
+
+  async function handleDismissPlusReminder(accountId: string) {
+    const ok = await confirm({
+      title: 'Turn Off Plus Auto-Renewal',
+      description: 'Have you already disabled Roblox Plus auto-renewal on this account?',
+      confirmLabel: 'Yes, I Turned It Off',
+    })
+    if (!ok) return
+    const { error } = await supabase
+      .from('roblox_accounts')
+      .update({ plus_reminder_dismissed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+    if (error) { toast.error(error.message || 'Could not dismiss the reminder.'); return }
+    fetchData()
   }
 
   function handleEdit(account: RobloxAccount) {
@@ -856,6 +886,14 @@ function AccountsPageContent() {
     [accounts]
   )
 
+  // Plus renewal reminder: accounts where 24h has elapsed since enabling Plus
+  // and the user hasn't yet confirmed they turned off auto-renewal.
+  const plusTaskAccounts = useMemo(
+    () => accounts.filter(isPlusReminderActive),
+    [accounts]
+  )
+  const plusTaskCount = plusTaskAccounts.length
+
   // ── Instant Send Tracker ─────────────────────────────────────────────────
   const transferStats = useMemo(() => {
     let canSend = 0, hasReservations = 0, limitReached = 0, totalReserved = 0
@@ -881,7 +919,10 @@ function AccountsPageContent() {
         }
       })()
       const passesDiscount = discountFilter === 'all' ? true : discountFilter === 'active' ? a.has_active_discount : !a.has_active_discount
-      const passesPlus = plusFilter === 'all' ? true : plusFilter === 'plus' ? a.is_plus_account : !a.is_plus_account
+      const passesPlus = plusFilter === 'all' ? true
+        : plusFilter === 'plus' ? a.is_plus_account
+        : plusFilter === 'nonPlus' ? !a.is_plus_account
+        : isPlusReminderActive(a)
       const passesChromeProfile = chromeProfileFilter === 'all' ? true : (a.chrome_profile ?? '') === chromeProfileFilter
       return passesTransfer && passesDiscount && passesPlus && passesChromeProfile
     })
@@ -1236,6 +1277,9 @@ function AccountsPageContent() {
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium" style={{ color: 'rgba(255,255,255,0.36)' }}>
                 {activeInventoryAccounts.length} active account{activeInventoryAccounts.length !== 1 ? 's' : ''}
+                {plusTaskCount > 0 && (
+                  <> · <span style={{ color: '#ea580c' }}>Plus Tasks ({plusTaskCount})</span></>
+                )}
               </span>
               {accounts.some(a => !a.roblox_user_id) && (
                 <button
@@ -1250,6 +1294,38 @@ function AccountsPageContent() {
                 </button>
               )}
             </div>
+
+            {/* Plus Renewal Reminder banner */}
+            <AnimatePresence>
+              {plusTaskCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="rounded-2xl px-4 py-3 flex items-center gap-3"
+                  style={{ background: 'rgba(234,88,12,0.06)', border: '1px solid rgba(234,88,12,0.22)' }}
+                >
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#ea580c' }} />
+                  <p className="text-[12px] font-semibold flex-1" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                    <span style={{ color: '#ea580c' }}>Plus Renewal Tasks</span> — You have{' '}
+                    <span style={{ color: '#ea580c' }}>{plusTaskCount}</span>{' '}
+                    account{plusTaskCount !== 1 ? 's' : ''} that need{plusTaskCount === 1 ? 's' : ''} Plus auto-renewal turned off
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstId = plusTaskAccounts.find(a => cardRefs.current.has(a.id))?.id
+                      if (firstId) cardRefs.current.get(firstId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                    className="flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all hover:-translate-y-px"
+                    style={{ background: 'rgba(234,88,12,0.14)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.28)' }}
+                  >
+                    View Accounts
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Grouped control bar — selection / sort / filters */}
             <div
@@ -1610,6 +1686,7 @@ function AccountsPageContent() {
                               onFulfillReservation={handleFulfillReservation}
                               onCancelReservation={handleCancelReservation}
                               onOpenSaleDialog={() => handleOpenSaleDialog(account)}
+                              onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
                             />
                           </div>
                         ))}
@@ -1660,6 +1737,7 @@ function AccountsPageContent() {
                           onFulfillReservation={handleFulfillReservation}
                           onCancelReservation={handleCancelReservation}
                           onOpenSaleDialog={() => handleOpenSaleDialog(account)}
+                          onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
                         />
                       </div>
                     ))}
@@ -1714,6 +1792,7 @@ function AccountsPageContent() {
                             batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
                             isSelected={selectedIds.has(account.id)}
                             onRemoveFromBatch={removeAccountFromBatch}
+                            onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
                           />
                         </div>
                       ))}

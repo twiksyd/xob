@@ -48,6 +48,8 @@ export type Database = {
           has_active_discount: boolean
           has_super_discount: boolean
           is_plus_account: boolean
+          plus_enabled_at: string | null
+          plus_reminder_dismissed_at: string | null
           chrome_profile: string | null
           batch_id: string | null
           created_at: string
@@ -66,6 +68,8 @@ export type Database = {
           has_active_discount?: boolean
           has_super_discount?: boolean
           is_plus_account?: boolean
+          plus_enabled_at?: string | null
+          plus_reminder_dismissed_at?: string | null
           chrome_profile?: string | null
           batch_id?: string | null
         }
@@ -80,6 +84,8 @@ export type Database = {
           has_active_discount?: boolean
           has_super_discount?: boolean
           is_plus_account?: boolean
+          plus_enabled_at?: string | null
+          plus_reminder_dismissed_at?: string | null
           chrome_profile?: string | null
           batch_id?: string | null
           updated_at?: string

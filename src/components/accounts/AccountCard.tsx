@@ -16,7 +16,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted, isPlusReminderActive } from '@/lib/utils/accounts'
 import { formatRobux } from '@/lib/utils/pricing'
 import {
   getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS,
@@ -42,6 +42,7 @@ interface AccountCardProps {
   onFulfillReservation?: (reservationId: string) => Promise<void>
   onCancelReservation?: (reservationId: string) => Promise<void>
   onOpenSaleDialog?: () => void
+  onDismissPlusReminder?: () => void
 }
 
 const COLOR_AVAILABLE = '#34d399'
@@ -55,6 +56,7 @@ export default function AccountCard({
   onQuickTransfer, onOpenReserveDialog, onOpenLogDialog,
   onEditTransferLog, onDeleteTransferLog,
   onFulfillReservation, onCancelReservation, onOpenSaleDialog,
+  onDismissPlusReminder,
 }: AccountCardProps) {
   const showTransferTracker = allowance !== undefined
   const [customOpen, setCustomOpen] = useState(false)
@@ -64,10 +66,11 @@ export default function AccountCard({
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
 
-  const available  = getAvailableRobux(account)
-  const depleted   = isDepleted(account)
-  const isLow      = available < 500 && !depleted
-  const isHigh     = account.current_robux >= 8000
+  const available     = getAvailableRobux(account)
+  const depleted      = isDepleted(account)
+  const isLow         = available < 500 && !depleted
+  const isHigh        = account.current_robux >= 8000
+  const plusReminder  = isPlusReminderActive(account)
 
   const availPct    = account.current_robux > 0 ? Math.min(100, (available / account.current_robux) * 100) : 0
   const reservedPct = account.current_robux > 0 ? Math.min(100 - availPct, (account.reserved_robux / account.current_robux) * 100) : 0
@@ -115,6 +118,10 @@ export default function AccountCard({
     cardStyle.boxShadow = '0 0 0 2px rgba(255,255,255,0.46), 0 8px 28px rgba(0,0,0,0.26)'
   } else if (isHigh) {
     cardStyle.boxShadow = 'inset 0 1px 0 rgba(52,211,153,0.09), 0 2px 14px rgba(52,211,153,0.05)'
+  }
+  if (plusReminder && !isSelected) {
+    const orangeBorder = 'inset 0 0 0 1.5px rgba(234,88,12,0.38)'
+    cardStyle.boxShadow = cardStyle.boxShadow ? `${cardStyle.boxShadow}, ${orangeBorder}` : orangeBorder
   }
 
   return (
@@ -216,6 +223,20 @@ export default function AccountCard({
         {(account.is_plus_account || account.has_super_discount || account.has_active_discount || account.robux_cost_rate > 0) && (
           <div className="relative z-10 flex items-center flex-wrap gap-1.5">
             {account.is_plus_account && <AccountBadge type="plus" />}
+            {plusReminder && (
+              <motion.button
+                type="button"
+                data-no-card-select
+                animate={{ opacity: [0.70, 1, 0.70] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                onClick={e => { e.stopPropagation(); onDismissPlusReminder?.() }}
+                className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(234,88,12,0.14)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.30)', cursor: 'pointer' }}
+                title="Click to dismiss after turning off auto-renewal"
+              >
+                ⚠ TURN OFF PLUS
+              </motion.button>
+            )}
             {account.has_super_discount && <AccountBadge type="super_discount" />}
             {account.has_active_discount && <AccountBadge type="discount" />}
             {account.robux_cost_rate > 0 && (
