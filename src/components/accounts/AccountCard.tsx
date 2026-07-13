@@ -223,20 +223,6 @@ export default function AccountCard({
         {(account.is_plus_account || account.has_super_discount || account.has_active_discount || account.robux_cost_rate > 0) && (
           <div className="relative z-10 flex items-center flex-wrap gap-1.5">
             {account.is_plus_account && <AccountBadge type="plus" />}
-            {plusReminder && (
-              <motion.button
-                type="button"
-                data-no-card-select
-                animate={{ opacity: [0.70, 1, 0.70] }}
-                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                onClick={e => { e.stopPropagation(); onDismissPlusReminder?.() }}
-                className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(234,88,12,0.14)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.30)', cursor: 'pointer' }}
-                title="Click to dismiss after turning off auto-renewal"
-              >
-                ⚠ TURN OFF PLUS
-              </motion.button>
-            )}
             {account.has_super_discount && <AccountBadge type="super_discount" />}
             {account.has_active_discount && <AccountBadge type="discount" />}
             {account.robux_cost_rate > 0 && (
@@ -248,6 +234,41 @@ export default function AccountCard({
               </span>
             )}
           </div>
+        )}
+
+        {/* Plus Renewal Reminder — full-width strip, hard to miss */}
+        {plusReminder && (
+          <motion.div
+            className="relative z-10 rounded-xl overflow-hidden"
+            animate={{ opacity: [0.82, 1, 0.82] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <div
+              className="flex items-center justify-between gap-3 px-3.5 py-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(234,88,12,0.18) 0%, rgba(234,88,12,0.10) 100%)',
+                border: '1px solid rgba(234,88,12,0.38)',
+              }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[15px] flex-shrink-0">⚠</span>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-black leading-tight" style={{ color: '#fb923c' }}>Turn off Plus auto-renewal</p>
+                  <p className="text-[10px] font-medium mt-0.5" style={{ color: 'rgba(251,146,60,0.65)' }}>Do it before the billing cycle hits</p>
+                </div>
+              </div>
+              <motion.button
+                type="button"
+                data-no-card-select
+                whileTap={{ scale: 0.93 }}
+                onClick={e => { e.stopPropagation(); onDismissPlusReminder?.() }}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all"
+                style={{ background: 'rgba(234,88,12,0.28)', color: '#fb923c', border: '1px solid rgba(234,88,12,0.50)' }}
+              >
+                Done
+              </motion.button>
+            </div>
+          </motion.div>
         )}
 
         {/* 3. Current / Available / Reserved */}
