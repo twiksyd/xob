@@ -8,8 +8,8 @@ type GamepassWithGame = Gamepass & { games: Game | null }
 // Cart line items, grouped by gamepass for display (one tile click = one unit).
 export type CartGroup = LineItem & { count: number }
 
-export function useOrderCart(gamepasses: GamepassWithGame[]) {
-  const [items, setItems] = useState<LineItem[]>([])
+export function useOrderCart(gamepasses: GamepassWithGame[], initialItems?: LineItem[]) {
+  const [items, setItems] = useState<LineItem[]>(initialItems ?? [])
 
   function addToCart(gamepassId: string) {
     const gp = gamepasses.find(g => g.id === gamepassId)

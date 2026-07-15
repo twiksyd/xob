@@ -1,16 +1,16 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import OrderForm, { orderFormSchema, OrderFormData, GamepassWithGame } from '@/components/orders/OrderForm'
+import type { OrderFormData, GamepassWithGame } from '@/components/orders/OrderForm'
+import WorkspaceTabs from '@/components/orders/WorkspaceTabs'
+import WorkspaceEditor from '@/components/orders/WorkspaceEditor'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import FulfillmentMode from '@/components/orders/FulfillmentMode'
-import { useOrderCart } from '@/hooks/useOrderCart'
-import { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
 import { isActiveOrder } from '@/lib/utils/orders'
@@ -79,124 +79,57 @@ function OrdersPageContent() {
   const [gamepasses, setGamepasses]           = useState<GamepassWithGame[]>([])
   const [accounts, setAccounts]               = useState<RobloxAccount[]>([])
   const [loading, setLoading]                 = useState(true)
-  const [saving, setSaving]                   = useState(false)
   const [statusChanging, setStatusChanging]   = useState<string | null>(null)
-  const [editOrder, setEditOrder]             = useState<OrderWithDetails | null>(null)
   const [inspectOrder, setInspectOrder]       = useState<OrderWithDetails | null>(null)
   const [fulfillOrder, setFulfillOrder]       = useState<OrderWithDetails | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
-  const [justCreated, setJustCreated]         = useState(false)
-  const [workspaceOpen, setWorkspaceOpen]     = useState(false)
+
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
   const toast = useToast()
   const confirm = useConfirm()
+  const ws = useWorkspaces()
 
-  const cart = useOrderCart(gamepasses)
+  // Stable refs for submit callback — avoids stale closures without adding
+  // large arrays to useCallback dependency lists.
+  const workspacesRef = useRef(ws.workspaces)
+  const ordersRef     = useRef(orders)
+  const accountsRef   = useRef(accounts)
+  useEffect(() => { workspacesRef.current = ws.workspaces }, [ws.workspaces])
+  useEffect(() => { ordersRef.current = orders }, [orders])
+  useEffect(() => { accountsRef.current = accounts }, [accounts])
 
-  const {
-    register, handleSubmit, reset, setValue, watch,
-    formState: { errors },
-  } = useForm<OrderFormData>({
-    resolver: zodResolver(orderFormSchema),
-    defaultValues: {
-      buyer_name: '', buyer_roblox_username: '',
-      roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '',
-    },
-  })
-
-  const accountId  = watch('roblox_account_id')
-  const isEditMode = editOrder !== null
-
-  const selectedAccount = useMemo(
-    () => accounts.find(a => a.id === accountId) ?? null,
-    [accountId, accounts]
-  )
-  const accountRate = selectedAccount?.robux_cost_rate ?? 0
-  const isAccountPlus = selectedAccount?.is_plus_account ?? false
-
-  const totals = useMemo(
-    () => calculateOrderTotals(cart.items, accountRate, isAccountPlus),
-    [cart.items, accountRate, isAccountPlus]
-  )
-
-  // ── Populate form when editing ──────────────────────────────────────────────
-  useEffect(() => {
-    if (editOrder) {
-      reset({
-        buyer_name:            editOrder.buyer_name ?? '',
-        buyer_roblox_username: editOrder.buyer_roblox_username ?? '',
-        roblox_account_id:     editOrder.roblox_account_id ?? '',
-        payment_method:        editOrder.payment_method,
-        status:                (editOrder.status === 'delivering' ? 'paid' : editOrder.status) as OrderFormData['status'],
-        notes:                 editOrder.notes ?? '',
-      })
-      const oi = editOrder.order_items
-      if (oi && oi.length > 0) {
-        cart.setItems(oi.map(item => ({
-          _key: item.id,
-          gamepass_id:    item.gamepass_id ?? '',
-          gamepass_name:  item.gamepass_name,
-          game_name:      item.game_name,
-          robux_amount:   item.robux_amount,
-          selling_price:  item.selling_price,
-          cost:           item.cost,
-          profit:         item.profit,
-        })))
-      } else {
-        cart.setItems([{
-          _key:           'legacy',
-          gamepass_id:    editOrder.gamepass_id ?? '',
-          gamepass_name:  '',
-          game_name:      null,
-          robux_amount:   editOrder.robux_amount ?? 0,
-          selling_price:  editOrder.selling_price ?? 0,
-          cost:           editOrder.cost ?? 0,
-          profit:         editOrder.profit ?? 0,
-        }])
-      }
-    } else {
-      reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      cart.setItems([])
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editOrder, reset])
-
-  function cancelEdit() { setEditOrder(null) }
-
-  function openCreateWorkspace() { setEditOrder(null); setWorkspaceOpen(true) }
-  function openEditWorkspace(order: OrderWithDetails) { setEditOrder(order); setWorkspaceOpen(true) }
-  function closeWorkspace() { setWorkspaceOpen(false); setEditOrder(null) }
-
-  // ── Global "New Order" command lands here with ?create=1 ───────────────────
+  // ── ?create=1 URL param — GlobalOrderCommand lands here ───────────────────
   useEffect(() => {
     if (searchParams.get('create') === '1') {
-      openCreateWorkspace()
+      ws.openOrCreate()
       router.replace('/orders')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // ── Workspace modal: escape-to-close + scroll lock ──────────────────────────
+  // ── Keyboard shortcuts + scroll lock when overlay is open ─────────────────
   useEffect(() => {
-    if (!workspaceOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeWorkspace() }
+    if (!ws.open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') ws.closeOverlay()
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        ws.addWorkspace()
+      }
+    }
     document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
+      document.body.style.overflow = prev
     }
-  }, [workspaceOpen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.open])
 
   // ── Data fetching ───────────────────────────────────────────────────────────
-  // toast is intentionally not a dependency — useToast() returns a new object
-  // every render (see Toast.tsx), and depending on it here would recreate
-  // fetchData (and retrigger the mount effect below) every time any toast
-  // fires anywhere in the app. The captured closure still calls the underlying
-  // stable push/dismiss callbacks, so this stays correct regardless.
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -259,26 +192,33 @@ function OrdersPageContent() {
     setLoadingMore(false)
   }, [supabase, hasMore, loadingMore, orders])
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  async function onSubmit(data: OrderFormData) {
-    if (cart.validItems.length === 0) return
-    setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
+  // ── Multi-workspace submit — called by WorkspaceEditor on form submit ───────
+  const handleWorkspaceSubmit = useCallback(async (
+    workspaceId: string,
+    data: OrderFormData,
+    cartItems: LineItem[],
+  ) => {
+    const workspace = workspacesRef.current.find(w => w.id === workspaceId)
+    if (!workspace) throw new Error('Workspace not found')
 
-    const orderAccount = accounts.find(a => a.id === data.roblox_account_id)
+    const validItems = cartItems.filter(i => i.gamepass_id)
+    if (validItems.length === 0) throw new Error('Cart is empty')
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const orderAccount = accountsRef.current.find(a => a.id === data.roblox_account_id)
     const rateUsed = orderAccount?.robux_cost_rate ?? 0
     const {
       totalRobux: tRobux, totalPrice: tPrice, totalCost: tCost, totalProfit: tProfit, effectiveRobux,
-    } = calculateOrderTotals(cart.validItems, rateUsed, orderAccount?.is_plus_account ?? false)
-    // effectiveRobux is a Plus-discounted float (e.g. 228 * 0.9 = 205.20000000000002) —
-    // effective_robux_amount is an integer column, so this must be rounded before storage.
+    } = calculateOrderTotals(validItems, rateUsed, orderAccount?.is_plus_account ?? false)
     const roundedEffectiveRobux = Math.round(effectiveRobux)
-    const first = cart.validItems[0]
-    const gpNames = cart.validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
+    const first = validItems[0]
+    const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
 
-    if (editOrder) {
-      const prevStatus = editOrder.status
+    if (workspace.editOrderId) {
+      const editOrder = ordersRef.current.find(o => o.id === workspace.editOrderId)
+      const prevStatus = editOrder?.status
       const newStatus  = data.status
 
       const { error: updateError } = await supabase.from('orders').update({
@@ -289,37 +229,31 @@ function OrdersPageContent() {
         account_rate_used: rateUsed || null,
         effective_robux_amount: tRobux > 0 ? roundedEffectiveRobux : null,
         updated_at: new Date().toISOString(),
-      }).eq('id', editOrder.id)
-      if (updateError) {
-        toast.error(`Could not update order: ${updateError.message}`)
-        setSaving(false)
-        return
-      }
-      await supabase.from('order_items').delete().eq('order_id', editOrder.id)
-      if (cart.validItems.length > 0) {
-        await supabase.from('order_items').insert(cart.validItems.map(item => ({
-          order_id: editOrder.id, gamepass_id: item.gamepass_id || null,
+      }).eq('id', workspace.editOrderId)
+      if (updateError) throw new Error(`Could not update order: ${updateError.message}`)
+
+      await supabase.from('order_items').delete().eq('order_id', workspace.editOrderId)
+      if (validItems.length > 0) {
+        await supabase.from('order_items').insert(validItems.map(item => ({
+          order_id: workspace.editOrderId, gamepass_id: item.gamepass_id || null,
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
         })))
       }
-
-      if (['pending', 'paid'].includes(newStatus) && data.roblox_account_id && tRobux > 0) {
+      if (['pending', 'paid'].includes(newStatus ?? '') && data.roblox_account_id && tRobux > 0) {
         await supabase.rpc('reserve_order_robux', {
-          p_order_id:       editOrder.id,
+          p_order_id:       workspace.editOrderId,
           p_account_id:     data.roblox_account_id,
           p_robux_amount:   roundedEffectiveRobux,
           p_gamepass_names: gpNames,
         })
       }
-
       if (newStatus !== prevStatus) {
-        const { error } = await supabase.rpc('transition_order', { p_order_id: editOrder.id, p_new_status: newStatus })
+        const { error } = await supabase.rpc('transition_order', { p_order_id: workspace.editOrderId, p_new_status: newStatus })
         if (error) toast.error(`Could not update order status: ${error.message}`)
       }
 
-      setEditOrder(null)
-      setWorkspaceOpen(false)
+      ws.closeWorkspace(workspaceId)
       toast.success('Order updated.')
     } else {
       const { data: newOrder, error: insertError } = await supabase.from('orders').insert({
@@ -330,13 +264,10 @@ function OrdersPageContent() {
         account_rate_used: rateUsed || null,
         effective_robux_amount: tRobux > 0 ? roundedEffectiveRobux : null,
       }).select().single()
-      if (insertError || !newOrder) {
-        toast.error(`Could not create order: ${insertError?.message ?? 'unknown error'}`)
-        setSaving(false)
-        return
-      }
-      if (cart.validItems.length > 0) {
-        await supabase.from('order_items').insert(cart.validItems.map(item => ({
+      if (insertError || !newOrder) throw new Error(`Could not create order: ${insertError?.message ?? 'unknown error'}`)
+
+      if (validItems.length > 0) {
+        await supabase.from('order_items').insert(validItems.map(item => ({
           order_id: newOrder.id, gamepass_id: item.gamepass_id || null,
           gamepass_name: item.gamepass_name, game_name: item.game_name,
           robux_amount: item.robux_amount, selling_price: item.selling_price, cost: item.cost, profit: item.profit,
@@ -353,17 +284,33 @@ function OrdersPageContent() {
       if (data.status !== 'pending') {
         await supabase.rpc('transition_order', { p_order_id: newOrder.id, p_new_status: data.status })
       }
-      setJustCreated(true)
-      reset({ buyer_name: '', buyer_roblox_username: '', roblox_account_id: '', payment_method: 'GCash', status: 'pending', notes: '' })
-      cart.setItems([])
-      // Workspace stays open — an operator creating many orders back-to-back
-      // should never have to reopen it between submissions.
-      setTimeout(() => setJustCreated(false), 1800)
       toast.success('Order created.')
+      // WorkspaceEditor handles form reset + justCreated — workspace stays open
     }
 
-    setSaving(false)
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, fetchData, ws.closeWorkspace])
+
+  // ── Close a workspace tab (with discard confirmation if it has content) ─────
+  async function handleCloseTab(id: string) {
+    const workspace = ws.workspaces.find(w => w.id === id)
+    if (!workspace) return
+    const isEmpty =
+      !workspace.formValues.buyer_name?.trim() &&
+      !workspace.formValues.buyer_roblox_username?.trim() &&
+      workspace.items.length === 0 &&
+      !workspace.formValues.notes?.trim()
+    if (isEmpty) { ws.closeWorkspace(id); return }
+    const ok = await confirm({
+      title: 'Discard draft?',
+      description: workspace.formValues.buyer_name
+        ? `"${workspace.formValues.buyer_name}" and all its items will be lost.`
+        : 'This workspace has unsaved work.',
+      confirmLabel: 'Discard',
+      danger: true,
+    })
+    if (ok) ws.closeWorkspace(id)
   }
 
   // ── Status / delete ─────────────────────────────────────────────────────────
@@ -395,13 +342,7 @@ function OrdersPageContent() {
     fetchData()
   }
 
-  // ── Game Selector activity — last completed-sale timestamp per game, from
-  //    order_items (which carries gamepass_id, unlike orders' own legacy
-  //    single gamepass_id which only reflects an order's first item) joined
-  //    against the live gamepasses list to resolve game_id. Computed entirely
-  //    from already-loaded order history (bounded to loaded pages — fine
-  //    since the most recent sale for any actively-sold game is almost
-  //    always within the first page anyway), so no extra query is needed. ──
+  // ── Game activity map ────────────────────────────────────────────────────────
   const gameActivity = useMemo(() => {
     const gamepassToGame = new Map(gamepasses.map(gp => [gp.id, gp.game_id]))
     const map = new Map<string, Date>()
@@ -439,6 +380,11 @@ function OrdersPageContent() {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [orders]
   )
+
+  // Button label — reflects whether there are saved workspaces to return to
+  const wsButtonLabel = ws.workspaces.length > 0
+    ? `Resume Workspace${ws.workspaces.length > 1 ? ` (${ws.workspaces.length})` : ''}`
+    : 'Create Order'
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -489,18 +435,18 @@ function OrdersPageContent() {
             )}
           </motion.div>
 
-          {/* Create Order entry point + Order Statistics — two distinct workspaces */}
+          {/* Create Order entry point + Order Statistics */}
           <motion.div
             className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 items-stretch"
             variants={staggerContainer}
             initial="initial"
             animate="animate"
           >
-            {/* ── Create Order — dedicated launcher, not a floating action ── */}
+            {/* ── Open Workspace launcher ── */}
             <motion.button
               type="button"
               variants={staggerItem}
-              onClick={openCreateWorkspace}
+              onClick={() => ws.openOrCreate()}
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.99 }}
               className="rounded-2xl p-7 flex flex-col items-start text-left gap-4 group"
@@ -517,21 +463,25 @@ function OrdersPageContent() {
                 <Plus style={{ width: 22, height: 22, color: 'oklch(0.040 0.008 265)' }} />
               </div>
               <div>
-                <p className="text-[19px] font-black mb-1.5" style={{ color: 'rgba(255,255,255,0.92)' }}>Create Order</p>
+                <p className="text-[19px] font-black mb-1.5" style={{ color: 'rgba(255,255,255,0.92)' }}>
+                  {wsButtonLabel}
+                </p>
                 <p className="text-[12.5px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
-                  Open a dedicated workspace — select gamepasses, set the buyer, and submit.
+                  {ws.workspaces.length > 0
+                    ? `${ws.workspaces.length} workspace${ws.workspaces.length > 1 ? 's' : ''} waiting — switch tabs with Ctrl+N`
+                    : 'Open a dedicated workspace — select gamepasses, set the buyer, and submit.'}
                 </p>
               </div>
               <span
                 className="mt-auto flex items-center gap-1.5 text-[12px] font-bold transition-transform"
                 style={{ color: '#22d3ee' }}
               >
-                Start workspace
+                {ws.workspaces.length > 0 ? 'Open workspace' : 'Start workspace'}
                 <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </span>
             </motion.button>
 
-            {/* ── Order Statistics — read-only metrics, kept visually separate ── */}
+            {/* ── Order Statistics ── */}
             <motion.div
               variants={staggerItem}
               className="rounded-2xl p-6"
@@ -724,7 +674,7 @@ function OrdersPageContent() {
                       </button>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); openEditWorkspace(order) }}
+                        onClick={(e) => { e.stopPropagation(); ws.openOrCreate(order) }}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
                       >
@@ -833,7 +783,7 @@ function OrdersPageContent() {
               loadingMore={loadingMore}
               historyExpanded={historyExpanded}
               onToggleHistory={() => setHistoryExpanded(p => !p)}
-              onEdit={openEditWorkspace}
+              onEdit={order => ws.openOrCreate(order)}
               onInspect={setInspectOrder}
               onDelete={handleDelete}
               onLoadMore={loadMore}
@@ -845,7 +795,7 @@ function OrdersPageContent() {
       <OrderInspectDialog
         order={inspectOrder}
         onClose={() => setInspectOrder(null)}
-        onEdit={(order) => { setInspectOrder(null); openEditWorkspace(order) }}
+        onEdit={(order) => { setInspectOrder(null); ws.openOrCreate(order) }}
       />
 
       <AnimatePresence>
@@ -860,13 +810,12 @@ function OrdersPageContent() {
       </AnimatePresence>
 
       {/* ══════════════════════════════════════════════════════════════
-          CREATE ORDER WORKSPACE — full-screen modal, deliberately
-          separated from the operational sections above
+          MULTI-WORKSPACE OVERLAY — VS Code-style tabbed order drafts
       ══════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
-        {workspaceOpen && (
+        {ws.open && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto pt-20 pb-6 sm:pt-24 sm:pb-10"
+            className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto pt-16 pb-4 sm:pt-16 sm:pb-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -874,7 +823,7 @@ function OrdersPageContent() {
           >
             <motion.div
               className="absolute inset-0 glass-modal-overlay"
-              onClick={closeWorkspace}
+              onClick={ws.closeOverlay}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -882,8 +831,8 @@ function OrdersPageContent() {
             />
 
             <motion.div
-              className="relative w-full sm:max-w-[880px] sm:px-4"
-              style={{ minHeight: 'calc(100svh - 6.5rem)' }}
+              className="relative w-full sm:max-w-[960px] sm:px-6"
+              style={{ minHeight: 'calc(100svh - 5rem)' }}
               initial={{ opacity: 0, y: 32, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.985 }}
@@ -891,9 +840,9 @@ function OrdersPageContent() {
             >
               <button
                 type="button"
-                onClick={closeWorkspace}
-                aria-label="Close workspace"
-                className="absolute top-4 right-4 sm:-right-2 sm:top-0 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                onClick={ws.closeOverlay}
+                aria-label="Minimize workspace"
+                className="absolute top-4 right-4 sm:right-2 sm:top-0 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.55)' }}
               >
                 <X style={{ width: 15, height: 15 }} />
@@ -901,36 +850,46 @@ function OrdersPageContent() {
 
               <div
                 className="overflow-y-auto"
-                style={{ maxHeight: 'calc(100svh - 6.5rem)' }}
+                style={{ maxHeight: 'calc(100svh - 5rem)' }}
               >
-                <div className="sm:my-10">
-                  <OrderForm
-                    register={register}
-                    watch={watch}
-                    setValue={setValue}
-                    errors={errors}
-                    onFormSubmit={handleSubmit(onSubmit, (formErrors) => {
-                      const firstMessage = Object.values(formErrors)[0]?.message
-                      toast.error(typeof firstMessage === 'string' ? firstMessage : 'Please fix the highlighted fields before submitting.')
-                    })}
-                    isEditMode={isEditMode}
-                    editOrder={editOrder}
-                    onCancelEdit={cancelEdit}
-                    gamepasses={gamepasses}
-                    accounts={accounts}
-                    gameActivity={gameActivity}
-                    cartGroups={cart.cartGroups}
-                    cartCounts={cart.cartCounts}
-                    validItemsCount={cart.validItems.length}
-                    onAddToCart={cart.addToCart}
-                    onRemoveFromCart={cart.removeFromCart}
-                    onClearCart={cart.clearCart}
-                    totals={totals}
-                    accountRate={accountRate}
-                    isAccountPlus={isAccountPlus}
-                    saving={saving}
-                    justCreated={justCreated}
-                  />
+                <div className="sm:my-8">
+                  <div className="glass-workspace overflow-hidden">
+                    <WorkspaceTabs
+                      workspaces={ws.workspaces}
+                      activeId={ws.activeId}
+                      accounts={accounts}
+                      onSelect={ws.setActiveId}
+                      onClose={handleCloseTab}
+                      onNew={ws.addWorkspace}
+                    />
+
+                    <AnimatePresence mode="wait">
+                      {ws.activeWorkspace && (
+                        <motion.div
+                          key={ws.activeWorkspace.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.10 }}
+                        >
+                          <WorkspaceEditor
+                            workspace={ws.activeWorkspace}
+                            editOrder={
+                              ws.activeWorkspace.editOrderId
+                                ? orders.find(o => o.id === ws.activeWorkspace!.editOrderId) ?? null
+                                : null
+                            }
+                            gamepasses={gamepasses}
+                            accounts={accounts}
+                            gameActivity={gameActivity}
+                            onUpdate={ws.updateWorkspace}
+                            onSubmit={handleWorkspaceSubmit}
+                            onClose={() => ws.closeWorkspace(ws.activeWorkspace!.id)}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </motion.div>

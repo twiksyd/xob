@@ -44,6 +44,7 @@ interface OrderFormProps {
   gamepasses: GamepassWithGame[]
   accounts: RobloxAccount[]
   gameActivity?: Map<string, Date | null>
+  initialCatalogGameId?: string | null
 
   cartGroups: CartGroup[]
   cartCounts: Map<string, number>
@@ -71,7 +72,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function OrderForm({
   register, watch, setValue, errors, onFormSubmit,
   isEditMode, editOrder, onCancelEdit,
-  gamepasses, accounts, gameActivity,
+  gamepasses, accounts, gameActivity, initialCatalogGameId,
   cartGroups, cartCounts, validItemsCount, onAddToCart, onRemoveFromCart, onClearCart,
   totals, accountRate, isAccountPlus,
   saving, justCreated,
@@ -93,7 +94,7 @@ export default function OrderForm({
   }, [validItemsCount, accountId, accounts, totals.totalRobux, setValue])
 
   return (
-    <div className="glass-workspace overflow-hidden">
+    <div>
 
       {/* Panel header */}
       <div
@@ -183,7 +184,7 @@ export default function OrderForm({
             )}
           </div>
 
-          <GamepassCatalog gamepasses={gamepasses} cartCounts={cartCounts} onAdd={onAddToCart} onRemove={onRemoveFromCart} gameActivity={gameActivity} />
+          <GamepassCatalog gamepasses={gamepasses} cartCounts={cartCounts} onAdd={onAddToCart} onRemove={onRemoveFromCart} gameActivity={gameActivity} initialGameId={initialCatalogGameId} />
 
           {/* Cart — grouped line items with quantity steppers */}
           {cartGroups.length > 0 && (

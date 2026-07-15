@@ -13,15 +13,18 @@ interface GamepassCatalogProps {
   cartCounts: Map<string, number>
   onAdd: (gamepassId: string) => void
   onRemove: (gamepassId: string) => void
+  /** Pre-select a game filter on mount — used to restore the active game
+   *  when switching back to a workspace that already has items. */
+  initialGameId?: string | null
   /** Last completed-sale timestamp per game, computed by the parent from
    *  already-loaded order history — keeps GameSelector's activity column
    *  meaningful without this component needing its own order query. */
   gameActivity?: Map<string, Date | null>
 }
 
-export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemove, gameActivity }: GamepassCatalogProps) {
+export default function GamepassCatalog({ gamepasses, cartCounts, onAdd, onRemove, initialGameId, gameActivity }: GamepassCatalogProps) {
   const [search, setSearch] = useState('')
-  const [filterGame, setFilterGame] = useState<string | null>(null)
+  const [filterGame, setFilterGame] = useState<string | null>(initialGameId ?? null)
   const deferredSearch = useDeferredValue(search)
   const searchRef = useRef<HTMLInputElement>(null)
 
