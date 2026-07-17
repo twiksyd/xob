@@ -6,6 +6,11 @@ import { getEffectivePlusRobuxCost } from './pricing'
 // to fulfillment, forecasting, or restock planning.
 export const LOW_STOCK_THRESHOLD = 98
 
+// Minimum available Robux for an account to be auto-selected by "Select All".
+// Accounts below this can still be manually selected — this only gates the
+// bulk shortcut so low-balance accounts don't silently pollute a selection.
+export const MIN_SELECTABLE_ROBUX = 100
+
 // Accounts above LOW_STOCK_THRESHOLD but below this are "running low" — not yet
 // depleted, but worth flagging before they get there. Shared by the recommendation
 // engine and the Dashboard's Inventory Health chapter so the two never disagree

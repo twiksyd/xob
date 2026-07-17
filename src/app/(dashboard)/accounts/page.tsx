@@ -17,7 +17,7 @@ import {
   TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier, AccountBatch,
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { getAvailableRobux, isDepleted, isPlusReminderActive } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted, isPlusReminderActive, MIN_SELECTABLE_ROBUX } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
@@ -612,8 +612,18 @@ function AccountsPageContent() {
 
   function selectAll() {
     const ids = selectionOrderRef.current
-    setSelectedIds(new Set(ids))
-    setLastSelectedId(ids[0] ?? null)
+    const usableIds = ids.filter(id => {
+      const account = accounts.find(a => a.id === id)
+      return account ? getAvailableRobux(account) >= MIN_SELECTABLE_ROBUX : false
+    })
+    setSelectedIds(new Set(usableIds))
+    setLastSelectedId(usableIds[0] ?? null)
+    const skippedCount = ids.length - usableIds.length
+    if (skippedCount > 0) {
+      toast.success(
+        `Selected ${usableIds.length} usable account${usableIds.length !== 1 ? 's' : ''}. ${skippedCount} account${skippedCount !== 1 ? 's' : ''} with less than 100 Robux were skipped.`
+      )
+    }
   }
 
   function clearAll() {
