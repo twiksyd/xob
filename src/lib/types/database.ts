@@ -52,6 +52,8 @@ export type Database = {
           plus_reminder_dismissed_at: string | null
           chrome_profile: string | null
           batch_id: string | null
+          added_to_inventory_at: string
+          spent_acknowledged_at: string | null
           created_at: string
           updated_at: string
         }
@@ -72,6 +74,8 @@ export type Database = {
           plus_reminder_dismissed_at?: string | null
           chrome_profile?: string | null
           batch_id?: string | null
+          added_to_inventory_at?: string
+          spent_acknowledged_at?: string | null
         }
         Update: {
           username?: string
@@ -88,6 +92,7 @@ export type Database = {
           plus_reminder_dismissed_at?: string | null
           chrome_profile?: string | null
           batch_id?: string | null
+          spent_acknowledged_at?: string | null
           updated_at?: string
         }
       }

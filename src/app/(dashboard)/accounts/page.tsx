@@ -17,7 +17,7 @@ import {
   TransferLog, TransferReservation, AllowanceSummary, InstantSendPriceTier, AccountBatch,
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { getAvailableRobux, isDepleted, isPlusReminderActive, MIN_SELECTABLE_ROBUX } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted, isPlusReminderActive, MIN_SELECTABLE_ROBUX, getAgingState, getAgingRemainingMs, INVENTORY_DEADLINE_DAYS } from '@/lib/utils/accounts'
 import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
@@ -28,7 +28,7 @@ import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceT
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
-  MousePointer2, Tag, Palette, Eraser, MoreHorizontal, AlertTriangle,
+  MousePointer2, Tag, Palette, Eraser, MoreHorizontal, AlertTriangle, Timer,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -78,12 +78,13 @@ const TRANSFER_SORTS: readonly { value: TransferSort; label: string }[] = [
   { value: 'mostRecentlyUsed', label: 'Most Recently Used' },
 ]
 
-type AccountSort = 'robux' | 'name' | 'status' | 'batch'
+type AccountSort = 'robux' | 'name' | 'status' | 'batch' | 'expiring'
 const ACCOUNT_SORTS: readonly { value: AccountSort; label: string }[] = [
-  { value: 'robux',  label: 'Sort by Robux' },
-  { value: 'name',   label: 'Sort by Name' },
-  { value: 'status', label: 'Sort by Status' },
-  { value: 'batch',  label: 'Sort by Batch' },
+  { value: 'robux',    label: 'Sort by Robux' },
+  { value: 'name',     label: 'Sort by Name' },
+  { value: 'status',   label: 'Sort by Status' },
+  { value: 'batch',    label: 'Sort by Batch' },
+  { value: 'expiring', label: 'Expiring Soon' },
 ]
 
 type BatchDialogState =
@@ -188,6 +189,14 @@ function AccountsPageContent() {
   const [batchName, setBatchName] = useState('')
   const [batchColor, setBatchColor] = useState<BatchColorKey>('blue')
   const [batchSaving, setBatchSaving] = useState(false)
+
+  // Shared clock — all aging countdowns derive from this single Date.
+  // Updates once per minute; one interval for the whole page.
+  const [now, setNow] = useState<Date>(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const toast = useToast()
   const confirm = useConfirm()
@@ -578,6 +587,16 @@ function AccountsPageContent() {
     fetchData()
   }
 
+  async function handleAcknowledgeSpent(accountId: string) {
+    const ts = new Date().toISOString()
+    const { error } = await supabase
+      .from('roblox_accounts')
+      .update({ spent_acknowledged_at: ts, updated_at: ts })
+      .eq('id', accountId)
+    if (error) { toast.error(error.message || 'Could not record acknowledgement.'); return }
+    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, spent_acknowledged_at: ts } : a))
+  }
+
   function handleEdit(account: RobloxAccount) {
     setEditAccount(account)
     setModalOpen(true)
@@ -871,12 +890,21 @@ function AccountsPageContent() {
           if (bb) return 1
           return a.username.localeCompare(b.username)
         }
+        case 'expiring': {
+          // Expired + un-acknowledged first, then ascending remaining time
+          const ra = getAgingRemainingMs(a, now)
+          const rb = getAgingRemainingMs(b, now)
+          const aExpired = ra === 0 && !a.spent_acknowledged_at
+          const bExpired = rb === 0 && !b.spent_acknowledged_at
+          if (aExpired !== bExpired) return aExpired ? -1 : 1
+          return ra - rb
+        }
         case 'robux':
         default:
           return b.current_robux - a.current_robux
       }
     })
-  }, [accounts, accountSort, batchById])
+  }, [accounts, accountSort, batchById, now])
 
   // Stock lifecycle: accounts at/below the low-stock threshold are "depleted" —
   // excluded from active inventory views and capital/restock planning.
@@ -903,6 +931,23 @@ function AccountsPageContent() {
     [accounts]
   )
   const plusTaskCount = plusTaskAccounts.length
+
+  // ── Inventory aging summary — counts for the top-of-page panel ──────────
+  const expiryStats = useMemo(() => {
+    let expiringToday = 0, withinThreeDays = 0, expired = 0
+    const dayMs = 24 * 60 * 60 * 1000
+    const nowMs = now.getTime()
+    for (const account of accounts) {
+      if (account.spent_acknowledged_at) continue
+      const deadline = new Date(account.added_to_inventory_at).getTime()
+        + INVENTORY_DEADLINE_DAYS * 24 * 60 * 60 * 1000
+      const remaining = deadline - nowMs
+      if (remaining <= 0) { expired++; continue }
+      if (remaining < dayMs)       expiringToday++
+      if (remaining < 3 * dayMs)   withinThreeDays++
+    }
+    return { expiringToday, withinThreeDays, expired }
+  }, [accounts, now])
 
   // ── Instant Send Tracker ─────────────────────────────────────────────────
   const transferStats = useMemo(() => {
@@ -979,6 +1024,19 @@ function AccountsPageContent() {
     () => transferFilteredAccounts.filter(a => !a.batch_id),
     [transferFilteredAccounts]
   )
+
+  // Expiring count per batch — shown on the batch ribbon header
+  const batchExpiryWarnings = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const { batch, accounts: batchAccounts } of batchGroups) {
+      const count = batchAccounts.filter(a => {
+        const s = getAgingState(a, now)
+        return s === 'warning' || s === 'critical' || s === 'expired'
+      }).length
+      if (count > 0) map.set(batch.id, count)
+    }
+    return map
+  }, [batchGroups, now])
 
   const visibleSelectionIds = useMemo(
     () => [
@@ -1215,6 +1273,73 @@ function AccountsPageContent() {
           </motion.div>
           )}
         </div>
+
+        {/* ── Inventory Aging summary ── */}
+        {!loading && accounts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="rounded-2xl px-4 py-3.5"
+            style={{
+              background: expiryStats.expired > 0
+                ? 'rgba(248,113,113,0.04)'
+                : expiryStats.expiringToday > 0
+                ? 'rgba(245,158,11,0.04)'
+                : 'rgba(52,211,153,0.04)',
+              border: expiryStats.expired > 0
+                ? '1px solid rgba(248,113,113,0.16)'
+                : expiryStats.expiringToday > 0
+                ? '1px solid rgba(245,158,11,0.16)'
+                : '1px solid rgba(52,211,153,0.14)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Timer
+                className="w-3.5 h-3.5 flex-shrink-0"
+                style={{
+                  color: expiryStats.expired > 0 ? '#f87171'
+                    : expiryStats.expiringToday > 0 ? '#f59e0b'
+                    : '#34d399',
+                }}
+              />
+              <span className="label-caps">Inventory Aging</span>
+              <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.30)' }}>
+                · {INVENTORY_DEADLINE_DAYS}-day window
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="label-caps mb-1.5">Expiring Today</p>
+                <p
+                  className="text-[26px] font-black tabular-nums leading-none"
+                  style={{ color: expiryStats.expiringToday > 0 ? '#f59e0b' : '#34d399' }}
+                >
+                  {expiryStats.expiringToday}
+                </p>
+              </div>
+              <div>
+                <p className="label-caps mb-1.5">Within 3 Days</p>
+                <p
+                  className="text-[26px] font-black tabular-nums leading-none"
+                  style={{ color: expiryStats.withinThreeDays > 0 ? '#f59e0b' : '#34d399' }}
+                >
+                  {expiryStats.withinThreeDays}
+                </p>
+              </div>
+              <div>
+                <p className="label-caps mb-1.5">Expired</p>
+                <p
+                  className="text-[26px] font-black tabular-nums leading-none"
+                  style={{ color: expiryStats.expired > 0 ? '#f87171' : '#34d399' }}
+                >
+                  {expiryStats.expired}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── 02 · Account Health ── */}
         <SectionLabel index="02" label="Account Health" />
@@ -1640,6 +1765,14 @@ function AccountsPageContent() {
                         >
                           {groupAccounts.length} account{groupAccounts.length !== 1 ? 's' : ''}
                         </span>
+                        {batchExpiryWarnings.has(batch.id) && (
+                          <span
+                            className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.28)' }}
+                          >
+                            ⚠ {batchExpiryWarnings.get(batch.id)} Expiring
+                          </span>
+                        )}
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger
@@ -1680,6 +1813,7 @@ function AccountsPageContent() {
                           >
                             <AccountCard
                               account={account}
+                              now={now}
                               onEdit={handleEdit}
                               onDelete={handleDelete}
                               batch={batchById.get(account.batch_id!) ?? null}
@@ -1697,6 +1831,7 @@ function AccountsPageContent() {
                               onCancelReservation={handleCancelReservation}
                               onOpenSaleDialog={() => handleOpenSaleDialog(account)}
                               onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
+                              onAcknowledgeSpent={() => handleAcknowledgeSpent(account.id)}
                             />
                           </div>
                         ))}
@@ -1732,6 +1867,7 @@ function AccountsPageContent() {
                       >
                         <AccountCard
                           account={account}
+                          now={now}
                           onEdit={handleEdit}
                           onDelete={handleDelete}
                           batch={null}
@@ -1748,6 +1884,7 @@ function AccountsPageContent() {
                           onCancelReservation={handleCancelReservation}
                           onOpenSaleDialog={() => handleOpenSaleDialog(account)}
                           onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
+                          onAcknowledgeSpent={() => handleAcknowledgeSpent(account.id)}
                         />
                       </div>
                     ))}
@@ -1797,12 +1934,14 @@ function AccountsPageContent() {
                         >
                           <AccountCard
                             account={account}
+                            now={now}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             batch={account.batch_id ? batchById.get(account.batch_id) ?? null : null}
                             isSelected={selectedIds.has(account.id)}
                             onRemoveFromBatch={removeAccountFromBatch}
                             onDismissPlusReminder={() => handleDismissPlusReminder(account.id)}
+                            onAcknowledgeSpent={() => handleAcknowledgeSpent(account.id)}
                           />
                         </div>
                       ))}

@@ -17,6 +17,30 @@ export const MIN_SELECTABLE_ROBUX = 100
 // about what counts as "low."
 export const RUNNING_LOW_THRESHOLD = 500
 
+// Accounts are considered at-risk after this many days in inventory.
+// The user must spend remaining Robux before this window closes.
+export const INVENTORY_DEADLINE_DAYS = 9
+
+const AGING_WARNING_MS  = 3 * 24 * 60 * 60 * 1000  // 3 days
+const AGING_CRITICAL_MS =     24 * 60 * 60 * 1000  // 24 hours
+
+export type AgingState = 'safe' | 'warning' | 'critical' | 'expired'
+
+export function getAgingRemainingMs(account: RobloxAccount, now: Date): number {
+  const deadline = new Date(account.added_to_inventory_at).getTime()
+    + INVENTORY_DEADLINE_DAYS * 24 * 60 * 60 * 1000
+  return Math.max(0, deadline - now.getTime())
+}
+
+export function getAgingState(account: RobloxAccount, now: Date): AgingState | null {
+  if (account.spent_acknowledged_at) return null
+  const remaining = getAgingRemainingMs(account, now)
+  if (remaining === 0) return 'expired'
+  if (remaining < AGING_CRITICAL_MS) return 'critical'
+  if (remaining < AGING_WARNING_MS) return 'warning'
+  return 'safe'
+}
+
 export function getAvailableRobux(account: RobloxAccount): number {
   return (account.current_robux ?? 0) - (account.reserved_robux ?? 0)
 }

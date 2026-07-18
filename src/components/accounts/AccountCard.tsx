@@ -11,12 +11,12 @@ import ChromeProfileBadge from '@/components/shared/ChromeProfileBadge'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import {
   MoreHorizontal, Edit2, Trash2, Pencil, AlertTriangle, CheckCircle2,
-  ArrowRight, Archive, Check, X, Loader2, ChevronDown,
+  ArrowRight, Archive, Check, X, Loader2, ChevronDown, Timer,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { getAvailableRobux, isDepleted, isPlusReminderActive } from '@/lib/utils/accounts'
+import { getAvailableRobux, isDepleted, isPlusReminderActive, getAgingState, getAgingRemainingMs } from '@/lib/utils/accounts'
 import { formatRobux } from '@/lib/utils/pricing'
 import {
   getAllowanceBand, ALLOWANCE_BAND_COLORS, QUICK_TRANSFER_AMOUNTS,
@@ -25,6 +25,7 @@ import {
 
 interface AccountCardProps {
   account: RobloxAccount
+  now: Date
   onEdit: (account: RobloxAccount) => void
   onDelete: (id: string) => void
   /** Passed so the card can show "Remove from Batch" in its ⋯ menu. */
@@ -43,6 +44,23 @@ interface AccountCardProps {
   onCancelReservation?: (reservationId: string) => Promise<void>
   onOpenSaleDialog?: () => void
   onDismissPlusReminder?: () => void
+  onAcknowledgeSpent?: () => void
+}
+
+function fmtAge(ms: number): string {
+  const d = Math.floor(ms / 86400000)
+  const h = Math.floor((ms % 86400000) / 3600000)
+  if (d > 0) return `${d}d ${h}h`
+  const m = Math.floor((ms % 3600000) / 60000)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+function fmtRemaining(ms: number): string {
+  const d = Math.floor(ms / 86400000)
+  const h = Math.floor((ms % 86400000) / 3600000)
+  const m = Math.floor((ms % 3600000) / 60000)
+  if (d > 0) return `${d}d ${h}h ${m}m`
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
 const COLOR_AVAILABLE = '#34d399'
@@ -50,13 +68,13 @@ const COLOR_RESERVED  = '#f59e0b'
 const COLOR_CURRENT   = 'rgba(255,255,255,0.88)'
 
 export default function AccountCard({
-  account, onEdit, onDelete, batch = null, isSelected = false,
+  account, now, onEdit, onDelete, batch = null, isSelected = false,
   onRemoveFromBatch,
   allowance, history = [], reservationQueue = [],
   onQuickTransfer, onOpenReserveDialog, onOpenLogDialog,
   onEditTransferLog, onDeleteTransferLog,
   onFulfillReservation, onCancelReservation, onOpenSaleDialog,
-  onDismissPlusReminder,
+  onDismissPlusReminder, onAcknowledgeSpent,
 }: AccountCardProps) {
   const showTransferTracker = allowance !== undefined
   const [customOpen, setCustomOpen] = useState(false)
@@ -82,6 +100,17 @@ export default function AccountCard({
 
   const band       = allowance ? getAllowanceBand(allowance.available) : 'green'
   const bandColors = ALLOWANCE_BAND_COLORS[band]
+
+  // Inventory aging
+  const addedAt     = new Date(account.added_to_inventory_at)
+  const agingState  = getAgingState(account, now)
+  const remainingMs = getAgingRemainingMs(account, now)
+  const ageMs       = now.getTime() - addedAt.getTime()
+  const agingColor  = agingState === 'expired' || agingState === 'critical'
+    ? '#f87171'
+    : agingState === 'warning'
+    ? '#f59e0b'
+    : '#34d399'
 
   const lifetimeExhausted = allowance
     ? allowance.lifetime_sent + allowance.reserved >= LIFETIME_TRANSFER_LIMIT
@@ -122,6 +151,15 @@ export default function AccountCard({
   if (plusReminder && !isSelected) {
     const orangeBorder = 'inset 0 0 0 1.5px rgba(234,88,12,0.38)'
     cardStyle.boxShadow = cardStyle.boxShadow ? `${cardStyle.boxShadow}, ${orangeBorder}` : orangeBorder
+  }
+  if (!isSelected) {
+    if (agingState === 'expired') {
+      const g = '0 0 28px rgba(248,113,113,0.13), inset 0 0 0 1px rgba(248,113,113,0.28)'
+      cardStyle.boxShadow = cardStyle.boxShadow ? `${cardStyle.boxShadow}, ${g}` : g
+    } else if (agingState === 'critical') {
+      const g = '0 0 22px rgba(248,113,113,0.09), inset 0 0 0 1px rgba(248,113,113,0.18)'
+      cardStyle.boxShadow = cardStyle.boxShadow ? `${cardStyle.boxShadow}, ${g}` : g
+    }
   }
 
   return (
@@ -359,7 +397,111 @@ export default function AccountCard({
           )}
         </div>
 
-        {/* 5. Daily Transfer Tracker */}
+        {/* 5. Inventory Aging */}
+        <div className="relative z-10 pt-1 space-y-2" style={{ borderTop: '1px solid rgba(255,255,255,0.065)' }}>
+          {/* Added / Age / Time Remaining row */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* Added */}
+            <div
+              className="rounded-xl p-2.5 text-center"
+              style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.065)' }}
+            >
+              <p className="label-caps mb-1">Added</p>
+              <p className="text-[11px] font-bold leading-tight" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                {format(addedAt, 'MMM d, yyyy')}
+              </p>
+              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                {format(addedAt, 'h:mm a')}
+              </p>
+            </div>
+
+            {/* Age */}
+            <div
+              className="rounded-xl p-2.5 text-center"
+              style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.065)' }}
+            >
+              <p className="label-caps mb-1">Age</p>
+              <p className="tabular-nums text-[14px] font-extrabold leading-tight" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                {fmtAge(ageMs)}
+              </p>
+            </div>
+
+            {/* Time Remaining — colored by aging state */}
+            {agingState === null && account.spent_acknowledged_at ? (
+              <div
+                className="rounded-xl p-2.5 text-center"
+                style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.14)' }}
+              >
+                <p className="label-caps mb-1" style={{ color: '#34d399', opacity: 0.72 }}>Spent</p>
+                <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: '#34d399' }} />
+              </div>
+            ) : agingState === 'expired' ? (
+              <div
+                className="rounded-xl p-2.5 text-center"
+                style={{ background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.22)' }}
+              >
+                <p className="label-caps mb-1" style={{ color: '#f87171', opacity: 0.72 }}>Expired</p>
+                <Timer className="w-4 h-4 mx-auto" style={{ color: '#f87171' }} />
+              </div>
+            ) : (
+              <motion.div
+                className="rounded-xl p-2.5 text-center"
+                style={{
+                  background: agingState === 'critical' || agingState === 'warning'
+                    ? `rgba(${agingState === 'critical' ? '248,113,113' : '245,158,11'},0.07)`
+                    : 'rgba(52,211,153,0.06)',
+                  border: `1px solid rgba(${agingState === 'critical' ? '248,113,113' : agingState === 'warning' ? '245,158,11' : '52,211,153'},${agingState === 'safe' ? '0.14' : '0.22'})`,
+                }}
+                animate={agingState === 'warning' ? { opacity: [1, 0.62, 1] } : {}}
+                transition={agingState === 'warning' ? { duration: 3.5, repeat: Infinity, ease: 'easeInOut' } : {}}
+              >
+                <p className="label-caps mb-1" style={{ color: agingColor, opacity: 0.75 }}>Remaining</p>
+                <p className="tabular-nums text-[12px] font-extrabold leading-tight" style={{ color: agingColor }}>
+                  {fmtRemaining(remainingMs)}
+                </p>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Expired warning strip */}
+          {agingState === 'expired' && (
+            <motion.div
+              className="rounded-xl overflow-hidden"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div
+                className="flex items-center justify-between gap-3 px-3.5 py-3"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(248,113,113,0.14) 0%, rgba(248,113,113,0.08) 100%)',
+                  border: '1px solid rgba(248,113,113,0.32)',
+                }}
+              >
+                <div className="min-w-0">
+                  <p className="text-[12px] font-black leading-tight" style={{ color: '#f87171' }}>
+                    SPEND NOW
+                  </p>
+                  <p className="text-[10px] font-semibold mt-0.5" style={{ color: 'rgba(248,113,113,0.60)' }}>
+                    or this account is at risk
+                  </p>
+                </div>
+                <motion.button
+                  type="button"
+                  data-no-card-select
+                  whileTap={{ scale: 0.93 }}
+                  onClick={e => { e.stopPropagation(); onAcknowledgeSpent?.() }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all"
+                  style={{ background: 'rgba(248,113,113,0.18)', color: '#f87171', border: '1px solid rgba(248,113,113,0.40)' }}
+                >
+                  <Check className="w-3 h-3" /> Mark as Spent
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* 6. Daily Transfer Tracker */}
         {showTransferTracker && (
           <div className="relative z-10 space-y-2.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.068)' }}>
             <div className="flex items-center justify-between">
