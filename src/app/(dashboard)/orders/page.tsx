@@ -11,9 +11,11 @@ import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import FulfillmentMode from '@/components/orders/FulfillmentMode'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
+import type { LogicalOrder } from '@/lib/types/logical-order'
 import { createClient } from '@/lib/supabase/client'
 import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
-import { isActiveOrder } from '@/lib/utils/orders'
+import { isActiveLogicalOrder } from '@/lib/utils/orders'
+import { normalizeOrders, RAW_FETCH_CAP } from '@/lib/utils/normalize-orders'
 import { getGameNameStyle } from '@/lib/utils/games'
 import { motion, AnimatePresence } from 'framer-motion'
 import { staggerContainer, staggerItem } from '@/lib/motion'
@@ -29,8 +31,6 @@ import {
   Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2, Zap,
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
-
-const PAGE_SIZE = 50
 
 // ── Blob ─────────────────────────────────────────────────────────────────────
 function Blob({ color, width, height, style }: { color: string; width: number; height: number; style?: CSSProperties }) {
@@ -73,15 +73,14 @@ const STATUS_ACTION: Record<string, { label: string; color: string; bg: string; 
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 function OrdersPageContent() {
-  const [orders, setOrders]                   = useState<OrderWithDetails[]>([])
-  const [hasMore, setHasMore]                 = useState(false)
-  const [loadingMore, setLoadingMore]         = useState(false)
+  const [rawOrders, setRawOrders]             = useState<OrderWithDetails[]>([])
+  const [isRawCapped, setIsRawCapped]         = useState(false)
   const [gamepasses, setGamepasses]           = useState<GamepassWithGame[]>([])
   const [accounts, setAccounts]               = useState<RobloxAccount[]>([])
   const [loading, setLoading]                 = useState(true)
   const [statusChanging, setStatusChanging]   = useState<string | null>(null)
-  const [inspectOrder, setInspectOrder]       = useState<OrderWithDetails | null>(null)
-  const [fulfillOrder, setFulfillOrder]       = useState<OrderWithDetails | null>(null)
+  const [inspectOrder, setInspectOrder]       = useState<LogicalOrder | null>(null)
+  const [fulfillOrder, setFulfillOrder]       = useState<LogicalOrder | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
@@ -93,12 +92,16 @@ function OrdersPageContent() {
 
   // Stable refs for submit callback — avoids stale closures without adding
   // large arrays to useCallback dependency lists.
-  const workspacesRef = useRef(ws.workspaces)
-  const ordersRef     = useRef(orders)
-  const accountsRef   = useRef(accounts)
+  const workspacesRef  = useRef(ws.workspaces)
+  const rawOrdersRef   = useRef(rawOrders)
+  const accountsRef    = useRef(accounts)
   useEffect(() => { workspacesRef.current = ws.workspaces }, [ws.workspaces])
-  useEffect(() => { ordersRef.current = orders }, [orders])
+  useEffect(() => { rawOrdersRef.current = rawOrders }, [rawOrders])
   useEffect(() => { accountsRef.current = accounts }, [accounts])
+
+  // ── Normalization ────────────────────────────────────────────────────────────
+  const logicalOrders = useMemo(() => normalizeOrders(rawOrders), [rawOrders])
+  const rawOrdersMap  = useMemo(() => new Map(rawOrders.map(o => [o.id, o])), [rawOrders])
 
   // ── ?create=1 URL param — GlobalOrderCommand lands here ───────────────────
   useEffect(() => {
@@ -137,7 +140,8 @@ function OrdersPageContent() {
         supabase.from('orders')
           .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
           .order('created_at', { ascending: false })
-          .limit(PAGE_SIZE + 1),
+          .order('id', { ascending: false })
+          .limit(RAW_FETCH_CAP),
         supabase.from('gamepasses').select('*, games(*)').order('is_active', { ascending: false }).order('name'),
         supabase.from('roblox_accounts').select('*').eq('status', 'active'),
       ])
@@ -146,8 +150,34 @@ function OrdersPageContent() {
         if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load orders:', ordRes.error)
         toast.error(`Could not load orders: ${ordRes.error.message}`)
       } else if (ordRes.data) {
-        setOrders(ordRes.data.slice(0, PAGE_SIZE) as OrderWithDetails[])
-        setHasMore(ordRes.data.length > PAGE_SIZE)
+        let rows = ordRes.data as OrderWithDetails[]
+        const isCapped = rows.length >= RAW_FETCH_CAP
+
+        // Boundary completion: when we hit the cap, any order_number that appears
+        // in the last MAX_BW_CART rows might have siblings beyond the cap. Fetch
+        // ALL rows sharing those order_numbers to avoid split logical groups.
+        if (isCapped && rows.length > 0) {
+          const MAX_BW_CART = 20
+          const boundaryNums = new Set(
+            rows.slice(-MAX_BW_CART)
+              .map(r => r.order_number?.trim())
+              .filter((n): n is string => !!n),
+          )
+          if (boundaryNums.size > 0) {
+            const { data: siblings } = await supabase
+              .from('orders')
+              .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
+              .in('order_number', Array.from(boundaryNums))
+            if (siblings && siblings.length > 0) {
+              const existingIds = new Set(rows.map(r => r.id))
+              const extra = (siblings as OrderWithDetails[]).filter(s => !existingIds.has(s.id))
+              if (extra.length > 0) rows = [...rows, ...extra]
+            }
+          }
+        }
+
+        setRawOrders(rows)
+        setIsRawCapped(isCapped)
       }
 
       if (gpRes.error) {
@@ -174,24 +204,6 @@ function OrdersPageContent() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const loadMore = useCallback(async () => {
-    if (!hasMore || loadingMore) return
-    setLoadingMore(true)
-    const cursor = orders[orders.length - 1]?.created_at
-    if (!cursor) { setLoadingMore(false); return }
-    const { data } = await supabase
-      .from('orders')
-      .select('*, gamepasses(*, games(*)), roblox_accounts(*), order_items(*)')
-      .order('created_at', { ascending: false })
-      .lt('created_at', cursor)
-      .limit(PAGE_SIZE + 1)
-    if (data) {
-      setOrders(prev => [...prev, ...(data.slice(0, PAGE_SIZE) as OrderWithDetails[])])
-      setHasMore(data.length > PAGE_SIZE)
-    }
-    setLoadingMore(false)
-  }, [supabase, hasMore, loadingMore, orders])
-
   // ── Multi-workspace submit — called by WorkspaceEditor on form submit ───────
   const handleWorkspaceSubmit = useCallback(async (
     workspaceId: string,
@@ -217,7 +229,7 @@ function OrdersPageContent() {
     const gpNames = validItems.map(i => i.gamepass_name).filter(Boolean).join(', ')
 
     if (workspace.editOrderId) {
-      const editOrder = ordersRef.current.find(o => o.id === workspace.editOrderId)
+      const editOrder = rawOrdersRef.current.find(o => o.id === workspace.editOrderId)
       const prevStatus = editOrder?.status
       const newStatus  = data.status
 
@@ -314,71 +326,120 @@ function OrdersPageContent() {
   }
 
   // ── Status / delete ─────────────────────────────────────────────────────────
-  async function handleStatusChange(order: OrderWithDetails, newStatus: string) {
-    if (order.status === newStatus || statusChanging === order.id) return
-    setStatusChanging(order.id)
-    const { error } = await supabase.rpc('transition_order', { p_order_id: order.id, p_new_status: newStatus })
-    if (error) toast.error(`Could not update order status: ${error.message}`)
-    else toast.success(`Order marked ${newStatus}.`)
+  //
+  // transition_order has financial side effects for EVERY orders row, including
+  // BudgetWise rows where roblox_account_id IS NULL:
+  //   any → completed    : wallet_transactions income + allocate_order_savings
+  //   completed → any    : wallet_transactions reversal + reverse_order_savings
+  //   pending/paid → cancelled/refunded: release reservation (no-op for BW)
+  //
+  // A direct .update().in() only writes the status column — it silently skips
+  // wallet and savings effects, breaking accounting for completed BW orders.
+  // Until a grouped RPC exists, we fire one RPC per underlying row in parallel.
+
+  async function handleStatusChange(lo: LogicalOrder, newStatus: string) {
+    if ((!lo.hasMixedStatus && lo.status === newStatus) || statusChanging === lo.logicalKey) return
+    setStatusChanging(lo.logicalKey)
+
+    const results = await Promise.all(
+      lo.underlyingOrderIds.map(id =>
+        supabase.rpc('transition_order', { p_order_id: id, p_new_status: newStatus }),
+      ),
+    )
+    const failed = results.filter(r => r.error)
+    if (failed.length > 0) {
+      const succeeded = results.length - failed.length
+      toast.error(
+        succeeded === 0
+          ? `Could not update order status: ${failed[0].error!.message}`
+          : `Expected ${results.length} order rows, but only ${succeeded} matching rows were updated. ${failed[0].error!.message}`,
+      )
+    } else {
+      toast.success(`Order marked ${newStatus}.`)
+    }
     setStatusChanging(null)
     fetchData()
   }
 
-  async function handleFulfillmentComplete(order: OrderWithDetails) {
-    await handleStatusChange(order, 'completed')
+  async function handleFulfillmentComplete(lo: LogicalOrder) {
+    await handleStatusChange(lo, 'completed')
   }
 
-  async function handleDelete(order: OrderWithDetails) {
+  async function handleDelete(lo: LogicalOrder) {
     const ok = await confirm({
-      title: `Delete order ${order.order_number ?? ''}?`,
+      title: `Delete order ${lo.orderNumber ?? ''}?`,
       description: 'This permanently removes the order. Any reserved Robux tied to it will be released.',
       confirmLabel: 'Delete Order',
       danger: true,
     })
     if (!ok) return
-    const { error } = await supabase.rpc('delete_order', { p_order_id: order.id })
-    if (error) toast.error(`Could not delete order: ${error.message}`)
-    else toast.success('Order deleted.')
+
+    // delete_order cleans wallet_transactions, savings allocations, and
+    // reservations for each row — a direct .delete() would leave those as orphans
+    // for any BW rows that were previously marked completed.
+    const results = await Promise.all(
+      lo.underlyingOrderIds.map(id =>
+        supabase.rpc('delete_order', { p_order_id: id }),
+      ),
+    )
+    const failed = results.filter(r => r.error)
+    if (failed.length > 0) {
+      const succeeded = results.length - failed.length
+      toast.error(
+        succeeded === 0
+          ? `Could not delete order: ${failed[0].error!.message}`
+          : `Expected ${results.length} order rows, but only ${succeeded} matching rows were removed. Check order history for remaining rows.`,
+      )
+    } else {
+      toast.success('Order deleted.')
+    }
     fetchData()
+  }
+
+  // ── Edit helper — looks up raw row and opens workspace ───────────────────────
+  function openEditWorkspace(lo: LogicalOrder) {
+    if (lo.source === 'budgetwise') return
+    const raw = rawOrdersMap.get(lo.primaryOrderId)
+    if (raw) ws.openOrCreate(raw)
   }
 
   // ── Game activity map ────────────────────────────────────────────────────────
   const gameActivity = useMemo(() => {
     const gamepassToGame = new Map(gamepasses.map(gp => [gp.id, gp.game_id]))
     const map = new Map<string, Date>()
-    orders.forEach(order => {
-      if (order.status !== 'completed') return
-      order.order_items?.forEach(item => {
-        const gameId = item.gamepass_id ? gamepassToGame.get(item.gamepass_id) : null
+    logicalOrders.forEach(lo => {
+      if (lo.status !== 'completed') return
+      const at = new Date(lo.createdAt)
+      lo.items.forEach(item => {
+        const gameId = item.gamepassId ? gamepassToGame.get(item.gamepassId) : null
         if (!gameId) return
-        const at = new Date(item.created_at)
         const existing = map.get(gameId)
         if (!existing || at > existing) map.set(gameId, at)
       })
     })
     return map
-  }, [orders, gamepasses])
+  }, [logicalOrders, gamepasses])
 
   // ── Derived metrics ─────────────────────────────────────────────────────────
   const orderStats = useMemo(() => {
-    const active = orders.filter(isActiveOrder)
-    const pendingRevenue = active.reduce((sum, o) => sum + (o.selling_price ?? 0), 0)
-    const completed = orders.filter(o => o.status === 'completed')
-    const totalProfit = completed.reduce((sum, o) => sum + (o.profit ?? 0), 0)
-    const withOutcome = completed.length + orders.filter(o => o.status === 'refunded').length
+    const active = logicalOrders.filter(isActiveLogicalOrder)
+    const pendingRevenue = active.reduce((sum, lo) => sum + lo.totalSellingPrice, 0)
+    const completed = logicalOrders.filter(lo => lo.status === 'completed')
+    const totalProfit = completed.reduce((sum, lo) => sum + lo.totalProfit, 0)
+    const withOutcome = completed.length + logicalOrders.filter(lo => lo.status === 'refunded').length
     return {
       activeOrders:    active.length,
       pendingRevenue,
       totalProfit,
       fulfillmentRate: withOutcome > 0 ? (completed.length / withOutcome) * 100 : 100,
     }
-  }, [orders])
+  }, [logicalOrders])
 
   const activeOrdersSorted = useMemo(() =>
-    orders
-      .filter(isActiveOrder)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [orders]
+    logicalOrders
+      .filter(isActiveLogicalOrder)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [logicalOrders]
   )
 
   // Button label — reflects whether there are saved workspaces to return to
@@ -610,19 +671,20 @@ function OrdersPageContent() {
               whileInView="animate"
               viewport={{ once: true, margin: '-60px' }}
             >
-              {activeOrdersSorted.map((order) => {
-                const ageHours  = (Date.now() - new Date(order.created_at).getTime()) / 3_600_000
-                const ageColor  = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'rgba(255,255,255,0.35)'
-                const isStale   = ageHours > 48
-                const action    = STATUS_ACTION[order.status]
-                const nextStatus = STATUS_NEXT[order.status]
-                const isBusy    = statusChanging === order.id
+              {activeOrdersSorted.map((lo) => {
+                const ageHours   = (Date.now() - new Date(lo.createdAt).getTime()) / 3_600_000
+                const ageColor   = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'rgba(255,255,255,0.35)'
+                const isStale    = ageHours > 48
+                const action     = lo.hasMixedStatus ? null : STATUS_ACTION[lo.status]
+                const nextStatus = lo.hasMixedStatus ? null : STATUS_NEXT[lo.status]
+                const isBusy     = statusChanging === lo.logicalKey
+                const firstItem  = lo.items[0]
 
                 return (
                   <motion.div
-                    key={order.id}
+                    key={lo.logicalKey}
                     variants={staggerItem}
-                    onClick={() => setInspectOrder(order)}
+                    onClick={() => setInspectOrder(lo)}
                     className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer"
                     style={{
                       background: isStale ? 'rgba(244,63,94,0.04)' : 'rgba(255,255,255,0.032)',
@@ -633,9 +695,9 @@ function OrdersPageContent() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                          {order.order_number ?? '—'}
+                          {lo.orderNumber ?? '—'}
                         </span>
-                        <StatusBadge status={order.status} />
+                        <StatusBadge status={lo.hasMixedStatus ? 'mixed' : lo.status} />
                         {isStale && (
                           <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: '#f43f5e' }}>
                             <AlertCircle style={{ width: 10, height: 10 }} />
@@ -647,44 +709,52 @@ function OrdersPageContent() {
                         </span>
                       </div>
                       <p className="text-[14px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                        {order.buyer_name ?? '—'}
+                        {lo.buyerName ?? '—'}
                       </p>
-                      <p className="text-[11px] mt-0.5 truncate">
-                        <span style={getGameNameStyle(order.gamepasses?.games?.is_discounted)}>
-                          {order.gamepasses?.games?.name ?? order.gamepasses?.name ?? '—'}
-                        </span>
-                        <span style={{ color: 'rgba(255,255,255,0.38)' }}>
-                          {order.robux_amount ? ` · ${order.robux_amount.toLocaleString()} R$` : ''}
-                        </span>
-                      </p>
+                      {lo.items.length > 1 ? (
+                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                          {lo.items.length} items · {lo.totalRobux.toLocaleString()} R$
+                        </p>
+                      ) : (
+                        <p className="text-[11px] mt-0.5 truncate">
+                          <span style={getGameNameStyle(firstItem?.isDiscounted)}>
+                            {firstItem?.gameName ?? firstItem?.gamepassName ?? '—'}
+                          </span>
+                          {lo.totalRobux > 0 && (
+                            <span style={{ color: 'rgba(255,255,255,0.38)' }}> · {lo.totalRobux.toLocaleString()} R$</span>
+                          )}
+                        </p>
+                      )}
                     </div>
 
                     {/* Price + actions */}
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <p className="text-[15px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                        {order.selling_price ? formatPHP(order.selling_price) : '—'}
+                        {lo.totalSellingPrice ? formatPHP(lo.totalSellingPrice) : '—'}
                       </p>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setFulfillOrder(order) }}
+                        onClick={(e) => { e.stopPropagation(); setFulfillOrder(lo) }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
                         style={{ background: 'rgba(167,139,250,0.09)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.22)' }}
                       >
                         <Zap style={{ width: 11, height: 11 }} /> Fulfill
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); ws.openOrCreate(order) }}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
-                      >
-                        <Edit2 style={{ width: 12, height: 12 }} />
-                      </button>
+                      {lo.source !== 'budgetwise' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditWorkspace(lo) }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
+                        >
+                          <Edit2 style={{ width: 12, height: 12 }} />
+                        </button>
+                      )}
                       {action && nextStatus && (
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={(e) => { e.stopPropagation(); handleStatusChange(order, nextStatus) }}
+                          onClick={(e) => { e.stopPropagation(); handleStatusChange(lo, nextStatus) }}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50 transition-opacity"
                           style={{ background: action.bg, color: action.color, border: `1px solid ${action.border}` }}
                         >
@@ -702,18 +772,18 @@ function OrdersPageContent() {
                           <MoreHorizontal style={{ width: 14, height: 14 }} />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-popover border-border">
-                          {order.status !== 'refunded' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(order, 'refunded')} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
+                          {lo.status !== 'refunded' && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(lo, 'refunded')} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
                               <X className="w-3.5 h-3.5" /> Mark Refunded
                             </DropdownMenuItem>
                           )}
-                          {order.status !== 'cancelled' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(order, 'cancelled')} className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400">
+                          {lo.status !== 'cancelled' && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(lo, 'cancelled')} className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400">
                               <X className="w-3.5 h-3.5" /> Cancel
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator className="bg-border/50" />
-                          <DropdownMenuItem onClick={() => handleDelete(order)} className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400">
+                          <DropdownMenuItem onClick={() => handleDelete(lo)} className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400">
                             <Trash2 className="w-3.5 h-3.5" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -761,14 +831,20 @@ function OrdersPageContent() {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
             <h2 className="font-black leading-tight mb-2" style={{ fontSize: 'clamp(1.8rem, 4vw, 3.2rem)', color: 'rgba(255,255,255,0.88)' }}>
-              {orders.length > 0
-                ? <><span style={{ color: '#a78bfa' }}>{orders.length}</span>{' '}order{orders.length !== 1 ? 's' : ''} on record</>
+              {logicalOrders.length > 0
+                ? <><span style={{ color: '#a78bfa' }}>{logicalOrders.length}</span>{' '}order{logicalOrders.length !== 1 ? 's' : ''} on record</>
                 : 'Order History'}
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '15px' }}>
               Full pipeline view — advance status, edit, or manage from here.
             </p>
           </motion.div>
+
+          {isRawCapped && (
+            <div className="mb-4 px-4 py-2.5 rounded-xl text-[11px] font-semibold" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', color: '#f59e0b' }}>
+              Showing your most recent {RAW_FETCH_CAP} orders. Older orders are not displayed.
+            </div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -777,16 +853,13 @@ function OrdersPageContent() {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             <OrderActivityPanel
-              orders={orders}
+              orders={logicalOrders}
               loading={loading}
-              hasMore={hasMore}
-              loadingMore={loadingMore}
               historyExpanded={historyExpanded}
               onToggleHistory={() => setHistoryExpanded(p => !p)}
-              onEdit={order => ws.openOrCreate(order)}
+              onEdit={openEditWorkspace}
               onInspect={setInspectOrder}
               onDelete={handleDelete}
-              onLoadMore={loadMore}
             />
           </motion.div>
         </div>
@@ -795,13 +868,13 @@ function OrdersPageContent() {
       <OrderInspectDialog
         order={inspectOrder}
         onClose={() => setInspectOrder(null)}
-        onEdit={(order) => { setInspectOrder(null); ws.openOrCreate(order) }}
+        onEdit={(lo) => { setInspectOrder(null); openEditWorkspace(lo) }}
       />
 
       <AnimatePresence>
         {fulfillOrder && (
           <FulfillmentMode
-            key={fulfillOrder.id}
+            key={fulfillOrder.logicalKey}
             order={fulfillOrder}
             onClose={() => setFulfillOrder(null)}
             onComplete={() => handleFulfillmentComplete(fulfillOrder)}
@@ -876,7 +949,7 @@ function OrdersPageContent() {
                             workspace={ws.activeWorkspace}
                             editOrder={
                               ws.activeWorkspace.editOrderId
-                                ? orders.find(o => o.id === ws.activeWorkspace!.editOrderId) ?? null
+                                ? rawOrdersMap.get(ws.activeWorkspace!.editOrderId) ?? null
                                 : null
                             }
                             gamepasses={gamepasses}

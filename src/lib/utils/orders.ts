@@ -1,4 +1,5 @@
 import { OrderWithDetails } from '@/lib/types/database'
+import type { LogicalOrder } from '@/lib/types/logical-order'
 
 export const ACTIVE_ORDER_STATUSES = ['pending', 'paid'] as const
 export const HISTORY_ORDER_STATUSES = ['completed', 'refunded', 'cancelled'] as const
@@ -19,6 +20,25 @@ export function isStaleOrder(order: OrderWithDetails, now: number): boolean {
   if (!isActiveOrder(order)) return false
   const ageHours = (now - new Date(order.created_at).getTime()) / 3_600_000
   return ageHours >= STALE_ORDER_HOURS
+}
+
+// ── Logical-order status helpers ──────────────────────────────────────────────
+// Mirror of isActiveOrder / isHistoryOrder but for normalized logical orders.
+// Mixed-status logical orders (BW rows that diverged after creation) are
+// treated as active — they still need operator attention.
+
+export function isActiveLogicalOrder(o: LogicalOrder): boolean {
+  if (o.hasMixedStatus) {
+    return Object.keys(o.statusBreakdown).some(s =>
+      (ACTIVE_ORDER_STATUSES as readonly string[]).includes(s),
+    )
+  }
+  return (ACTIVE_ORDER_STATUSES as readonly string[]).includes(o.status)
+}
+
+export function isHistoryLogicalOrder(o: LogicalOrder): boolean {
+  if (o.hasMixedStatus) return false
+  return (HISTORY_ORDER_STATUSES as readonly string[]).includes(o.status)
 }
 
 export interface OrderItemGroup {

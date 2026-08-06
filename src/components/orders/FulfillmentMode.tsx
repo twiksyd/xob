@@ -2,10 +2,20 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { OrderWithDetails, OrderItem } from '@/lib/types/database'
+import type { LogicalOrder } from '@/lib/types/logical-order'
 import { getGameAccentColor } from '@/lib/utils/games'
 import { formatPHP } from '@/lib/utils/pricing'
 import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera, RotateCcw, CloudCheck } from 'lucide-react'
+
+// Minimal item shape FulfillmentMode needs — mapped from LogicalOrderItem.
+interface FulfillmentItem {
+  id: string
+  gamepass_name: string
+  game_name: string | null
+  robux_amount: number
+  selling_price: number
+  profit: number
+}
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -176,27 +186,22 @@ function ZoomOverlay({ blob, onClose }: { blob: Blob; onClose: () => void }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface FulfillmentModeProps {
-  order: OrderWithDetails
+  order: LogicalOrder
   onClose: () => void
   onComplete: () => Promise<void>
 }
 
 export default function FulfillmentMode({ order, onClose, onComplete }: FulfillmentModeProps) {
-  const items = useMemo((): OrderItem[] => {
-    if (order.order_items && order.order_items.length > 0) return order.order_items
-    return [{
-      id: order.id,
-      order_id: order.id,
-      gamepass_id: order.gamepass_id ?? null,
-      gamepass_name: order.gamepasses?.name ?? 'Item',
-      game_name: order.gamepasses?.games?.name ?? null,
-      robux_amount: order.robux_amount ?? 0,
-      selling_price: order.selling_price ?? 0,
-      cost: order.cost ?? 0,
-      profit: order.profit ?? 0,
-      created_at: order.created_at,
-    }]
-  }, [order])
+  const items = useMemo((): FulfillmentItem[] =>
+    order.items.map(i => ({
+      id:            i.id,
+      gamepass_name: i.gamepassName,
+      game_name:     i.gameName,
+      robux_amount:  i.robuxAmount,
+      selling_price: i.sellingPrice,
+      profit:        i.profit,
+    })),
+  [order.items])
 
   const [currentIdx, setCurrentIdx] = useState(0)
   const [sentSet, setSentSet]       = useState<Set<string>>(new Set())
@@ -217,7 +222,7 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
 
   // Restore saved progress on mount
   useEffect(() => {
-    const saved = loadProgress(order.id)
+    const saved = loadProgress(order.logicalKey)
     if (!saved || saved.sentIds.length === 0) return
     setCurrentIdx(saved.currentIdx)
     setSentSet(new Set(saved.sentIds))
@@ -275,12 +280,12 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
     } else {
       setAllDone(true)
     }
-    saveProgress(order.id, nextIdx, newSentSet, newSentAt)
+    saveProgress(order.logicalKey, nextIdx, newSentSet, newSentAt)
     setLastSavedAt(new Date())
   }
 
   function startOver() {
-    clearProgress(order.id)
+    clearProgress(order.logicalKey)
     setCurrentIdx(0)
     setSentSet(new Set())
     setSentAt(new Map())
@@ -302,7 +307,7 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
 
   async function finish() {
     setCompleting(true)
-    try { await onComplete(); clearProgress(order.id); onClose() } catch { setCompleting(false) }
+    try { await onComplete(); clearProgress(order.logicalKey); onClose() } catch { setCompleting(false) }
   }
 
   async function exportZip() {
@@ -316,7 +321,7 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
     }
     if (files.length === 0) return
     const zip = await buildStoredZip(files)
-    downloadBlob(zip, `order-${order.order_number ?? order.id}-proof.zip`)
+    downloadBlob(zip, `order-${order.orderNumber ?? order.logicalKey}-proof.zip`)
   }
 
   function downloadAll() {
@@ -365,11 +370,11 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
               </p>
               <div className="flex items-baseline gap-2.5">
                 <span className="font-black text-[18px]" style={{ color: 'rgba(255,255,255,0.90)' }}>
-                  {order.buyer_name ?? 'Order'}
+                  {order.buyerName ?? 'Order'}
                 </span>
-                {order.order_number && (
+                {order.orderNumber && (
                   <span className="font-mono text-[11px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                    {order.order_number}
+                    {order.orderNumber}
                   </span>
                 )}
               </div>

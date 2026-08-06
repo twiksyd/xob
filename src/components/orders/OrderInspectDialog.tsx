@@ -7,21 +7,21 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { OrderWithDetails } from '@/lib/types/database'
+import type { LogicalOrder } from '@/lib/types/logical-order'
 import { formatPHP, formatRobux } from '@/lib/utils/pricing'
-import { groupOrderItems } from '@/lib/utils/orders'
+import { groupLogicalItems } from '@/lib/utils/normalize-orders'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 
 interface OrderInspectDialogProps {
-  order: OrderWithDetails | null
+  order: LogicalOrder | null
   onClose: () => void
-  onEdit: (order: OrderWithDetails) => void
+  onEdit: (order: LogicalOrder) => void
 }
 
 export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInspectDialogProps) {
-  const items   = order ? groupOrderItems(order) : []
-  const account = order?.roblox_accounts ?? null
-  const profit  = order?.profit ?? 0
+  const items   = order ? groupLogicalItems(order.items) : []
+  const account = order?.account ?? null
+  const profit  = order?.totalProfit ?? 0
 
   return (
     <Dialog open={!!order} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -49,14 +49,19 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
         <DialogHeader className="-mx-4 -mt-4 rounded-t-xl border-b bg-muted/50 p-4">
           <div className="flex items-center justify-between gap-2 pr-8">
             <DialogTitle className="font-mono text-[14px]" style={{ color: '#22d3ee' }}>
-              {order?.order_number ?? 'Order Details'}
+              {order?.orderNumber ?? 'Order Details'}
             </DialogTitle>
-            {order && <StatusBadge status={order.status} className="border-slate-300" />}
+            {order && (
+              <StatusBadge
+                status={order.hasMixedStatus ? 'mixed' : order.status}
+                className="border-slate-300"
+              />
+            )}
           </div>
           {order && (
             <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
-              Created {format(new Date(order.created_at), 'MMM d, yyyy · h:mm a')}
-              {' '}({formatDistanceToNow(new Date(order.created_at), { addSuffix: true })})
+              Created {format(new Date(order.createdAt), 'MMM d, yyyy · h:mm a')}
+              {' '}({formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })})
             </p>
           )}
         </DialogHeader>
@@ -68,26 +73,36 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
             <div className="glass-modal p-3 space-y-2.5 max-h-48 overflow-y-auto">
               {items.length === 0 ? (
                 <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.44)' }}>No items recorded</p>
-              ) : items.map((g, i) => (
-                <div key={i} className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                      {g.gamepass_name}
-                    </p>
-                    <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                      {g.game_name ? `${g.game_name} · ` : ''}{formatRobux(g.unit_robux)} ea
-                    </p>
+              ) : items.map((g, i) => {
+                // BW rows store extended amounts (already × original quantity).
+                // The original quantity is not recoverable without schema changes,
+                // so we suppress the ×qty label for BW to avoid showing ×1 @ ₱40
+                // when the real order was 2 units at ₱20 each.
+                // XOB order_items rows are per-unit, so ×count is accurate there.
+                const isBW = order?.source === 'budgetwise'
+                return (
+                  <div key={i} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-semibold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                        {g.gamepassName}
+                      </p>
+                      <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                        {g.gameName ? `${g.gameName} · ` : ''}{formatRobux(g.unitRobux)} R${isBW ? '' : ' ea'}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {!isBW && g.count > 1 && (
+                        <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.47)' }}>
+                          ×{g.count} @ {formatPHP(g.unitPrice)}
+                        </p>
+                      )}
+                      <p className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
+                        {formatPHP(g.subtotal)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.47)' }}>
-                      ×{g.count} @ {formatPHP(g.unit_price)}
-                    </p>
-                    <p className="text-[12px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                      {formatPHP(g.subtotal)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -131,13 +146,13 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
             <div>
               <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total Robux</p>
               <p className="text-[14px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                {formatRobux(order?.robux_amount ?? 0)}
+                {formatRobux(order?.totalRobux ?? 0)}
               </p>
             </div>
             <div>
               <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total PHP</p>
               <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                {formatPHP(order?.selling_price ?? 0)}
+                {formatPHP(order?.totalSellingPrice ?? 0)}
               </p>
             </div>
             <div>
@@ -151,7 +166,7 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          {order && (
+          {order && order.source !== 'budgetwise' && (
             <Button onClick={() => { onEdit(order); onClose() }} className="gap-1.5">
               <Edit2 className="w-3.5 h-3.5" /> Edit Order
             </Button>

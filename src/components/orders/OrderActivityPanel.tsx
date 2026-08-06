@@ -1,38 +1,40 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 import { Edit2, ChevronDown, Trash2 } from 'lucide-react'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { OrderWithDetails } from '@/lib/types/database'
+import type { LogicalOrder } from '@/lib/types/logical-order'
 import { formatPHP } from '@/lib/utils/pricing'
-import { isHistoryOrder } from '@/lib/utils/orders'
+import { isHistoryLogicalOrder } from '@/lib/utils/orders'
 import { Skeleton } from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
 import { Inbox } from 'lucide-react'
 
+const HISTORY_PAGE_SIZE = 30
+
 interface OrderActivityPanelProps {
-  orders: OrderWithDetails[]
+  orders: LogicalOrder[]
   loading: boolean
-  hasMore: boolean
-  loadingMore: boolean
   historyExpanded: boolean
   onToggleHistory: () => void
-  onEdit: (order: OrderWithDetails) => void
-  onInspect: (order: OrderWithDetails) => void
-  onDelete: (order: OrderWithDetails) => void
-  onLoadMore: () => void
+  onEdit: (order: LogicalOrder) => void
+  onInspect: (order: LogicalOrder) => void
+  onDelete: (order: LogicalOrder) => void
 }
 
 // Active orders are owned by the Action Center above (§02) — this panel is
 // purely the historical record, so there's exactly one place to manage a
 // live order instead of two copies with different capabilities.
 export default function OrderActivityPanel({
-  orders, loading, hasMore, loadingMore,
-  historyExpanded, onToggleHistory, onEdit, onInspect, onDelete, onLoadMore,
+  orders, loading,
+  historyExpanded, onToggleHistory, onEdit, onInspect, onDelete,
 }: OrderActivityPanelProps) {
-  const historyOrders = useMemo(() => orders.filter(isHistoryOrder), [orders])
+  const [historyShown, setHistoryShown] = useState(HISTORY_PAGE_SIZE)
+  const historyOrders = useMemo(() => orders.filter(isHistoryLogicalOrder), [orders])
+  const visibleHistory = historyOrders.slice(0, historyShown)
+  const hasMore = historyShown < historyOrders.length
 
   if (loading) {
     return (
@@ -90,48 +92,52 @@ export default function OrderActivityPanel({
             ) : (
               <div style={{ maxHeight: '560px', overflowY: 'auto', scrollbarWidth: 'thin' }}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {historyOrders.slice(0, 40).map((order) => {
-                    const oi = order.order_items ?? []
+                  {visibleHistory.map((lo) => {
+                    const preview = lo.items.length > 1
+                      ? `${lo.items.length} items`
+                      : (lo.items[0]?.gamepassName ?? '—')
                     return (
                       <div
-                        key={order.id}
+                        key={lo.logicalKey}
                         className="flex items-center gap-2.5 px-4 py-2.5 group order-row-shimmer transition-colors cursor-pointer"
                         style={{ borderBottom: '1px solid rgba(255,255,255,0.065)' }}
-                        onClick={() => onInspect(order)}
+                        onClick={() => onInspect(lo)}
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
                         onMouseLeave={e => (e.currentTarget.style.background = '')}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <span className="font-mono text-[10px] font-semibold" style={{ color: '#22d3ee' }}>
-                              {order.order_number ?? '—'}
+                              {lo.orderNumber ?? '—'}
                             </span>
-                            <StatusBadge status={order.status} />
+                            <StatusBadge status={lo.status} />
                           </div>
                           <p className="text-[11px] font-medium truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                            {order.buyer_name ?? '—'}
+                            {lo.buyerName ?? '—'}
                           </p>
                           <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                            {oi.length > 0 ? oi[0].gamepass_name : (order.gamepasses?.name ?? '—')}
+                            {preview}
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                            {order.selling_price ? formatPHP(order.selling_price) : '—'}
+                            {lo.totalSellingPrice ? formatPHP(lo.totalSellingPrice) : '—'}
                           </p>
                           <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(lo.createdAt), { addSuffix: true })}
                           </p>
                         </div>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          {lo.source !== 'budgetwise' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onEdit(lo) }}
+                              className="w-6 h-6 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); onEdit(order) }}
-                            className="w-6 h-6 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(order) }}
+                            onClick={(e) => { e.stopPropagation(); onDelete(lo) }}
                             className="w-6 h-6 rounded-md hover:bg-accent text-muted-foreground hover:text-red-400 flex items-center justify-center transition-colors"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -144,12 +150,11 @@ export default function OrderActivityPanel({
                 {hasMore && (
                   <div className="px-4 py-3 text-center">
                     <button
-                      onClick={onLoadMore}
-                      disabled={loadingMore}
-                      className="text-[11px] font-medium disabled:opacity-40 transition-opacity"
+                      onClick={() => setHistoryShown(n => n + HISTORY_PAGE_SIZE)}
+                      className="text-[11px] font-medium transition-opacity"
                       style={{ color: '#22d3ee' }}
                     >
-                      {loadingMore ? 'Loading…' : 'Load more'}
+                      Show more ({historyOrders.length - historyShown} remaining)
                     </button>
                   </div>
                 )}
