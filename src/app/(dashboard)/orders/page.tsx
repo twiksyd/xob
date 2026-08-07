@@ -8,7 +8,6 @@ import WorkspaceTabs from '@/components/orders/WorkspaceTabs'
 import WorkspaceEditor from '@/components/orders/WorkspaceEditor'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
-import FulfillmentMode from '@/components/orders/FulfillmentMode'
 import BWAccountAssignDialog, { type AssignmentItemResult } from '@/components/orders/BWAccountAssignDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
@@ -31,7 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   Plus, ClipboardList, Wallet, TrendingUp, CheckCircle2,
-  Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2, Zap,
+  Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2,
   Search, UserCheck,
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
@@ -99,6 +98,61 @@ function AccountStatusMini({ status }: { status: RobloxAccount['status'] }) {
   )
 }
 
+function isLogicalOrderUnassigned(lo: LogicalOrder): boolean {
+  if (lo.source === 'budgetwise') return lo.items.some(i => i.robloxAccountId === null)
+  return lo.robloxAccountId === null
+}
+
+function isLogicalOrderReady(lo: LogicalOrder): boolean {
+  if (lo.hasMixedStatus || lo.status !== 'paid') return false
+  if (lo.source === 'budgetwise') return lo.items.every(i => i.robloxAccountId !== null)
+  return lo.robloxAccountId !== null
+}
+
+function getCompletionBlocker(lo: LogicalOrder): string {
+  if (lo.hasMixedStatus) return 'Resolve mixed item statuses before completing this order.'
+  if (lo.status !== 'paid') return lo.status === 'pending'
+    ? 'Mark this order paid before completing it.'
+    : 'This order is not in a completable status.'
+  if (lo.source === 'budgetwise' && lo.items.some(i => i.robloxAccountId === null)) {
+    return 'Assign every item before completing this order.'
+  }
+  if (lo.source !== 'budgetwise' && lo.robloxAccountId === null) {
+    return 'Assign an account before completing this order.'
+  }
+  return 'This order is not ready to complete.'
+}
+
+function getQueuePriority(lo: LogicalOrder, nowMs: number): number {
+  const isShop = lo.source === 'budgetwise'
+  if (isShop && isLogicalOrderUnassigned(lo)) return 0
+  if (isShop && isLogicalOrderReady(lo)) return 1
+  if (isLogicalOrderUnassigned(lo)) return 2
+  if (isLogicalOrderReady(lo)) return 3
+  if ((nowMs - new Date(lo.createdAt).getTime()) / 3_600_000 > 48) return 4
+  if (lo.status === 'pending' && !lo.hasMixedStatus) return 5
+  return 6
+}
+
+function sortActiveOrdersForQueue(orders: LogicalOrder[], nowMs: number): LogicalOrder[] {
+  return orders
+    .filter(isActiveLogicalOrder)
+    .sort((a, b) => {
+      const ap = getQueuePriority(a, nowMs)
+      const bp = getQueuePriority(b, nowMs)
+      if (ap !== bp) return ap - bp
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    })
+}
+
+type StatusFailure = { id: string; message: string }
+type StatusChangeResult = {
+  ok: boolean
+  succeeded: number
+  failed: StatusFailure[]
+  message?: string
+}
+
 function OrdersPageContent() {
   const [rawOrders, setRawOrders]             = useState<OrderWithDetails[]>([])
   const [isRawCapped, setIsRawCapped]         = useState(false)
@@ -107,7 +161,6 @@ function OrdersPageContent() {
   const [loading, setLoading]                 = useState(true)
   const [statusChanging, setStatusChanging]   = useState<string | null>(null)
   const [inspectOrder, setInspectOrder]       = useState<LogicalOrder | null>(null)
-  const [fulfillOrder, setFulfillOrder]       = useState<LogicalOrder | null>(null)
   const [bwAssignOrder, setBwAssignOrder]     = useState<LogicalOrder | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
@@ -179,8 +232,9 @@ function OrdersPageContent() {
   }, [ws.open])
 
   // ── Data fetching ───────────────────────────────────────────────────────────
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (): Promise<LogicalOrder[]> => {
     setLoading(true)
+    let nextLogicalOrders: LogicalOrder[] = []
     try {
       const [ordRes, gpRes, accRes] = await Promise.all([
         supabase.from('orders')
@@ -224,6 +278,7 @@ function OrdersPageContent() {
 
         setRawOrders(rows)
         setIsRawCapped(isCapped)
+        nextLogicalOrders = normalizeOrders(rows)
       }
 
       if (gpRes.error) {
@@ -245,6 +300,7 @@ function OrdersPageContent() {
     } finally {
       setLoading(false)
     }
+    return nextLogicalOrders
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
 
@@ -386,32 +442,85 @@ function OrdersPageContent() {
   // wallet and savings effects, breaking accounting for completed BW orders.
   // Until a grouped RPC exists, we fire one RPC per underlying row in parallel.
 
-  async function handleStatusChange(lo: LogicalOrder, newStatus: string) {
-    if ((!lo.hasMixedStatus && lo.status === newStatus) || statusChanging === lo.logicalKey) return
+  async function handleStatusChange(
+    lo: LogicalOrder,
+    newStatus: string,
+    options: { showToast?: boolean; refresh?: boolean } = {},
+  ): Promise<StatusChangeResult> {
+    const showToast = options.showToast ?? true
+    const refresh = options.refresh ?? true
+    if (!lo.hasMixedStatus && lo.status === newStatus) return { ok: true, succeeded: 0, failed: [] }
+    if (statusChanging === lo.logicalKey) {
+      return {
+        ok: false,
+        succeeded: 0,
+        failed: lo.underlyingOrderIds.map(id => ({ id, message: 'Order is already updating.' })),
+        message: 'Order is already updating.',
+      }
+    }
     setStatusChanging(lo.logicalKey)
 
     const results = await Promise.all(
-      lo.underlyingOrderIds.map(id =>
-        supabase.rpc('transition_order', { p_order_id: id, p_new_status: newStatus }),
-      ),
+      lo.underlyingOrderIds.map(async id => {
+        try {
+          const { error } = await supabase.rpc('transition_order', { p_order_id: id, p_new_status: newStatus })
+          return { id, message: error?.message ?? null }
+        } catch (err) {
+          return { id, message: err instanceof Error ? err.message : 'Unknown transition error' }
+        }
+      }),
     )
-    const failed = results.filter(r => r.error)
+    const failed = results
+      .filter((r): r is StatusFailure => r.message !== null)
+      .map(r => ({ id: r.id, message: r.message }))
+    const succeeded = results.length - failed.length
+    const failedRows = failed.map(f => f.id.slice(0, 8)).join(', ')
+    const failureMessage = failed.length > 0
+      ? succeeded === 0
+        ? `Could not update order status: ${failed[0].message}${failedRows ? ` (row ${failedRows})` : ''}`
+        : `Only ${succeeded}/${results.length} order rows were marked ${newStatus}. Failed row(s): ${failedRows}. ${failed[0].message}`
+      : undefined
+
     if (failed.length > 0) {
-      const succeeded = results.length - failed.length
-      toast.error(
-        succeeded === 0
-          ? `Could not update order status: ${failed[0].error!.message}`
-          : `Expected ${results.length} order rows, but only ${succeeded} matching rows were updated. ${failed[0].error!.message}`,
-      )
+      if (showToast) toast.error(failureMessage ?? 'Could not update order status.')
     } else {
-      toast.success(`Order marked ${newStatus}.`)
+      if (showToast) toast.success(`Order marked ${newStatus}.`)
     }
     setStatusChanging(null)
-    fetchData()
+    if (refresh) await fetchData()
+
+    return { ok: failed.length === 0, succeeded, failed, message: failureMessage }
   }
 
-  async function handleFulfillmentComplete(lo: LogicalOrder) {
-    await handleStatusChange(lo, 'completed')
+  async function handleCompleteOrder(lo: LogicalOrder) {
+    if (!isLogicalOrderReady(lo)) {
+      const message = getCompletionBlocker(lo)
+      flashOrderFeedback({ [lo.logicalKey]: 'error' })
+      toast.error(message)
+      return
+    }
+
+    const result = await handleStatusChange(lo, 'completed', { showToast: false, refresh: false })
+    if (!result.ok) {
+      const message = result.message ?? 'Could not complete order.'
+      flashOrderFeedback({ [lo.logicalKey]: 'error' })
+      toast.error(message)
+      await fetchData()
+      return
+    }
+
+    flashOrderFeedback({ [lo.logicalKey]: 'success' })
+    toast.success('Order completed.')
+    const refreshedOrders = await fetchData()
+    const nextOrder = sortActiveOrdersForQueue(refreshedOrders, nowMs).find(order => order.logicalKey !== lo.logicalKey)
+    setSelectedOrderKeys(prev => {
+      if (!prev.has(lo.logicalKey)) return prev
+      const next = new Set(prev)
+      next.delete(lo.logicalKey)
+      return next
+    })
+    setFocusedOrderKey(nextOrder?.logicalKey ?? null)
+    setCenterMode('shop')
   }
 
   async function handleDelete(lo: LogicalOrder) {
@@ -607,39 +716,9 @@ function OrdersPageContent() {
     }
   }, [logicalOrders])
 
-  function isLogicalOrderUnassigned(lo: LogicalOrder): boolean {
-    if (lo.source === 'budgetwise') return lo.items.some(i => i.robloxAccountId === null)
-    return lo.robloxAccountId === null
-  }
-
-  function isLogicalOrderReady(lo: LogicalOrder): boolean {
-    if (lo.hasMixedStatus || lo.status !== 'paid') return false
-    if (lo.source === 'budgetwise') return lo.items.every(i => i.robloxAccountId !== null)
-    return lo.robloxAccountId !== null
-  }
-
-  function getQueuePriority(lo: LogicalOrder): number {
-    const isShop = lo.source === 'budgetwise'
-    if (isShop && isLogicalOrderUnassigned(lo)) return 0
-    if (isShop && isLogicalOrderReady(lo)) return 1
-    if (isLogicalOrderUnassigned(lo)) return 2
-    if (isLogicalOrderReady(lo)) return 3
-    if ((nowMs - new Date(lo.createdAt).getTime()) / 3_600_000 > 48) return 4
-    if (lo.status === 'pending' && !lo.hasMixedStatus) return 5
-    return 6
-  }
-
   const activeOrdersSorted = useMemo(() =>
-    logicalOrders
-      .filter(isActiveLogicalOrder)
-      .sort((a, b) => {
-        const ap = getQueuePriority(a)
-        const bp = getQueuePriority(b)
-        if (ap !== bp) return ap - bp
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [logicalOrders, nowMs]
+    sortActiveOrdersForQueue(logicalOrders, nowMs),
+    [logicalOrders, nowMs],
   )
 
   // ── Action Center filter ─────────────────────────────────────────────────────
@@ -866,6 +945,7 @@ function OrdersPageContent() {
   const focusedAssignedItems = focusedOrder
     ? focusedOrder.items.length - focusedOrder.items.filter(item => item.robloxAccountId === null).length
     : 0
+  const focusedReadyToComplete = focusedOrder ? isLogicalOrderReady(focusedOrder) : false
   const focusedAgeHours = focusedOrder
     ? (nowMs - new Date(focusedOrder.createdAt).getTime()) / 3_600_000
     : 0
@@ -953,7 +1033,7 @@ function OrdersPageContent() {
               <div className="px-3.5 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div>
                   <h2 className="text-[13px] font-black" style={{ color: 'rgba(255,255,255,0.82)' }}>Order Queue</h2>
-                  <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>New Shop work first. Shift-click selects a range.</p>
+                  <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>Oldest actionable orders first. Shift-click selects a range.</p>
                 </div>
                 <span className="text-[12px] font-black tabular-nums" style={{ color: '#f59e0b' }}>{filteredActiveOrders.length}</span>
               </div>
@@ -1145,10 +1225,12 @@ function OrdersPageContent() {
                         <Edit2 className="w-3.5 h-3.5" />
                         {focusedOrder.source === 'budgetwise' ? 'Edit Item Accounts' : 'Edit'}
                       </button>
-                      <button type="button" onClick={() => setFulfillOrder(focusedOrder)} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(52,211,153,0.09)', border: '1px solid rgba(52,211,153,0.22)', color: '#34d399' }}>
-                        <Zap className="w-3.5 h-3.5" />
-                        Fulfill
-                      </button>
+                      {focusedReadyToComplete && (
+                        <button type="button" disabled={statusChanging === focusedOrder.logicalKey} onClick={() => { void handleCompleteOrder(focusedOrder) }} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-45" style={{ background: 'rgba(52,211,153,0.09)', border: '1px solid rgba(52,211,153,0.22)', color: '#34d399' }}>
+                          {statusChanging === focusedOrder.logicalKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          {statusChanging === focusedOrder.logicalKey ? 'Completing...' : 'Complete Order'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
@@ -1189,11 +1271,21 @@ function OrdersPageContent() {
                 </motion.div>
               ) : (
                 <motion.div key="empty-shop-order" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={quickMotion} className="p-10 text-center">
-                  <p className="text-[13px] font-bold mb-3" style={{ color: 'rgba(255,255,255,0.54)' }}>No active Shop order selected.</p>
-                  <button type="button" onClick={() => { setCenterMode('manual'); ws.openOrCreate() }} className="h-9 px-3 rounded-lg text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.72)' }}>
-                    <Plus className="w-3.5 h-3.5" />
-                    Create Manual Order
-                  </button>
+                  {activeOrdersSorted.length === 0 ? (
+                    <>
+                      <CheckCircle2 className="w-8 h-8 mx-auto mb-3" style={{ color: '#34d399', opacity: 0.55 }} />
+                      <p className="text-[15px] font-black mb-1" style={{ color: 'rgba(255,255,255,0.74)' }}>Queue clear</p>
+                      <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.40)' }}>No active orders remaining.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[13px] font-bold mb-3" style={{ color: 'rgba(255,255,255,0.54)' }}>No active Shop order selected.</p>
+                      <button type="button" onClick={() => { setCenterMode('manual'); ws.openOrCreate() }} className="h-9 px-3 rounded-lg text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.72)' }}>
+                        <Plus className="w-3.5 h-3.5" />
+                        Create Manual Order
+                      </button>
+                    </>
+                  )}
                 </motion.div>
               )}
               </AnimatePresence>
@@ -1588,6 +1680,7 @@ function OrdersPageContent() {
                 const nextStatus = lo.hasMixedStatus ? null : STATUS_NEXT[lo.status]
                 const isBusy     = statusChanging === lo.logicalKey
                 const firstItem  = lo.items[0]
+                const readyToComplete = isLogicalOrderReady(lo)
 
                 return (
                   <motion.div
@@ -1641,14 +1734,18 @@ function OrdersPageContent() {
                       <p className="text-[15px] font-black tabular-nums" style={{ color: 'rgba(255,255,255,0.88)' }}>
                         {lo.totalSellingPrice ? formatPHP(lo.totalSellingPrice) : '—'}
                       </p>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setFulfillOrder(lo) }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                        style={{ background: 'rgba(167,139,250,0.09)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.22)' }}
-                      >
-                        <Zap style={{ width: 11, height: 11 }} /> Fulfill
-                      </button>
+                      {readyToComplete && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={(e) => { e.stopPropagation(); void handleCompleteOrder(lo) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                          style={{ background: 'rgba(52,211,153,0.09)', color: '#34d399', border: '1px solid rgba(52,211,153,0.22)' }}
+                        >
+                          {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 style={{ width: 11, height: 11 }} />}
+                          {isBusy ? 'Completing...' : 'Complete Order'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); openEditWorkspace(lo) }}
@@ -1658,7 +1755,7 @@ function OrdersPageContent() {
                       >
                         <Edit2 style={{ width: 12, height: 12 }} />
                       </button>
-                      {action && nextStatus && (
+                      {action && nextStatus && nextStatus !== 'completed' && (
                         <button
                           type="button"
                           disabled={isBusy}
@@ -1799,17 +1896,6 @@ function OrdersPageContent() {
             rawOrders={rawOrders}
             onClose={() => setBwAssignOrder(null)}
             onSave={handleBWAssignSave}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {fulfillOrder && (
-          <FulfillmentMode
-            key={fulfillOrder.logicalKey}
-            order={fulfillOrder}
-            onClose={() => setFulfillOrder(null)}
-            onComplete={() => handleFulfillmentComplete(fulfillOrder)}
           />
         )}
       </AnimatePresence>
