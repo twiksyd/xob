@@ -9,13 +9,14 @@ import WorkspaceEditor from '@/components/orders/WorkspaceEditor'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import FulfillmentMode from '@/components/orders/FulfillmentMode'
-import BWAccountAssignDialog from '@/components/orders/BWAccountAssignDialog'
+import BWAccountAssignDialog, { type AssignmentItemResult } from '@/components/orders/BWAccountAssignDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
 import type { LogicalOrder } from '@/lib/types/logical-order'
 import { createClient } from '@/lib/supabase/client'
 import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
 import { isActiveLogicalOrder } from '@/lib/utils/orders'
+import { getAvailableRobux } from '@/lib/utils/accounts'
 import { normalizeOrders, RAW_FETCH_CAP } from '@/lib/utils/normalize-orders'
 import { getGameNameStyle } from '@/lib/utils/games'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -409,41 +410,123 @@ function OrdersPageContent() {
   }
 
   // ── BW account assignment save ────────────────────────────────────────────────
-  async function handleBWAssignSave(assignments: Record<string, string | null>) {
+  //
+  // Scenarios handled per item:
+  //   unchanged       → skip (no DB call)
+  //   null → account  → reserve_order_robux first, then update orders row
+  //                     (not atomic — a missing assign_order_account RPC is the gap)
+  //   account A → B   → reassign_order_account (fully atomic, updates both row + reservation)
+  //   account → null  → release_order_reservation, then null out the orders row
+  //
+  async function handleBWAssignSave(
+    assignments: Record<string, string | null>,
+  ): Promise<AssignmentItemResult[]> {
     const order = bwAssignOrder
-    if (!order) return
+    if (!order) return []
+
+    // Per-account combined Robux validation before touching the DB.
+    // Effective available = current available + reservations on THIS order's items
+    // that are being released (they'll free up when we reassign/remove them).
+    const perAccountRequired = new Map<string, number>()
+    for (const item of order.items) {
+      const newId = assignments[item.id]
+      if (!newId) continue
+      perAccountRequired.set(newId, (perAccountRequired.get(newId) ?? 0) + item.robuxAmount)
+    }
+    const validationErrors = new Map<string, string>()
+    for (const [accId, required] of perAccountRequired) {
+      const acc = accounts.find(a => a.id === accId)
+      if (!acc) continue
+      const currentlyReservedForThisOrder = order.items
+        .filter(i => i.robloxAccountId === accId)
+        .reduce((s, i) => s + i.robuxAmount, 0)
+      const effectiveAvail = getAvailableRobux(acc) + currentlyReservedForThisOrder
+      if (effectiveAvail < required) {
+        validationErrors.set(
+          accId,
+          `${required.toLocaleString()} R$ required but only ${effectiveAvail.toLocaleString()} R$ effectively available`,
+        )
+      }
+    }
+    if (validationErrors.size > 0) {
+      fetchData()
+      return order.items.map(item => {
+        const newId = assignments[item.id] ?? null
+        const err   = newId ? (validationErrors.get(newId) ?? null) : null
+        return { itemId: item.id, gamepassName: item.gamepassName, accountId: newId, assignOk: !err, reserveOk: !err, error: err }
+      })
+    }
 
     const results = await Promise.all(
-      Object.entries(assignments).map(([orderId, accountId]) =>
-        supabase.from('orders').update({ roblox_account_id: accountId }).eq('id', orderId),
-      ),
+      order.items.map(async (item): Promise<AssignmentItemResult> => {
+        const newId  = assignments[item.id] ?? null
+        const prevId = item.robloxAccountId ?? null
+        const base   = { itemId: item.id, gamepassName: item.gamepassName, accountId: newId }
+
+        // Unchanged
+        if (newId === prevId) {
+          return { ...base, assignOk: true, reserveOk: true, error: null }
+        }
+
+        // Removal: release reservation, then null out the order row
+        if (newId === null) {
+          const [rel, upd] = await Promise.all([
+            supabase.rpc('release_order_reservation', { p_order_id: item.id }),
+            supabase.from('orders').update({ roblox_account_id: null }).eq('id', item.id),
+          ])
+          return {
+            ...base,
+            assignOk: !upd.error,
+            reserveOk: !rel.error,
+            error: rel.error?.message ?? upd.error?.message ?? null,
+          }
+        }
+
+        // Reassignment A → B: use reassign_order_account (atomic, updates row + reservation)
+        if (prevId !== null) {
+          const res = await supabase.rpc('reassign_order_account', {
+            p_order_id:       item.id,
+            p_new_account_id: newId,
+          })
+          return { ...base, assignOk: !res.error, reserveOk: !res.error, error: res.error?.message ?? null }
+        }
+
+        // Initial assignment null → account:
+        // No atomic RPC exists for this case — reserve first, then update the order row.
+        // If the update fails after a successful reserve, the reservation is orphaned
+        // until the next reassignment. A dedicated assign_order_account RPC or migration
+        // would close this gap.
+        const reserveRes = await supabase.rpc('reserve_order_robux', {
+          p_order_id:       item.id,
+          p_account_id:     newId,
+          p_robux_amount:   item.robuxAmount,
+          p_gamepass_names: item.gamepassName,
+        })
+        if (reserveRes.error) {
+          return { ...base, assignOk: false, reserveOk: false, error: reserveRes.error.message }
+        }
+        const updateRes = await supabase.from('orders').update({ roblox_account_id: newId }).eq('id', item.id)
+        return {
+          ...base,
+          assignOk: !updateRes.error,
+          reserveOk: true,
+          error: updateRes.error?.message ?? null,
+        }
+      }),
     )
-    const failed = results.filter(r => r.error)
-    if (failed.length > 0) {
-      toast.error(`Could not save account assignments: ${failed[0].error!.message}`)
-      setBwAssignOrder(null)
-      fetchData()
-      return
-    }
 
-    if (isActiveLogicalOrder(order)) {
-      await Promise.all(
-        order.items
-          .filter(item => assignments[item.id])
-          .map(item =>
-            supabase.rpc('reserve_order_robux', {
-              p_order_id:       item.id,
-              p_account_id:     assignments[item.id]!,
-              p_robux_amount:   item.robuxAmount,
-              p_gamepass_names: item.gamepassName,
-            }),
-          ),
-      )
-    }
-
-    toast.success('Account assignments saved.')
-    setBwAssignOrder(null)
     fetchData()
+
+    const allOk = results.every(r => r.assignOk && r.reserveOk)
+    if (allOk) {
+      toast.success('Account assignments saved.')
+      // Dialog calls onClose() on full success; we do NOT call setBwAssignOrder(null) here.
+    } else {
+      const failCount = results.filter(r => !r.assignOk || !r.reserveOk).length
+      toast.error(`${failCount} item${failCount !== 1 ? 's' : ''} could not be saved — see dialog for details.`)
+    }
+
+    return results
   }
 
   // ── Game activity map ────────────────────────────────────────────────────────

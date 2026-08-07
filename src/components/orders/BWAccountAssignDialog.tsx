@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, AlertCircle, Users, ChevronDown } from 'lucide-react'
+import { X, Check, AlertCircle, Users, ChevronDown, CheckCircle2 } from 'lucide-react'
 import type { LogicalOrder } from '@/lib/types/logical-order'
 import type { RobloxAccount, OrderWithDetails } from '@/lib/types/database'
 import { formatRobux } from '@/lib/utils/pricing'
@@ -14,7 +14,24 @@ import {
   Command, CommandInput, CommandList, CommandEmpty, CommandItem, CommandGroup,
 } from '@/components/ui/command'
 
+// ── Public types ──────────────────────────────────────────────────────────────
+
+export interface AssignmentItemResult {
+  itemId: string
+  gamepassName: string
+  accountId: string | null
+  assignOk: boolean
+  reserveOk: boolean
+  error: string | null
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+// Minimum available Robux required for an account to appear in the BW picker.
+// Distinct from MIN_SELECTABLE_ROBUX (100) which gates bulk auto-select.
 const MIN_ASSIGN_ROBUX = 90
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function availColor(available: number, depleted: boolean): string {
   if (depleted) return 'rgba(255,255,255,0.40)'
@@ -23,6 +40,9 @@ function availColor(available: number, depleted: boolean): string {
   return '#34d399'
 }
 
+// "Last Used" means the most recent COMPLETED order for the same gamepass or game.
+// Pending/paid orders are excluded — the account was assigned but not actually used.
+// Falls back to null if no completed history exists; no badge is shown in that case.
 function findLastUsedAccountId(
   rawOrders: OrderWithDetails[],
   excludedIds: Set<string>,
@@ -33,16 +53,18 @@ function findLastUsedAccountId(
     .filter(o =>
       !excludedIds.has(o.id) &&
       o.roblox_account_id !== null &&
+      o.status === 'completed' &&
       (
         (gamepassId !== null && o.gamepass_id === gamepassId) ||
-        (gameName !== null && (o.gamepasses as { games?: { name?: string } } | null)?.games?.name === gameName)
+        (gameName !== null &&
+          (o.gamepasses as { games?: { name?: string } } | null)?.games?.name === gameName)
       ),
     )
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   return candidates[0]?.roblox_account_id ?? null
 }
 
-// ── Account option card (inside picker list) ──────────────────────────────────
+// ── Account option card (picker list) ────────────────────────────────────────
 
 function AccountOptionCard({
   account,
@@ -62,12 +84,7 @@ function AccountOptionCard({
 
   return (
     <div className="flex items-center gap-2.5 w-full min-w-0 py-0.5">
-      <RobloxAvatar
-        username={account.username}
-        userId={account.roblox_user_id}
-        size={30}
-        glow="none"
-      />
+      <RobloxAvatar username={account.username} userId={account.roblox_user_id} size={30} glow="none" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[12px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
@@ -130,12 +147,7 @@ function SelectedAccountCard({
         border: `1px solid ${canAfford ? 'rgba(52,211,153,0.18)' : 'rgba(245,158,11,0.22)'}`,
       }}
     >
-      <RobloxAvatar
-        username={account.username}
-        userId={account.roblox_user_id}
-        size={36}
-        glow="none"
-      />
+      <RobloxAvatar username={account.username} userId={account.roblox_user_id} size={36} glow="none" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
@@ -170,11 +182,7 @@ function SelectedAccountCard({
             type="button"
             onClick={onChange}
             className="text-[10px] font-bold px-2 py-1 rounded-lg"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(255,255,255,0.55)',
-            }}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.55)' }}
           >
             Change
           </button>
@@ -182,11 +190,7 @@ function SelectedAccountCard({
             type="button"
             onClick={onRemove}
             className="w-6 h-6 rounded-lg flex items-center justify-center"
-            style={{
-              background: 'rgba(244,63,94,0.08)',
-              border: '1px solid rgba(244,63,94,0.16)',
-              color: '#f43f5e',
-            }}
+            style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.16)', color: '#f43f5e' }}
           >
             <X className="w-3 h-3" />
           </button>
@@ -196,7 +200,7 @@ function SelectedAccountCard({
   )
 }
 
-// ── Inline account picker (expanded search + list) ────────────────────────────
+// ── Inline account picker ─────────────────────────────────────────────────────
 
 function AccountPicker({
   accounts,
@@ -220,11 +224,10 @@ function AccountPicker({
   const [search, setSearch] = useState('')
 
   const eligible = useMemo(
-    () =>
-      accounts.filter(a => {
-        const avail = getAvailableRobux(a)
-        return avail >= MIN_ASSIGN_ROBUX && avail >= robuxRequired
-      }),
+    () => accounts.filter(a => {
+      const avail = getAvailableRobux(a)
+      return avail >= MIN_ASSIGN_ROBUX && avail >= robuxRequired
+    }),
     [accounts, robuxRequired],
   )
 
@@ -295,7 +298,7 @@ function AccountPicker({
   )
 }
 
-// ── Picker trigger button (collapsed state) ───────────────────────────────────
+// ── Picker trigger button ─────────────────────────────────────────────────────
 
 function PickerTrigger({ onClick, placeholder }: { onClick: () => void; placeholder?: string }) {
   return (
@@ -303,11 +306,7 @@ function PickerTrigger({ onClick, placeholder }: { onClick: () => void; placehol
       type="button"
       onClick={onClick}
       className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-left"
-      style={{
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.10)',
-        color: 'rgba(255,255,255,0.45)',
-      }}
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.45)' }}
     >
       <span className="flex-1">{placeholder ?? 'Select account…'}</span>
       <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
@@ -322,7 +321,7 @@ interface BWAccountAssignDialogProps {
   accounts: RobloxAccount[]
   rawOrders: OrderWithDetails[]
   onClose: () => void
-  onSave: (assignments: Record<string, string | null>) => Promise<void>
+  onSave: (assignments: Record<string, string | null>) => Promise<AssignmentItemResult[]>
 }
 
 export default function BWAccountAssignDialog({
@@ -330,13 +329,16 @@ export default function BWAccountAssignDialog({
 }: BWAccountAssignDialogProps) {
   const [assignments, setAssignments] = useState<Record<string, string | null>>(() => {
     const init: Record<string, string | null> = {}
-    for (const item of order.items) {
-      init[item.id] = item.robloxAccountId ?? null
-    }
+    for (const item of order.items) init[item.id] = item.robloxAccountId ?? null
     return init
   })
   const [openPickerId, setOpenPickerId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveResults, setSaveResults] = useState<AssignmentItemResult[] | null>(null)
+
+  // Guard setState calls after unmount (dialog may be removed while save is in flight)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   const isActive = isActiveLogicalOrder(order)
 
@@ -348,14 +350,12 @@ export default function BWAccountAssignDialog({
   const lastUsedIds = useMemo(() => {
     const map: Record<string, string | null> = {}
     for (const item of order.items) {
-      map[item.id] = findLastUsedAccountId(
-        rawOrders, excludedIds, item.gamepassId, item.gameName,
-      )
+      map[item.id] = findLastUsedAccountId(rawOrders, excludedIds, item.gamepassId, item.gameName)
     }
     return map
   }, [rawOrders, excludedIds, order.items])
 
-  // For "Apply to All": find a last-used account that can cover the whole order
+  // For "Apply to All": find a last-used account that can still cover the full order total
   const applyAllLastUsedId = useMemo(() => {
     const firstId = order.items[0] ? lastUsedIds[order.items[0].id] : null
     if (!firstId) return null
@@ -366,22 +366,44 @@ export default function BWAccountAssignDialog({
 
   function setItem(itemId: string, accountId: string | null) {
     setAssignments(prev => ({ ...prev, [itemId]: accountId }))
+    // Clear any previous save result for this item so the user can retry cleanly
+    setSaveResults(prev => prev
+      ? prev.map(r => r.itemId === itemId ? { ...r, assignOk: true, reserveOk: true, error: null } : r)
+      : null)
   }
 
   function applyToAll(accountId: string) {
     const next: Record<string, string | null> = {}
     for (const item of order.items) next[item.id] = accountId
     setAssignments(next)
+    setSaveResults(null)
     setOpenPickerId(null)
   }
 
   async function handleSave() {
     setSaving(true)
-    try { await onSave(assignments) } catch { setSaving(false) }
+    setSaveResults(null)
+    try {
+      const results = await onSave(assignments)
+      if (!mountedRef.current) return
+      const allOk = results.every(r => r.assignOk && r.reserveOk)
+      if (allOk) {
+        onClose() // parent has shown toast; dialog unmounts
+      } else {
+        setSaveResults(results)
+        setSaving(false)
+      }
+    } catch {
+      if (mountedRef.current) setSaving(false)
+    }
   }
 
   const assignedCount = order.items.filter(i => assignments[i.id]).length
   const allAssigned = assignedCount === order.items.length
+
+  // Save result summary for the footer
+  const failedCount = saveResults ? saveResults.filter(r => !r.assignOk || !r.reserveOk).length : 0
+  const savedCount  = saveResults ? saveResults.filter(r => r.assignOk && r.reserveOk).length : 0
 
   return (
     <motion.div
@@ -411,10 +433,8 @@ export default function BWAccountAssignDialog({
           style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
         >
           <div>
-            <p
-              className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5"
-              style={{ color: 'rgba(255,255,255,0.28)' }}
-            >
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5"
+              style={{ color: 'rgba(255,255,255,0.28)' }}>
               BudgetWise Order
             </p>
             <h2 className="font-black text-[17px]" style={{ color: 'rgba(255,255,255,0.90)' }}>
@@ -429,11 +449,7 @@ export default function BWAccountAssignDialog({
             type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-xl flex items-center justify-center ml-4"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(255,255,255,0.50)',
-            }}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.50)' }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -455,7 +471,7 @@ export default function BWAccountAssignDialog({
             </div>
           )}
 
-          {/* Apply to All shortcut (multi-item active orders only) */}
+          {/* Apply to All (multi-item active orders) */}
           {order.items.length > 1 && isActive && (
             <div
               className="rounded-2xl p-3 space-y-2"
@@ -467,7 +483,7 @@ export default function BWAccountAssignDialog({
                   Apply one account to all {order.items.length} items
                 </p>
                 <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
-                  {formatRobux(order.totalRobux)} R$ required
+                  {formatRobux(order.totalRobux)} R$ total required
                 </span>
               </div>
               {openPickerId === 'apply-all' ? (
@@ -490,11 +506,13 @@ export default function BWAccountAssignDialog({
             </div>
           )}
 
-          {/* Per-item assignment rows */}
+          {/* Per-item rows */}
           {order.items.map(item => {
             const currentAccId = assignments[item.id] ?? null
             const currentAcc = accounts.find(a => a.id === currentAccId) ?? null
             const itemOpen = openPickerId === item.id
+            const itemResult = saveResults?.find(r => r.itemId === item.id)
+            const itemOk = itemResult ? (itemResult.assignOk && itemResult.reserveOk) : null
 
             return (
               <div
@@ -502,16 +520,15 @@ export default function BWAccountAssignDialog({
                 className="rounded-2xl p-4 space-y-3"
                 style={{
                   background: 'rgba(255,255,255,0.030)',
-                  border: '1px solid rgba(255,255,255,0.065)',
+                  border: itemOk === false
+                    ? '1px solid rgba(244,63,94,0.22)'
+                    : '1px solid rgba(255,255,255,0.065)',
                 }}
               >
                 {/* Item header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p
-                      className="text-[13px] font-bold truncate"
-                      style={{ color: 'rgba(255,255,255,0.88)' }}
-                    >
+                    <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>
                       {item.gamepassName}
                     </p>
                     <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.38)' }}>
@@ -519,7 +536,15 @@ export default function BWAccountAssignDialog({
                       {item.robuxAmount.toLocaleString()} R$ required
                     </p>
                   </div>
-                  {currentAcc && !itemOpen && (
+                  {/* Save result badge */}
+                  {itemOk === true && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3" style={{ color: '#34d399' }} />
+                      <span className="text-[10px] font-bold" style={{ color: '#34d399' }}>Saved</span>
+                    </div>
+                  )}
+                  {/* Ready/Low badge (shown before save) */}
+                  {itemOk === null && currentAcc && !itemOpen && (
                     getAvailableRobux(currentAcc) >= item.robuxAmount ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Check className="w-3 h-3" style={{ color: '#34d399' }} />
@@ -534,14 +559,12 @@ export default function BWAccountAssignDialog({
                   )}
                 </div>
 
-                {/* Assignment area: picker, selected card, or read-only empty state */}
+                {/* Assignment area */}
                 <AnimatePresence>
                   {itemOpen ? (
                     <motion.div
                       key="picker"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.15 }}
                     >
                       <AccountPicker
@@ -557,9 +580,7 @@ export default function BWAccountAssignDialog({
                   ) : currentAcc ? (
                     <motion.div
                       key={`card-${currentAcc.id}`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.15 }}
                     >
                       <SelectedAccountCard
@@ -573,29 +594,20 @@ export default function BWAccountAssignDialog({
                   ) : isActive ? (
                     <motion.div
                       key="trigger"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.12 }}
                     >
-                      <PickerTrigger
-                        onClick={() => setOpenPickerId(item.id)}
-                      />
+                      <PickerTrigger onClick={() => setOpenPickerId(item.id)} />
                     </motion.div>
                   ) : (
                     <motion.div
                       key="empty"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                       transition={{ duration: 0.12 }}
                     >
                       <div
                         className="rounded-xl px-3 py-2.5"
-                        style={{
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.07)',
-                        }}
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
                       >
                         <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
                           No account assigned
@@ -604,6 +616,19 @@ export default function BWAccountAssignDialog({
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Per-item save error */}
+                {itemOk === false && itemResult?.error && (
+                  <div
+                    className="rounded-xl px-3 py-2 flex items-start gap-2"
+                    style={{ background: 'rgba(244,63,94,0.07)', border: '1px solid rgba(244,63,94,0.18)' }}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#f43f5e' }} />
+                    <p className="text-[11px] font-semibold leading-tight" style={{ color: '#f43f5e' }}>
+                      {itemResult.error}
+                    </p>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -614,8 +639,11 @@ export default function BWAccountAssignDialog({
           className="px-6 py-4 flex items-center justify-between gap-3 flex-shrink-0"
           style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
         >
+          {/* Status summary */}
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
-            {allAssigned
+            {saveResults && failedCount > 0
+              ? `${savedCount} saved · ${failedCount} failed — fix and retry`
+              : allAssigned
               ? `All ${order.items.length} item${order.items.length !== 1 ? 's' : ''} assigned`
               : assignedCount > 0
               ? `${assignedCount} of ${order.items.length} assigned`
@@ -626,11 +654,7 @@ export default function BWAccountAssignDialog({
               type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-[12px] font-bold"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                color: 'rgba(255,255,255,0.55)',
-              }}
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.55)' }}
             >
               Cancel
             </button>
@@ -645,7 +669,7 @@ export default function BWAccountAssignDialog({
                 color: '#22d3ee',
               }}
             >
-              {saving ? 'Saving…' : isActive ? 'Save Assignments' : 'Read Only'}
+              {saving ? 'Saving…' : failedCount > 0 ? 'Retry Failed' : isActive ? 'Save Assignments' : 'Read Only'}
             </button>
           </div>
         </div>
