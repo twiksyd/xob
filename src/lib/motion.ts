@@ -71,6 +71,17 @@ export const hoverScale = {
   whileTap:   { scale: 0.96, transition: { duration: 0.10 } },
 } as const
 
+// Faster stagger for operational pages (orders, accounts, transactions) —
+// list items appear in ~0 delay so the operator sees data immediately.
+export const fastStagger: Variants = {
+  animate: { transition: { staggerChildren: 0.015, delayChildren: 0 } as Transition },
+}
+
+export const fastStaggerItem: Variants = {
+  initial:  { opacity: 0, y: 4 },
+  animate:  { opacity: 1, y: 0, transition: t(0.14) },
+}
+
 // Continuous ambient float for decorative orbs / background elements
 export const ambientFloat: Variants = {
   animate: {

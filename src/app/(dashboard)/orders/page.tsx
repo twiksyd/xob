@@ -12,17 +12,18 @@ import FulfillmentMode from '@/components/orders/FulfillmentMode'
 import BWAccountAssignDialog, { type AssignmentItemResult } from '@/components/orders/BWAccountAssignDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
-import type { LogicalOrder } from '@/lib/types/logical-order'
+import type { LogicalOrder, LogicalOrderItem } from '@/lib/types/logical-order'
 import { createClient } from '@/lib/supabase/client'
-import { calculateOrderTotals, formatPHP } from '@/lib/utils/pricing'
+import { calculateOrderTotals, formatPHP, formatRobux } from '@/lib/utils/pricing'
 import { isActiveLogicalOrder } from '@/lib/utils/orders'
 import { getAvailableRobux } from '@/lib/utils/accounts'
 import { normalizeOrders, RAW_FETCH_CAP } from '@/lib/utils/normalize-orders'
 import { getGameNameStyle } from '@/lib/utils/games'
-import { motion, AnimatePresence } from 'framer-motion'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { staggerContainer, staggerItem, fastStagger, fastStaggerItem } from '@/lib/motion'
 import CountUp from '@/components/shared/CountUp'
 import StatusBadge from '@/components/shared/StatusBadge'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import { useToast } from '@/components/shared/Toast'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import {
@@ -31,6 +32,7 @@ import {
 import {
   Plus, ClipboardList, Wallet, TrendingUp, CheckCircle2,
   Loader2, Edit2, ArrowUpRight, AlertCircle, X, MoreHorizontal, Trash2, Zap,
+  Search, UserCheck,
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
@@ -74,6 +76,29 @@ const STATUS_ACTION: Record<string, { label: string; color: string; bg: string; 
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+function formatOrderAge(ageHours: number): string {
+  const ageMinutes = Math.max(0, Math.round(ageHours * 60))
+  if (ageMinutes < 1) return 'Just now'
+  if (ageMinutes < 60) return `${ageMinutes}m ago`
+  return `${Math.max(1, Math.round(ageMinutes / 60))}h ago`
+}
+
+function AccountStatusMini({ status }: { status: RobloxAccount['status'] }) {
+  const color = status === 'active'
+    ? '#22d3ee'
+    : status === 'low'
+      ? '#f59e0b'
+      : status === 'banned'
+        ? '#f43f5e'
+        : 'rgba(255,255,255,0.46)'
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold capitalize" style={{ color: 'rgba(255,255,255,0.54)' }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}66` }} />
+      {status}
+    </span>
+  )
+}
+
 function OrdersPageContent() {
   const [rawOrders, setRawOrders]             = useState<OrderWithDetails[]>([])
   const [isRawCapped, setIsRawCapped]         = useState(false)
@@ -85,6 +110,18 @@ function OrdersPageContent() {
   const [fulfillOrder, setFulfillOrder]       = useState<LogicalOrder | null>(null)
   const [bwAssignOrder, setBwAssignOrder]     = useState<LogicalOrder | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
+  const [accountSearch, setAccountSearch]     = useState('')
+  const [selectedOrderKeys, setSelectedOrderKeys] = useState<Set<string>>(() => new Set())
+  const [focusedOrderKey, setFocusedOrderKey] = useState<string | null>(null)
+  const [centerMode, setCenterMode]           = useState<'shop' | 'manual'>('shop')
+  const [batchAssigning, setBatchAssigning]   = useState(false)
+  const [batchResults, setBatchResults]       = useState<AssignmentItemResult[] | null>(null)
+  const [accountDockOpen, setAccountDockOpen] = useState(false)
+  const [orderFeedback, setOrderFeedback]     = useState<Record<string, 'success' | 'error'>>({})
+  const [nowMs] = useState<number>(Date.now)
+  const lastQueueIndexRef = useRef<number | null>(null)
+  const feedbackTimersRef = useRef<number[]>([])
 
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
@@ -92,6 +129,10 @@ function OrdersPageContent() {
   const toast = useToast()
   const confirm = useConfirm()
   const ws = useWorkspaces()
+  const prefersReducedMotion = useReducedMotion()
+  const quickMotion = prefersReducedMotion
+    ? { duration: 0 }
+    : { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const }
 
   // Stable refs for submit callback — avoids stale closures without adding
   // large arrays to useCallback dependency lists.
@@ -101,6 +142,9 @@ function OrdersPageContent() {
   useEffect(() => { workspacesRef.current = ws.workspaces }, [ws.workspaces])
   useEffect(() => { rawOrdersRef.current = rawOrders }, [rawOrders])
   useEffect(() => { accountsRef.current = accounts }, [accounts])
+  useEffect(() => () => {
+    feedbackTimersRef.current.forEach(timer => window.clearTimeout(timer))
+  }, [])
 
   // ── Normalization ────────────────────────────────────────────────────────────
   const logicalOrders = useMemo(() => normalizeOrders(rawOrders), [rawOrders])
@@ -109,13 +153,17 @@ function OrdersPageContent() {
   // ── ?create=1 URL param — GlobalOrderCommand lands here ───────────────────
   useEffect(() => {
     if (searchParams.get('create') === '1') {
-      ws.openOrCreate()
-      router.replace('/orders')
+      const timer = window.setTimeout(() => {
+        ws.openOrCreate()
+        setCenterMode('manual')
+        router.replace('/orders')
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // ── Keyboard shortcuts + scroll lock when overlay is open ─────────────────
+  // ── Keyboard shortcuts for the inline manual workspace ────────────────────
   useEffect(() => {
     if (!ws.open) return
     function onKey(e: KeyboardEvent) {
@@ -126,12 +174,7 @@ function OrdersPageContent() {
       }
     }
     document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
+    return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws.open])
 
@@ -205,7 +248,10 @@ function OrdersPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void fetchData() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchData])
 
   // ── Multi-workspace submit — called by WorkspaceEditor on form submit ───────
   const handleWorkspaceSubmit = useCallback(async (
@@ -406,23 +452,26 @@ function OrdersPageContent() {
       return
     }
     const raw = rawOrdersMap.get(lo.primaryOrderId)
-    if (raw) ws.openOrCreate(raw)
+    if (raw) {
+      setCenterMode('manual')
+      ws.openOrCreate(raw)
+    }
   }
 
   // ── BW account assignment save ────────────────────────────────────────────────
   //
   // Scenarios handled per item:
   //   unchanged       → skip (no DB call)
-  //   null → account  → reserve_order_robux first, then update orders row
-  //                     (not atomic — a missing assign_order_account RPC is the gap)
+  //   null → account  → assign_order_account (atomic row update + reservation)
   //   account A → B   → reassign_order_account (fully atomic, updates both row + reservation)
   //   account → null  → release_order_reservation, then null out the orders row
   //
-  async function handleBWAssignSave(
+  async function saveBudgetWiseAssignments(
+    order: LogicalOrder,
     assignments: Record<string, string | null>,
+    options: { refresh?: boolean; toastResult?: boolean } = {},
   ): Promise<AssignmentItemResult[]> {
-    const order = bwAssignOrder
-    if (!order) return []
+    const { refresh = true, toastResult = true } = options
 
     // Per-account combined Robux validation before touching the DB.
     // Effective available = current available + reservations on THIS order's items
@@ -449,7 +498,7 @@ function OrdersPageContent() {
       }
     }
     if (validationErrors.size > 0) {
-      fetchData()
+      if (refresh) fetchData()
       return order.items.map(item => {
         const newId = assignments[item.id] ?? null
         const err   = newId ? (validationErrors.get(newId) ?? null) : null
@@ -457,29 +506,33 @@ function OrdersPageContent() {
       })
     }
 
-    const results = await Promise.all(
-      order.items.map(async (item): Promise<AssignmentItemResult> => {
+    const results: AssignmentItemResult[] = []
+    for (const item of order.items) {
         const newId  = assignments[item.id] ?? null
         const prevId = item.robloxAccountId ?? null
         const base   = { itemId: item.id, gamepassName: item.gamepassName, accountId: newId }
 
         // Unchanged
         if (newId === prevId) {
-          return { ...base, assignOk: true, reserveOk: true, error: null }
+          results.push({ ...base, assignOk: true, reserveOk: true, error: null })
+          continue
         }
 
         // Removal: release reservation, then null out the order row
         if (newId === null) {
-          const [rel, upd] = await Promise.all([
-            supabase.rpc('release_order_reservation', { p_order_id: item.id }),
-            supabase.from('orders').update({ roblox_account_id: null }).eq('id', item.id),
-          ])
-          return {
+          const rel = await supabase.rpc('release_order_reservation', { p_order_id: item.id })
+          if (rel.error) {
+            results.push({ ...base, assignOk: false, reserveOk: false, error: rel.error.message })
+            continue
+          }
+          const upd = await supabase.from('orders').update({ roblox_account_id: null }).eq('id', item.id)
+          results.push({
             ...base,
             assignOk: !upd.error,
-            reserveOk: !rel.error,
-            error: rel.error?.message ?? upd.error?.message ?? null,
-          }
+            reserveOk: true,
+            error: upd.error?.message ?? null,
+          })
+          continue
         }
 
         // Reassignment A → B: use reassign_order_account (atomic, updates row + reservation)
@@ -488,62 +541,38 @@ function OrdersPageContent() {
             p_order_id:       item.id,
             p_new_account_id: newId,
           })
-          return { ...base, assignOk: !res.error, reserveOk: !res.error, error: res.error?.message ?? null }
+          results.push({ ...base, assignOk: !res.error, reserveOk: !res.error, error: res.error?.message ?? null })
+          continue
         }
 
-        // Initial assignment (null → account):
-        // Primary path: assign_order_account (migration 047) — validates, reserves, and
+        // Initial assignment: assign_order_account validates, reserves, and
         // updates the order row in a single PostgreSQL transaction.
-        // Fallback: if the function is not yet deployed, fall back to reserve_order_robux
-        // + orders.update with compensating cleanup — if the row update fails the
-        // reservation is explicitly released so no orphan is left behind.
         const assignRes = await supabase.rpc('assign_order_account', {
           p_order_id:   item.id,
           p_account_id: newId,
         })
-        if (!assignRes.error) {
-          return { ...base, assignOk: true, reserveOk: true, error: null }
-        }
-        // Propagate validation errors (status, balance, access) directly.
-        // Only fall through to two-step if the function itself is unavailable.
-        const isFnMissing = assignRes.error.message.toLowerCase().includes('function')
-          || assignRes.error.message.toLowerCase().includes('does not exist')
-        if (!isFnMissing) {
-          return { ...base, assignOk: false, reserveOk: false, error: assignRes.error.message }
-        }
+        results.push({ ...base, assignOk: !assignRes.error, reserveOk: !assignRes.error, error: assignRes.error?.message ?? null })
+    }
 
-        // Two-step fallback with compensating cleanup (pre-migration environments)
-        const reserveRes = await supabase.rpc('reserve_order_robux', {
-          p_order_id:       item.id,
-          p_account_id:     newId,
-          p_robux_amount:   item.robuxAmount,
-          p_gamepass_names: item.gamepassName,
-        })
-        if (reserveRes.error) {
-          return { ...base, assignOk: false, reserveOk: false, error: reserveRes.error.message }
-        }
-        const updateRes = await supabase.from('orders').update({ roblox_account_id: newId }).eq('id', item.id)
-        if (updateRes.error) {
-          // Compensating cleanup: release the reservation to prevent it from being orphaned.
-          await supabase.rpc('release_order_reservation', { p_order_id: item.id })
-          return { ...base, assignOk: false, reserveOk: false, error: updateRes.error.message }
-        }
-        return { ...base, assignOk: true, reserveOk: true, error: null }
-      }),
-    )
-
-    fetchData()
+    if (refresh) fetchData()
 
     const allOk = results.every(r => r.assignOk && r.reserveOk)
-    if (allOk) {
+    if (toastResult && allOk) {
       toast.success('Account assignments saved.')
       // Dialog calls onClose() on full success; we do NOT call setBwAssignOrder(null) here.
-    } else {
+    } else if (toastResult) {
       const failCount = results.filter(r => !r.assignOk || !r.reserveOk).length
       toast.error(`${failCount} item${failCount !== 1 ? 's' : ''} could not be saved — see dialog for details.`)
     }
 
     return results
+  }
+
+  async function handleBWAssignSave(
+    assignments: Record<string, string | null>,
+  ): Promise<AssignmentItemResult[]> {
+    if (!bwAssignOrder) return []
+    return saveBudgetWiseAssignments(bwAssignOrder, assignments)
   }
 
   // ── Game activity map ────────────────────────────────────────────────────────
@@ -578,12 +607,253 @@ function OrdersPageContent() {
     }
   }, [logicalOrders])
 
+  function isLogicalOrderUnassigned(lo: LogicalOrder): boolean {
+    if (lo.source === 'budgetwise') return lo.items.some(i => i.robloxAccountId === null)
+    return lo.robloxAccountId === null
+  }
+
+  function isLogicalOrderReady(lo: LogicalOrder): boolean {
+    if (lo.hasMixedStatus || lo.status !== 'paid') return false
+    if (lo.source === 'budgetwise') return lo.items.every(i => i.robloxAccountId !== null)
+    return lo.robloxAccountId !== null
+  }
+
+  function getQueuePriority(lo: LogicalOrder): number {
+    const isShop = lo.source === 'budgetwise'
+    if (isShop && isLogicalOrderUnassigned(lo)) return 0
+    if (isShop && isLogicalOrderReady(lo)) return 1
+    if (isLogicalOrderUnassigned(lo)) return 2
+    if (isLogicalOrderReady(lo)) return 3
+    if ((nowMs - new Date(lo.createdAt).getTime()) / 3_600_000 > 48) return 4
+    if (lo.status === 'pending' && !lo.hasMixedStatus) return 5
+    return 6
+  }
+
   const activeOrdersSorted = useMemo(() =>
     logicalOrders
       .filter(isActiveLogicalOrder)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    [logicalOrders]
+      .sort((a, b) => {
+        const ap = getQueuePriority(a)
+        const bp = getQueuePriority(b)
+        if (ap !== bp) return ap - bp
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [logicalOrders, nowMs]
   )
+
+  // ── Action Center filter ─────────────────────────────────────────────────────
+  type ActionFilter = 'all' | 'unassigned' | 'ready' | 'pending' | 'stalled'
+  const [actionFilter, setActionFilter] = useState<ActionFilter>('all')
+
+  const actionFilterCounts = useMemo(() => {
+    const unassigned = activeOrdersSorted.filter(lo => {
+      if (lo.source === 'budgetwise') return lo.items.some(i => i.robloxAccountId === null)
+      return lo.robloxAccountId === null
+    }).length
+    const ready = activeOrdersSorted.filter(lo => {
+      if (lo.hasMixedStatus || lo.status !== 'paid') return false
+      if (lo.source === 'budgetwise') return lo.items.every(i => i.robloxAccountId !== null)
+      return lo.robloxAccountId !== null
+    }).length
+    const pending = activeOrdersSorted.filter(lo => lo.status === 'pending' && !lo.hasMixedStatus).length
+    const stalled = activeOrdersSorted.filter(lo =>
+      (nowMs - new Date(lo.createdAt).getTime()) / 3_600_000 > 48
+    ).length
+    return { all: activeOrdersSorted.length, unassigned, ready, pending, stalled }
+  }, [activeOrdersSorted, nowMs])
+
+  const filteredActiveOrders = useMemo(() => {
+    switch (actionFilter) {
+      case 'unassigned':
+        return activeOrdersSorted.filter(lo => {
+          if (lo.source === 'budgetwise') return lo.items.some(i => i.robloxAccountId === null)
+          return lo.robloxAccountId === null
+        })
+      case 'ready':
+        return activeOrdersSorted.filter(lo => {
+          if (lo.hasMixedStatus || lo.status !== 'paid') return false
+          if (lo.source === 'budgetwise') return lo.items.every(i => i.robloxAccountId !== null)
+          return lo.robloxAccountId !== null
+        })
+      case 'pending':
+        return activeOrdersSorted.filter(lo => lo.status === 'pending' && !lo.hasMixedStatus)
+      case 'stalled':
+        return activeOrdersSorted.filter(lo =>
+          (nowMs - new Date(lo.createdAt).getTime()) / 3_600_000 > 48
+        )
+      default:
+        return activeOrdersSorted
+    }
+  }, [activeOrdersSorted, actionFilter, nowMs])
+
+  const activeAccount = useMemo(
+    () => accounts.find(a => a.id === activeAccountId) ?? null,
+    [accounts, activeAccountId],
+  )
+
+  const focusedOrder = useMemo(() => {
+    if (focusedOrderKey) {
+      const existing = activeOrdersSorted.find(lo => lo.logicalKey === focusedOrderKey)
+      if (existing) return existing
+    }
+    return filteredActiveOrders[0] ?? null
+  }, [focusedOrderKey, activeOrdersSorted, filteredActiveOrders])
+
+  const getAssignableItems = useCallback((lo: LogicalOrder): LogicalOrderItem[] => {
+    if (lo.source !== 'budgetwise' || !isActiveLogicalOrder(lo)) return []
+    return lo.items.filter(item => item.robloxAccountId === null)
+  }, [])
+
+  const selectedOrders = useMemo(
+    () => activeOrdersSorted.filter(lo => selectedOrderKeys.has(lo.logicalKey)),
+    [activeOrdersSorted, selectedOrderKeys],
+  )
+  const selectedAssignableItems = useMemo(
+    () => selectedOrders.flatMap(lo => getAssignableItems(lo)),
+    [selectedOrders, getAssignableItems],
+  )
+  const selectedRequiredRobux = selectedAssignableItems.reduce((sum, item) => sum + item.robuxAmount, 0)
+  const selectedIncompatibleCount = selectedOrders.filter(lo => getAssignableItems(lo).length === 0).length
+  const activeAvailableRobux = activeAccount ? getAvailableRobux(activeAccount) : 0
+  const selectedRemainingRobux = activeAvailableRobux - selectedRequiredRobux
+  const selectedOrderSequence = Array.from(selectedOrderKeys)
+
+  function toggleQueueSelection(lo: LogicalOrder, index: number, shiftKey: boolean) {
+    setBatchResults(null)
+    setSelectedOrderKeys(prev => {
+      const next = new Set(prev)
+      if (shiftKey && lastQueueIndexRef.current !== null) {
+        const [start, end] = [lastQueueIndexRef.current, index].sort((a, b) => a - b)
+        filteredActiveOrders.slice(start, end + 1).forEach(order => next.add(order.logicalKey))
+      } else if (next.has(lo.logicalKey)) {
+        next.delete(lo.logicalKey)
+      } else {
+        next.add(lo.logicalKey)
+      }
+      return next
+    })
+    lastQueueIndexRef.current = index
+  }
+
+  function flashOrderFeedback(nextFeedback: Record<string, 'success' | 'error'>) {
+    setOrderFeedback(prev => ({ ...prev, ...nextFeedback }))
+    const timer = window.setTimeout(() => {
+      setOrderFeedback(prev => {
+        const next = { ...prev }
+        Object.keys(nextFeedback).forEach(key => { delete next[key] })
+        return next
+      })
+    }, prefersReducedMotion ? 0 : 1400)
+    feedbackTimersRef.current.push(timer)
+  }
+
+  async function handleAssignSelectedToActiveAccount() {
+    if (!activeAccount) {
+      toast.error('Select an active account first.')
+      return
+    }
+    if (selectedAssignableItems.length === 0) {
+      toast.error('Select at least one unassigned BudgetWise order.')
+      return
+    }
+    if (selectedIncompatibleCount > 0) {
+      toast.error(`${selectedIncompatibleCount} selected order${selectedIncompatibleCount !== 1 ? 's are' : ' is'} not assignable.`)
+      return
+    }
+    if (selectedRemainingRobux < 0) {
+      toast.error(`${formatRobux(selectedRequiredRobux)} required, but ${activeAccount.username} has ${formatRobux(activeAvailableRobux)} available.`)
+      return
+    }
+
+    setBatchAssigning(true)
+    setBatchResults(null)
+    const allResults: AssignmentItemResult[] = []
+    const nextFeedback: Record<string, 'success' | 'error'> = {}
+    try {
+      for (const order of selectedOrders) {
+        const assignableItems = getAssignableItems(order)
+        if (assignableItems.length === 0) continue
+        const attemptedIds = new Set(assignableItems.map(item => item.id))
+        const assignments = Object.fromEntries(
+          order.items.map(item => [item.id, item.robloxAccountId ?? null]),
+        ) as Record<string, string | null>
+        for (const item of assignableItems) assignments[item.id] = activeAccount.id
+        const results = await saveBudgetWiseAssignments(order, assignments, { refresh: false, toastResult: false })
+        const attemptedResults = results.filter(result => attemptedIds.has(result.itemId))
+        allResults.push(...attemptedResults)
+        nextFeedback[order.logicalKey] = attemptedResults.some(r => !r.assignOk || !r.reserveOk) ? 'error' : 'success'
+      }
+
+      setBatchResults(allResults)
+      flashOrderFeedback(nextFeedback)
+      const failed = allResults.filter(r => !r.assignOk || !r.reserveOk)
+      const succeeded = allResults.length - failed.length
+      if (failed.length > 0) {
+        toast.error(`${succeeded} assigned, ${failed.length} failed. Account state refreshed.`)
+      } else {
+        toast.success(`Assigned ${succeeded} item${succeeded !== 1 ? 's' : ''} to ${activeAccount.username}.`)
+        const completedKeys = new Set(selectedOrders.map(lo => lo.logicalKey))
+        setSelectedOrderKeys(prev => {
+          const next = new Set(prev)
+          completedKeys.forEach(key => next.delete(key))
+          return next
+        })
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not assign selected orders.')
+    } finally {
+      await fetchData()
+      setBatchAssigning(false)
+    }
+  }
+
+  async function handleAssignFocusedToActiveAccount(lo: LogicalOrder) {
+    if (!activeAccount) {
+      toast.error('Select an active account first.')
+      return
+    }
+    const assignableItems = getAssignableItems(lo)
+    if (assignableItems.length === 0) {
+      toast.error('This order has no unassigned BudgetWise items.')
+      return
+    }
+    const required = assignableItems.reduce((sum, item) => sum + item.robuxAmount, 0)
+    if (getAvailableRobux(activeAccount) < required) {
+      toast.error(`${activeAccount.username} needs ${formatRobux(required)} but only has ${formatRobux(getAvailableRobux(activeAccount))} available.`)
+      return
+    }
+
+    setBatchAssigning(true)
+    setBatchResults(null)
+    try {
+      const attemptedIds = new Set(assignableItems.map(item => item.id))
+      const assignments = Object.fromEntries(
+        lo.items.map(item => [item.id, item.robloxAccountId ?? null]),
+      ) as Record<string, string | null>
+      for (const item of assignableItems) assignments[item.id] = activeAccount.id
+      const results = await saveBudgetWiseAssignments(lo, assignments, { refresh: false, toastResult: false })
+      const attemptedResults = results.filter(result => attemptedIds.has(result.itemId))
+      setBatchResults(attemptedResults)
+      flashOrderFeedback({ [lo.logicalKey]: attemptedResults.some(r => !r.assignOk || !r.reserveOk) ? 'error' : 'success' })
+      const failed = attemptedResults.filter(r => !r.assignOk || !r.reserveOk)
+      if (failed.length > 0) {
+        toast.error(`${attemptedResults.length - failed.length} assigned, ${failed.length} failed. Account state refreshed.`)
+      } else {
+        toast.success(`Assigned ${attemptedResults.length} item${attemptedResults.length !== 1 ? 's' : ''} to ${activeAccount.username}.`)
+        setSelectedOrderKeys(prev => {
+          const next = new Set(prev)
+          next.delete(lo.logicalKey)
+          return next
+        })
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not assign this order.')
+    } finally {
+      await fetchData()
+      setBatchAssigning(false)
+    }
+  }
 
   // Button label — reflects whether there are saved workspaces to return to
   const wsButtonLabel = ws.workspaces.length > 0
@@ -591,14 +861,461 @@ function OrdersPageContent() {
     : 'Create Order'
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const focusedAssignableItems = focusedOrder ? getAssignableItems(focusedOrder) : []
+  const focusedRequiredRobux = focusedAssignableItems.reduce((sum, item) => sum + item.robuxAmount, 0)
+  const focusedAssignedItems = focusedOrder
+    ? focusedOrder.items.length - focusedOrder.items.filter(item => item.robloxAccountId === null).length
+    : 0
+  const focusedAgeHours = focusedOrder
+    ? (nowMs - new Date(focusedOrder.createdAt).getTime()) / 3_600_000
+    : 0
+  const focusedRemainingRobux = activeAccount ? getAvailableRobux(activeAccount) - focusedRequiredRobux : null
+  const focusedAssignmentIssue = focusedOrder?.source === 'budgetwise'
+    ? focusedAssignableItems.length === 0
+      ? 'Already assigned elsewhere.'
+      : activeAccount
+        ? focusedRemainingRobux !== null && focusedRemainingRobux < 0
+          ? `Needs ${formatRobux(focusedRequiredRobux)} - active account has ${formatRobux(activeAvailableRobux)}`
+          : null
+        : 'Select an account to assign this order.'
+    : null
+  const selectedAssignmentIssue = selectedOrders.length === 0
+    ? null
+    : !activeAccount
+      ? 'Select an account to assign checked orders.'
+      : selectedIncompatibleCount > 0
+        ? `${selectedIncompatibleCount} checked order${selectedIncompatibleCount !== 1 ? 's are' : ' is'} not assignable.`
+        : selectedRemainingRobux < 0
+          ? `Needs ${formatRobux(selectedRequiredRobux)} - active account has ${formatRobux(activeAvailableRobux)}`
+          : null
+  const showBatchAssignAction = selectedOrders.length > 0
+    && !(selectedOrders.length === 1 && focusedOrder?.logicalKey === selectedOrders[0]?.logicalKey)
+  const switchAccountQuery = accountSearch.trim().toLowerCase()
+  const switchAccountRequiredRobux = selectedRequiredRobux > 0 ? selectedRequiredRobux : focusedRequiredRobux
+  const switchAccountList = [...accounts]
+    .filter(a => a.id !== activeAccountId)
+    .filter(a => !switchAccountQuery || a.username.toLowerCase().includes(switchAccountQuery) || (a.chrome_profile ?? '').toLowerCase().includes(switchAccountQuery))
+    .sort((a, b) => {
+      const aAvailable = getAvailableRobux(a)
+      const bAvailable = getAvailableRobux(b)
+      const aCovers = switchAccountRequiredRobux > 0 && aAvailable >= switchAccountRequiredRobux ? 1 : 0
+      const bCovers = switchAccountRequiredRobux > 0 && bAvailable >= switchAccountRequiredRobux ? 1 : 0
+      if (aCovers !== bCovers) return bCovers - aCovers
+      const aUsable = a.status === 'active' ? 1 : 0
+      const bUsable = b.status === 'active' ? 1 : 0
+      if (aUsable !== bUsable) return bUsable - aUsable
+      if (aAvailable !== bAvailable) return bAvailable - aAvailable
+      if (a.is_plus_account !== b.is_plus_account) return a.is_plus_account ? -1 : 1
+      return a.username.localeCompare(b.username)
+    })
+
   return (
     <div className="relative overflow-x-hidden">
+      <section className="relative px-4 sm:px-6 xl:px-8 pt-20 pb-8">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 mb-4">
+            <div>
+              <h1 className="text-[28px] sm:text-[34px] font-black leading-tight" style={{ color: 'rgba(255,255,255,0.94)' }}>
+                Orders
+              </h1>
+              <p className="text-[12px] mt-1 font-semibold" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                {orderStats.activeOrders} active / {actionFilterCounts.unassigned} unassigned / {actionFilterCounts.ready} ready
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {([
+                ['Active', orderStats.activeOrders, '#22d3ee'],
+                ['Unassigned', actionFilterCounts.unassigned, '#f59e0b'],
+                ['Ready', actionFilterCounts.ready, '#34d399'],
+                ['Stalled', actionFilterCounts.stalled, '#f43f5e'],
+              ] as const).map(([label, value, color]) => (
+                <div key={label} className="rounded-lg px-3 py-2 min-w-[92px]" style={{ background: 'rgba(255,255,255,0.035)', border: `1px solid ${color}24` }}>
+                  <p className="text-[9px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.34)' }}>{label}</p>
+                  <p className="text-[16px] font-black tabular-nums leading-none mt-1" style={{ color }}>{value}</p>
+                </div>
+              ))}
+              <button type="button" onClick={() => setAccountDockOpen(true)} className="xl:hidden h-11 min-w-0 px-3 rounded-xl flex items-center gap-2 text-left cursor-pointer" style={{ background: 'rgba(52,211,153,0.060)', border: '1px solid rgba(52,211,153,0.18)', color: 'rgba(255,255,255,0.78)' }}>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-black uppercase" style={{ color: '#34d399' }}>Account</span>
+                  <span className="block text-[11px] font-bold truncate max-w-[150px]" title={activeAccount?.username ?? 'No account selected'}>{activeAccount?.username ?? 'Choose account'}</span>
+                </span>
+                <span className="text-[12px] font-black tabular-nums flex-shrink-0" style={{ color: activeAccount ? '#34d399' : '#f59e0b' }}>{formatRobux(activeAvailableRobux)}</span>
+              </button>
+              <button type="button" onClick={() => { setCenterMode('manual'); ws.openOrCreate() }} className="h-11 px-4 rounded-xl flex items-center gap-2 text-[12px] font-black transition-colors cursor-pointer" style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.76)' }}>
+                <Plus className="w-4 h-4" />
+                {ws.workspaces.length > 0 ? wsButtonLabel : 'Create Manual Order'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(270px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(280px,315px)_minmax(0,1fr)_minmax(285px,320px)] 2xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)_minmax(300px,340px)] gap-2 xl:gap-3 items-start">
+            <aside className="rounded-xl overflow-hidden min-w-0" style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.070)' }}>
+              <div className="px-3.5 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div>
+                  <h2 className="text-[13px] font-black" style={{ color: 'rgba(255,255,255,0.82)' }}>Order Queue</h2>
+                  <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>New Shop work first. Shift-click selects a range.</p>
+                </div>
+                <span className="text-[12px] font-black tabular-nums" style={{ color: '#f59e0b' }}>{filteredActiveOrders.length}</span>
+              </div>
+              <div className="px-3 pt-3 flex items-center gap-1.5 flex-wrap">
+                {([
+                  { value: 'all', label: 'All', count: actionFilterCounts.all, color: 'rgba(255,255,255,0.56)' },
+                  { value: 'unassigned', label: 'Unassigned', count: actionFilterCounts.unassigned, color: '#f59e0b' },
+                  { value: 'ready', label: 'Ready', count: actionFilterCounts.ready, color: '#34d399' },
+                  { value: 'pending', label: 'Pending', count: actionFilterCounts.pending, color: '#22d3ee' },
+                  { value: 'stalled', label: 'Stalled', count: actionFilterCounts.stalled, color: '#f43f5e' },
+                ] as { value: ActionFilter; label: string; count: number; color: string }[]).map(chip => {
+                  const isActive = actionFilter === chip.value
+                  return (
+                    <button key={chip.value} type="button" onClick={() => setActionFilter(chip.value)} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer" style={{ background: isActive ? `${chip.color}18` : 'rgba(255,255,255,0.035)', border: `1px solid ${isActive ? `${chip.color}3d` : 'rgba(255,255,255,0.07)'}`, color: isActive ? chip.color : 'rgba(255,255,255,0.38)' }}>
+                      {chip.label} <span className="tabular-nums">{chip.count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="p-3 space-y-2">
+                {loading ? (
+                  <div className="rounded-xl px-3 py-8 text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.025)' }}>Loading orders...</div>
+                ) : filteredActiveOrders.length === 0 ? (
+                  <div className="rounded-xl px-3 py-8 text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.025)' }}>No orders match this filter.</div>
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {filteredActiveOrders.map((lo, index) => {
+                  const selected = selectedOrderKeys.has(lo.logicalKey)
+                  const focused = focusedOrder?.logicalKey === lo.logicalKey
+                  const assignableItems = getAssignableItems(lo)
+                  const assignedItems = lo.items.length - lo.items.filter(item => item.robloxAccountId === null).length
+                  const ageHours = (nowMs - new Date(lo.createdAt).getTime()) / 3_600_000
+                  const firstItem = lo.items[0]
+                  const assignableRobux = assignableItems.reduce((sum, item) => sum + item.robuxAmount, 0)
+                  const fitsActiveAccount = activeAccount && assignableRobux > 0
+                    ? getAvailableRobux(activeAccount) >= assignableRobux
+                    : null
+                  const activeShortfall = fitsActiveAccount === false ? assignableRobux - activeAvailableRobux : 0
+                  const isNewShopWork = lo.source === 'budgetwise' && assignableItems.length > 0 && ageHours < 6
+                  const selectedIndex = selected ? selectedOrderSequence.indexOf(lo.logicalKey) + 1 : 0
+                  const feedback = orderFeedback[lo.logicalKey]
+                  const queueBg = feedback === 'success'
+                    ? 'rgba(52,211,153,0.075)'
+                    : feedback === 'error'
+                      ? 'rgba(244,63,94,0.075)'
+                      : focused
+                        ? 'rgba(34,211,238,0.055)'
+                        : isNewShopWork
+                          ? 'rgba(34,211,238,0.040)'
+                          : 'rgba(255,255,255,0.026)'
+                  const queueBorder = feedback === 'success'
+                    ? 'rgba(52,211,153,0.28)'
+                    : feedback === 'error'
+                      ? 'rgba(244,63,94,0.28)'
+                      : focused
+                        ? 'rgba(34,211,238,0.30)'
+                        : isNewShopWork
+                          ? 'rgba(34,211,238,0.16)'
+                          : 'rgba(255,255,255,0.060)'
+                  const queueShadow = [
+                    focused ? 'inset 4px 0 0 rgba(34,211,238,0.88)' : null,
+                    selected ? 'inset -3px 0 0 rgba(245,158,11,0.85)' : null,
+                  ].filter(Boolean).join(', ')
+                  return (
+                    <motion.button
+                      key={lo.logicalKey}
+                      type="button"
+                      layout={!prefersReducedMotion}
+                      initial={prefersReducedMotion ? false : { opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+                      transition={quickMotion}
+                      whileHover={prefersReducedMotion ? undefined : { backgroundColor: focused ? 'rgba(34,211,238,0.070)' : 'rgba(255,255,255,0.042)' }}
+                      onClick={() => { setFocusedOrderKey(lo.logicalKey); setCenterMode('shop') }}
+                      className="w-full rounded-xl p-3 text-left transition-colors cursor-pointer min-w-0"
+                      style={{ background: queueBg, border: `1px solid ${queueBorder}`, boxShadow: queueShadow || 'none' }}
+                    >
+                      <span className="flex items-start gap-2.5">
+                        <motion.span role="checkbox" aria-checked={selected} aria-label={`Select ${lo.orderNumber ?? 'order'}`} onClick={(e) => { e.stopPropagation(); toggleQueueSelection(lo, index, e.shiftKey) }} className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-black tabular-nums" style={{ background: selected ? 'rgba(245,158,11,0.24)' : 'rgba(255,255,255,0.065)', border: `1px solid ${selected ? 'rgba(245,158,11,0.62)' : 'rgba(255,255,255,0.18)'}`, color: '#f59e0b' }} animate={prefersReducedMotion ? undefined : { scale: selected ? 1.03 : 1 }} transition={quickMotion}>
+                          <AnimatePresence initial={false} mode="wait">
+                            {selected ? (
+                              <motion.span key="index" initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={quickMotion}>{selectedIndex}</motion.span>
+                            ) : (
+                              <motion.span key="empty" initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={quickMotion} />
+                            )}
+                          </AnimatePresence>
+                        </motion.span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2 mb-1">
+                            <span className="text-[11px] font-mono font-black truncate" style={{ color: 'rgba(255,255,255,0.72)' }}>{lo.orderNumber ?? lo.logicalKey}</span>
+                            {isNewShopWork && <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ color: '#22d3ee', background: 'rgba(34,211,238,0.10)', border: '1px solid rgba(34,211,238,0.24)' }}>NEW</span>}
+                            {feedback === 'success' && <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ color: '#34d399', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.18)' }}>ASSIGNED</span>}
+                            {feedback === 'error' && <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ color: '#f43f5e', background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.18)' }}>FAILED</span>}
+                            <StatusBadge status={lo.hasMixedStatus ? 'mixed' : lo.status} />
+                            {ageHours > 48 && <AlertCircle className="w-3 h-3" style={{ color: '#f43f5e' }} />}
+                          </span>
+                          <span className="block text-[13px] font-black truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{lo.buyerName ?? lo.buyerRobloxUsername ?? 'Unknown buyer'}</span>
+                          <span className="block text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                            {lo.items.length > 1 ? `${lo.items.length} items` : (firstItem?.gamepassName ?? firstItem?.gameName ?? 'No item')} / {formatOrderAge(ageHours)}
+                          </span>
+                        </span>
+                        <span className="text-right flex-shrink-0">
+                          <span className="block text-[16px] font-black tabular-nums leading-none" style={{ color: assignableItems.length > 0 ? '#f59e0b' : 'rgba(255,255,255,0.84)' }}>{formatRobux(lo.totalRobux)}</span>
+                          <span className="block text-[10px] font-bold mt-1" style={{ color: assignableItems.length > 0 ? '#f59e0b' : '#34d399' }}>
+                            {assignableItems.length > 0 ? `${assignableItems.length} unassigned` : `${assignedItems}/${lo.items.length} assigned`}
+                          </span>
+                          {activeShortfall > 0 && (
+                            <span className="block text-[9px] font-bold mt-0.5" style={{ color: '#f43f5e' }}>
+                              short {formatRobux(activeShortfall)}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    </motion.button>
+                  )
+                    })}
+                  </AnimatePresence>
+                )}
+              </div>
+            </aside>
+
+            <main className="rounded-2xl overflow-hidden min-w-0" style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.075)' }}>
+              <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div>
+                  <h2 className="text-[14px] font-black" style={{ color: 'rgba(255,255,255,0.84)' }}>
+                    {centerMode === 'manual' ? 'Manual Order' : 'Shop Order'}
+                  </h2>
+                  <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                    {centerMode === 'manual' ? 'Manual XOB creation stays secondary to the Shop queue.' : 'Selected Shop order details and account actions.'}
+                  </p>
+                </div>
+                <button type="button" onClick={() => {
+                  if (centerMode === 'manual') {
+                    setCenterMode('shop')
+                  } else {
+                    setCenterMode('manual')
+                    ws.openOrCreate()
+                  }
+                }} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.68)' }}>
+                  <Plus className="w-3.5 h-3.5" />
+                  {centerMode === 'manual' ? 'Back to Shop Order' : 'Create Manual Order'}
+                </button>
+              </div>
+              <AnimatePresence mode="wait" initial={false}>
+              {centerMode === 'manual' && ws.open && ws.activeWorkspace ? (
+                <motion.div key={`manual-${ws.activeWorkspace.id}`} initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }} transition={quickMotion} className="p-3">
+                  <div className="glass-workspace overflow-hidden">
+                    <WorkspaceTabs workspaces={ws.workspaces} activeId={ws.activeId} accounts={accounts} onSelect={ws.setActiveId} onClose={handleCloseTab} onNew={ws.addWorkspace} />
+                    <WorkspaceEditor
+                      workspace={ws.activeWorkspace}
+                      editOrder={ws.activeWorkspace.editOrderId ? rawOrdersMap.get(ws.activeWorkspace.editOrderId) ?? null : null}
+                      gamepasses={gamepasses}
+                      accounts={accounts}
+                      gameActivity={gameActivity}
+                      onUpdate={ws.updateWorkspace}
+                      onSubmit={handleWorkspaceSubmit}
+                      onClose={() => ws.closeWorkspace(ws.activeWorkspace!.id)}
+                    />
+                  </div>
+                </motion.div>
+              ) : focusedOrder ? (
+                <motion.div key={`shop-${focusedOrder.logicalKey}`} initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }} transition={quickMotion} className="p-3 sm:p-4 min-w-0">
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 mb-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[11px] font-mono font-black" style={{ color: 'rgba(255,255,255,0.70)' }}>{focusedOrder.orderNumber ?? focusedOrder.logicalKey}</span>
+                        <StatusBadge status={focusedOrder.hasMixedStatus ? 'mixed' : focusedOrder.status} />
+                        <span className="text-[10px] font-bold uppercase" style={{ color: focusedOrder.source === 'budgetwise' ? '#22d3ee' : '#34d399' }}>{focusedOrder.source === 'budgetwise' ? 'BudgetWise' : 'XOB Native'}</span>
+                      </div>
+                      <h2 className="text-[22px] font-black truncate" style={{ color: 'rgba(255,255,255,0.92)' }}>{focusedOrder.buyerName ?? 'Unknown buyer'}</h2>
+                      <p className="text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                        {focusedOrder.buyerRobloxUsername ? `@${focusedOrder.buyerRobloxUsername}` : 'No Roblox username'} / {formatOrderAge(focusedAgeHours)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {focusedOrder.source === 'budgetwise' && activeAccount && focusedAssignableItems.length > 0 && (
+                        <button type="button" disabled={batchAssigning || (focusedRemainingRobux !== null && focusedRemainingRobux < 0)} onClick={() => handleAssignFocusedToActiveAccount(focusedOrder)} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-45" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.26)', color: '#f59e0b' }}>
+                          {batchAssigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
+                          Assign This Order
+                        </button>
+                      )}
+                      {!focusedOrder.hasMixedStatus && focusedOrder.status === 'pending' && (
+                        <button type="button" disabled={statusChanging === focusedOrder.logicalKey} onClick={() => handleStatusChange(focusedOrder, 'paid')} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-45" style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.22)', color: '#22d3ee' }}>
+                          {statusChanging === focusedOrder.logicalKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          Mark Paid
+                        </button>
+                      )}
+                      <button type="button" onClick={() => openEditWorkspace(focusedOrder)} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(255,255,255,0.050)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)' }}>
+                        <Edit2 className="w-3.5 h-3.5" />
+                        {focusedOrder.source === 'budgetwise' ? 'Edit Item Accounts' : 'Edit'}
+                      </button>
+                      <button type="button" onClick={() => setFulfillOrder(focusedOrder)} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(52,211,153,0.09)', border: '1px solid rgba(52,211,153,0.22)', color: '#34d399' }}>
+                        <Zap className="w-3.5 h-3.5" />
+                        Fulfill
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+                    {([
+                      ['Items', `${focusedAssignedItems}/${focusedOrder.items.length} assigned`, 'rgba(255,255,255,0.70)'],
+                      ['Required', formatRobux(focusedOrder.totalRobux), '#f59e0b'],
+                      ['Unassigned', focusedAssignableItems.length.toLocaleString(), focusedAssignableItems.length > 0 ? '#f59e0b' : '#34d399'],
+                      ['Remaining', focusedRemainingRobux === null ? 'No active' : formatRobux(focusedRemainingRobux), focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? '#f43f5e' : '#34d399'],
+                    ] as const).map(([label, value, color]) => (
+                      <div key={label} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.065)' }}>
+                        <p className="text-[9px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.34)' }}>{label}</p>
+                        <p className="text-[14px] font-black tabular-nums mt-1" style={{ color }}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {focusedAssignmentIssue && (
+                    <div className="rounded-xl px-3 py-2 mb-4 text-[11px] font-bold" style={{ background: focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? 'rgba(244,63,94,0.075)' : 'rgba(245,158,11,0.065)', border: `1px solid ${focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? 'rgba(244,63,94,0.20)' : 'rgba(245,158,11,0.18)'}`, color: focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? '#f43f5e' : '#f59e0b' }}>
+                      {focusedAssignmentIssue}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {focusedOrder.items.map(item => {
+                      const account = item.account ?? (item.robloxAccountId ? accounts.find(a => a.id === item.robloxAccountId) ?? null : null)
+                      return (
+                        <div key={item.id} className="rounded-xl p-3 flex items-center justify-between gap-3" style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.065)' }}>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold truncate" style={{ color: 'rgba(255,255,255,0.86)' }}>{item.gamepassName}</p>
+                            <p className="text-[10px] mt-0.5 truncate"><span style={getGameNameStyle(item.isDiscounted)}>{item.gameName ?? 'Unknown game'}</span><span style={{ color: 'rgba(255,255,255,0.38)' }}> / {formatRobux(item.robuxAmount)}</span></p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[11px] font-bold" style={{ color: account ? '#34d399' : '#f59e0b' }}>{account ? account.username : 'Unassigned'}</p>
+                            <p className="text-[10px] tabular-nums mt-0.5" style={{ color: 'rgba(255,255,255,0.34)' }}>{formatPHP(item.sellingPrice)}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div key="empty-shop-order" initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={quickMotion} className="p-10 text-center">
+                  <p className="text-[13px] font-bold mb-3" style={{ color: 'rgba(255,255,255,0.54)' }}>No active Shop order selected.</p>
+                  <button type="button" onClick={() => { setCenterMode('manual'); ws.openOrCreate() }} className="h-9 px-3 rounded-lg text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.72)' }}>
+                    <Plus className="w-3.5 h-3.5" />
+                    Create Manual Order
+                  </button>
+                </motion.div>
+              )}
+              </AnimatePresence>
+            </main>
+
+            {accountDockOpen && (
+              <button
+                type="button"
+                aria-label="Close account switcher"
+                onClick={() => setAccountDockOpen(false)}
+                className="fixed inset-0 z-30 xl:hidden cursor-default"
+                style={{ background: 'rgba(0,0,0,0.32)' }}
+              />
+            )}
+            <aside className={`${accountDockOpen ? 'fixed right-3 top-20 bottom-4 z-40 w-[min(340px,calc(100vw-1.5rem))]' : 'hidden'} xl:block xl:static xl:sticky xl:top-20 rounded-2xl overflow-hidden min-w-0`} style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.075)' }}>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: 'rgba(255,255,255,0.34)' }}>Account In Use</p>
+                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>Selected for fulfillment. Status remains the account status.</p>
+              </div>
+              <div className="p-3 xl:p-4 space-y-4 overflow-y-auto max-h-full">
+                {activeAccount ? (
+                  <motion.div key={activeAccount.id} layout={!prefersReducedMotion} initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={quickMotion} className="rounded-2xl p-4" style={{ background: 'rgba(52,211,153,0.055)', border: '1px solid rgba(52,211,153,0.20)' }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <RobloxAvatar username={activeAccount.username} userId={activeAccount.roblox_user_id} size={46} glow="none" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-black truncate" style={{ color: 'rgba(255,255,255,0.92)' }}>{activeAccount.username}</p>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{ color: '#34d399', background: 'rgba(52,211,153,0.13)', border: '1px solid rgba(52,211,153,0.28)' }}>IN USE</span>
+                          <AccountStatusMini status={activeAccount.status} />
+                          {activeAccount.is_plus_account && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.20)' }}>PLUS</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        ['Current', activeAccount.current_robux ?? 0, 'rgba(255,255,255,0.74)'],
+                        ['Reserved', activeAccount.reserved_robux ?? 0, '#f59e0b'],
+                        ['Available', getAvailableRobux(activeAccount), '#34d399'],
+                      ] as const).map(([label, value, color]) => (
+                        <div key={label} className="rounded-xl p-2.5" style={{ background: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <p className="text-[9px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.34)' }}>{label}</p>
+                          <p className="text-[13px] font-black tabular-nums mt-1" style={{ color }}>{formatRobux(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {activeAccount.chrome_profile && <p className="text-[10px] mt-3" style={{ color: 'rgba(255,255,255,0.38)' }}>Chrome: {activeAccount.chrome_profile}</p>}
+                  </motion.div>
+                ) : (
+                  <div className="rounded-2xl p-4 text-[12px]" style={{ background: 'rgba(245,158,11,0.055)', border: '1px solid rgba(245,158,11,0.18)', color: '#f59e0b' }}>Choose an account below to start assigning.</div>
+                )}
+                <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.065)' }}>
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.38)' }}>Active Available</p>
+                      <p className="text-[15px] font-black tabular-nums" style={{ color: activeAccount ? '#34d399' : 'rgba(255,255,255,0.32)' }}>{formatRobux(activeAvailableRobux)}</p>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.38)' }}>Selected Requirement</p>
+                      <p className="text-[15px] font-black tabular-nums" style={{ color: selectedRequiredRobux > 0 ? '#f59e0b' : 'rgba(255,255,255,0.32)' }}>{formatRobux(selectedRequiredRobux)}</p>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2" style={{ background: selectedRemainingRobux < 0 ? 'rgba(244,63,94,0.08)' : 'rgba(52,211,153,0.055)', border: `1px solid ${selectedRemainingRobux < 0 ? 'rgba(244,63,94,0.22)' : 'rgba(52,211,153,0.16)'}` }}>
+                      <p className="text-[10px] font-black uppercase" style={{ color: selectedRemainingRobux < 0 ? '#f43f5e' : '#34d399' }}>Remaining After</p>
+                      <p className="text-[17px] font-black tabular-nums" style={{ color: selectedRemainingRobux < 0 ? '#f43f5e' : '#34d399' }}>{formatRobux(selectedRemainingRobux)}</p>
+                    </div>
+                  </div>
+                  {selectedAssignmentIssue && <p className="text-[11px] mb-2 font-bold" style={{ color: selectedRemainingRobux < 0 ? '#f43f5e' : '#f59e0b' }}>{selectedAssignmentIssue}</p>}
+                  {batchResults && batchResults.some(r => !r.assignOk || !r.reserveOk) && (
+                    <div className="mb-2 rounded-lg p-2 space-y-1" style={{ background: 'rgba(244,63,94,0.07)', border: '1px solid rgba(244,63,94,0.18)' }}>
+                      {batchResults.filter(r => !r.assignOk || !r.reserveOk).slice(0, 3).map(result => <p key={result.itemId} className="text-[10px]" style={{ color: '#f43f5e' }}>{result.gamepassName}: {result.error}</p>)}
+                    </div>
+                  )}
+                  {showBatchAssignAction ? (
+                    <button type="button" disabled={batchAssigning || !activeAccount || selectedAssignableItems.length === 0 || selectedIncompatibleCount > 0 || selectedRemainingRobux < 0} onClick={handleAssignSelectedToActiveAccount} className="w-full h-10 rounded-xl flex items-center justify-center gap-2 text-[12px] font-black disabled:opacity-45 transition-opacity cursor-pointer" style={{ background: 'rgba(245,158,11,0.13)', border: '1px solid rgba(245,158,11,0.30)', color: '#f59e0b' }}>
+                      {batchAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                      Assign {selectedOrders.length} Selected
+                    </button>
+                  ) : selectedOrders.length === 1 ? (
+                    <p className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.36)' }}>Checked order is open in the center.</p>
+                  ) : (
+                    <p className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.34)' }}>Check orders in the queue for batch assignment.</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: 'rgba(255,255,255,0.34)' }}>Switch Account</p>
+                  <p className="text-[10px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.34)' }}>{switchAccountList.length}</p>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.30)' }} />
+                  <input type="text" value={accountSearch} onChange={e => setAccountSearch(e.target.value)} placeholder="Search accounts" className="w-full h-10 pl-8 pr-3 rounded-xl text-[12px] outline-none" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.82)' }} />
+                </div>
+                <div className="space-y-2">
+                  {switchAccountList.length === 0 && (
+                    <div className="rounded-xl px-3 py-4 text-center text-[11px]" style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.025)' }}>No other accounts match.</div>
+                  )}
+                  {switchAccountList.slice(0, 12).map(account => {
+                    const available = getAvailableRobux(account)
+                    return (
+                      <button key={account.id} type="button" onClick={() => { setActiveAccountId(account.id); setAccountDockOpen(false) }} className="w-full rounded-xl p-2.5 flex items-center gap-2.5 text-left transition-colors cursor-pointer" style={{ background: 'rgba(255,255,255,0.026)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <RobloxAvatar username={account.username} userId={account.roblox_user_id} size={32} glow="none" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[12px] font-black truncate" style={{ color: 'rgba(255,255,255,0.86)' }}>{account.username}</span>
+                          <span className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                            <StatusBadge status={account.status} />
+                            {account.is_plus_account && <span className="text-[8px] font-black px-1 py-0.5 rounded" style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.18)' }}>PLUS</span>}
+                          </span>
+                        </span>
+                        <span className="text-right flex-shrink-0"><span className="block text-[12px] font-black tabular-nums" style={{ color: available < 100 ? '#f43f5e' : available < 500 ? '#f59e0b' : '#34d399' }}>{formatRobux(available)}</span><span className="block text-[9px] uppercase font-bold" style={{ color: 'rgba(255,255,255,0.30)' }}>avail</span></span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
 
       {/* ══════════════════════════════════════════════════════════════
           § 01 · ORDER OPERATIONS — headline + Create Order / Statistics
       ══════════════════════════════════════════════════════════════ */}
       <section
-        className="relative overflow-hidden px-6 sm:px-8"
+        className="hidden"
         style={{ paddingTop: '5rem', paddingBottom: '5rem', minHeight: 'calc(60svh)' }}
       >
         <Blob color="rgba(34,211,238,0.12)" width={700} height={700} style={{ top: -300, left: -200 }} />
@@ -742,7 +1459,6 @@ function OrdersPageContent() {
                     <CountUp
                       value={loading ? 0 : value}
                       format={format}
-                      duration={1.6}
                       className="text-[22px] font-black tabular-nums block leading-none"
                       style={{ color }}
                     />
@@ -758,7 +1474,7 @@ function OrdersPageContent() {
           § 02 · ACTION CENTER — managing active orders
       ══════════════════════════════════════════════════════════════ */}
       <section
-        className="relative overflow-hidden px-6 sm:px-8"
+        className="hidden"
         style={{ paddingTop: '6rem', paddingBottom: '6rem' }}
       >
         <Blob color="rgba(245,158,11,0.07)" width={600} height={600} style={{ top: -80, right: -200 }} />
@@ -767,7 +1483,7 @@ function OrdersPageContent() {
           <SectionLabel index="02" label="Action Center" />
 
           <motion.div
-            className="mb-10 max-w-2xl"
+            className="mb-6 max-w-2xl"
             initial={{ opacity: 0, y: 36 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -795,6 +1511,48 @@ function OrdersPageContent() {
             )}
           </motion.div>
 
+          {/* ── Action filter chips ── */}
+          {activeOrdersSorted.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap mb-6">
+              {(
+                [
+                  { value: 'all',        label: 'All',       count: actionFilterCounts.all,        color: 'rgba(255,255,255,0.50)' },
+                  { value: 'unassigned', label: 'Unassigned',count: actionFilterCounts.unassigned,  color: '#f59e0b' },
+                  { value: 'ready',      label: 'Ready',     count: actionFilterCounts.ready,       color: '#34d399' },
+                  { value: 'pending',    label: 'Pending',   count: actionFilterCounts.pending,     color: '#22d3ee' },
+                  { value: 'stalled',    label: 'Stalled',   count: actionFilterCounts.stalled,     color: '#f43f5e' },
+                ] as { value: ActionFilter; label: string; count: number; color: string }[]
+              ).map(chip => {
+                const isActive = actionFilter === chip.value
+                const hasAlert = !isActive && chip.count > 0 && (chip.value === 'unassigned' || chip.value === 'stalled')
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => setActionFilter(chip.value)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                    style={{
+                      background: isActive ? `${chip.color}18` : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${isActive ? `${chip.color}40` : 'rgba(255,255,255,0.09)'}`,
+                      color: isActive ? chip.color : hasAlert ? chip.color : 'rgba(255,255,255,0.42)',
+                    }}
+                  >
+                    {chip.label}
+                    <span
+                      className="text-[10px] font-bold tabular-nums px-1 py-0.5 rounded-md"
+                      style={{
+                        background: isActive ? `${chip.color}20` : 'rgba(255,255,255,0.06)',
+                        color: isActive ? chip.color : hasAlert ? chip.color : 'rgba(255,255,255,0.30)',
+                      }}
+                    >
+                      {chip.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {activeOrdersSorted.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -806,16 +1564,24 @@ function OrdersPageContent() {
               <CheckCircle2 className="w-8 h-8 mx-auto mb-3" style={{ color: '#34d399', opacity: 0.5 }} />
               <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>No active orders — inbox zero.</p>
             </motion.div>
+          ) : filteredActiveOrders.length === 0 ? (
+            <div
+              className="rounded-2xl p-10 text-center"
+              style={{ background: 'rgba(255,255,255,0.022)', border: '1px solid rgba(255,255,255,0.055)' }}
+            >
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>
+                No orders match this filter.
+              </p>
+            </div>
           ) : (
             <motion.div
               className="space-y-3"
-              variants={staggerContainer}
+              variants={fastStagger}
               initial="initial"
-              whileInView="animate"
-              viewport={{ once: true, margin: '-60px' }}
+              animate="animate"
             >
-              {activeOrdersSorted.map((lo) => {
-                const ageHours   = (Date.now() - new Date(lo.createdAt).getTime()) / 3_600_000
+              {filteredActiveOrders.map((lo) => {
+                const ageHours = (nowMs - new Date(lo.createdAt).getTime()) / 3_600_000
                 const ageColor   = ageHours > 48 ? '#f43f5e' : ageHours > 24 ? '#f59e0b' : 'rgba(255,255,255,0.35)'
                 const isStale    = ageHours > 48
                 const action     = lo.hasMixedStatus ? null : STATUS_ACTION[lo.status]
@@ -826,7 +1592,7 @@ function OrdersPageContent() {
                 return (
                   <motion.div
                     key={lo.logicalKey}
-                    variants={staggerItem}
+                    variants={fastStaggerItem}
                     onClick={() => setInspectOrder(lo)}
                     className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer"
                     style={{
@@ -1052,7 +1818,7 @@ function OrdersPageContent() {
           MULTI-WORKSPACE OVERLAY — VS Code-style tabbed order drafts
       ══════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
-        {ws.open && (
+        {false && ws.open && (
           <motion.div
             className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto pt-16 pb-4 sm:pt-16 sm:pb-6"
             initial={{ opacity: 0 }}
@@ -1105,17 +1871,17 @@ function OrdersPageContent() {
                     <AnimatePresence mode="wait">
                       {ws.activeWorkspace && (
                         <motion.div
-                          key={ws.activeWorkspace.id}
+                          key={ws.activeWorkspace!.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.10 }}
                         >
                           <WorkspaceEditor
-                            workspace={ws.activeWorkspace}
+                            workspace={ws.activeWorkspace!}
                             editOrder={
-                              ws.activeWorkspace.editOrderId
-                                ? rawOrdersMap.get(ws.activeWorkspace!.editOrderId) ?? null
+                              ws.activeWorkspace!.editOrderId
+                                ? rawOrdersMap.get(ws.activeWorkspace!.editOrderId!) ?? null
                                 : null
                             }
                             gamepasses={gamepasses}

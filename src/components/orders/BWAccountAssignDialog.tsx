@@ -106,6 +106,14 @@ function AccountOptionCard({
               Low
             </span>
           )}
+          {account.is_plus_account && (
+            <span
+              className="text-[9px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: 'rgba(234,88,12,0.12)', color: '#ea580c', border: '1px solid rgba(234,88,12,0.22)' }}
+            >
+              PLUS
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <StatusBadge status={account.status} />
