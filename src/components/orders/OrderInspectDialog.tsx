@@ -11,6 +11,7 @@ import type { LogicalOrder } from '@/lib/types/logical-order'
 import { formatPHP, formatRobux } from '@/lib/utils/pricing'
 import { groupLogicalItems } from '@/lib/utils/normalize-orders'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
+import { isActiveLogicalOrder } from '@/lib/utils/orders'
 
 interface OrderInspectDialogProps {
   order: LogicalOrder | null
@@ -166,9 +167,10 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          {order && order.source !== 'budgetwise' && (
+          {order && (order.source !== 'budgetwise' || isActiveLogicalOrder(order)) && (
             <Button onClick={() => { onEdit(order); onClose() }} className="gap-1.5">
-              <Edit2 className="w-3.5 h-3.5" /> Edit Order
+              <Edit2 className="w-3.5 h-3.5" />
+              {order.source === 'budgetwise' ? 'Assign Account' : 'Edit Order'}
             </Button>
           )}
         </DialogFooter>

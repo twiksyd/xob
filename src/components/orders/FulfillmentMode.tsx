@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { LogicalOrder } from '@/lib/types/logical-order'
 import { getGameAccentColor } from '@/lib/utils/games'
 import { formatPHP } from '@/lib/utils/pricing'
-import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera, RotateCcw, CloudCheck } from 'lucide-react'
+import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera, RotateCcw, CloudCheck, AlertTriangle } from 'lucide-react'
 
 // Minimal item shape FulfillmentMode needs — mapped from LogicalOrderItem.
 interface FulfillmentItem {
@@ -15,6 +15,7 @@ interface FulfillmentItem {
   robux_amount: number
   selling_price: number
   profit: number
+  account_username: string | null
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -194,12 +195,13 @@ interface FulfillmentModeProps {
 export default function FulfillmentMode({ order, onClose, onComplete }: FulfillmentModeProps) {
   const items = useMemo((): FulfillmentItem[] =>
     order.items.map(i => ({
-      id:            i.id,
-      gamepass_name: i.gamepassName,
-      game_name:     i.gameName,
-      robux_amount:  i.robuxAmount,
-      selling_price: i.sellingPrice,
-      profit:        i.profit,
+      id:               i.id,
+      gamepass_name:    i.gamepassName,
+      game_name:        i.gameName,
+      robux_amount:     i.robuxAmount,
+      selling_price:    i.sellingPrice,
+      profit:           i.profit,
+      account_username: i.account?.username ?? null,
     })),
   [order.items])
 
@@ -515,6 +517,30 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
                         {currentItem.game_name ?? 'Unknown Game'}
                       </p>
                     </div>
+
+                    {/* Account assignment (BW orders) */}
+                    {order.source === 'budgetwise' && (
+                      currentItem.account_username ? (
+                        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl"
+                          style={{ background: 'rgba(34,211,238,0.05)', border: '1px solid rgba(34,211,238,0.14)' }}>
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#34d399' }} />
+                          <p className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.60)' }}>
+                            Send via
+                          </p>
+                          <p className="text-[13px] font-black" style={{ color: '#22d3ee' }}>
+                            {currentItem.account_username}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl"
+                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)' }}>
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
+                          <p className="text-[12px] font-bold" style={{ color: '#f59e0b' }}>
+                            No account assigned — go back and assign one first
+                          </p>
+                        </div>
+                      )
+                    )}
 
                     {/* Numbers */}
                     <div className="flex items-center justify-center gap-5">

@@ -30,6 +30,9 @@ function fromBwRow(order: OrderWithDetails): LogicalOrderItem {
     sellingPrice: order.selling_price ?? 0,
     cost: order.cost ?? 0,
     profit: order.profit ?? 0,
+    // Per-item account: each BW row has its own roblox_account_id assignment.
+    robloxAccountId: order.roblox_account_id,
+    account: order.roblox_accounts ?? null,
   }
 }
 
@@ -47,6 +50,9 @@ function fromOrderItem(oi: OrderItem): LogicalOrderItem {
     sellingPrice: oi.selling_price,
     cost: oi.cost,
     profit: oi.profit,
+    // XOB items: account lives on the parent order row, not per order_item.
+    robloxAccountId: null,
+    account: null,
   }
 }
 
@@ -118,6 +124,8 @@ function normalizeXob(order: OrderWithDetails): LogicalOrder {
           sellingPrice: order.selling_price ?? 0,
           cost: order.cost ?? 0,
           profit: order.profit ?? 0,
+          robloxAccountId: null,
+          account: null,
         },
       ]
 

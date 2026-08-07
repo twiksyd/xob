@@ -9,6 +9,7 @@ import WorkspaceEditor from '@/components/orders/WorkspaceEditor'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import FulfillmentMode from '@/components/orders/FulfillmentMode'
+import BWAccountAssignDialog from '@/components/orders/BWAccountAssignDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
 import type { LogicalOrder } from '@/lib/types/logical-order'
@@ -81,6 +82,7 @@ function OrdersPageContent() {
   const [statusChanging, setStatusChanging]   = useState<string | null>(null)
   const [inspectOrder, setInspectOrder]       = useState<LogicalOrder | null>(null)
   const [fulfillOrder, setFulfillOrder]       = useState<LogicalOrder | null>(null)
+  const [bwAssignOrder, setBwAssignOrder]     = useState<LogicalOrder | null>(null)
   const [historyExpanded, setHistoryExpanded] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
@@ -396,11 +398,31 @@ function OrdersPageContent() {
     fetchData()
   }
 
-  // ── Edit helper — looks up raw row and opens workspace ───────────────────────
+  // ── Edit helper — routes BW orders to account assignment, XOB to workspace ───
   function openEditWorkspace(lo: LogicalOrder) {
-    if (lo.source === 'budgetwise') return
+    if (lo.source === 'budgetwise') {
+      setBwAssignOrder(lo)
+      return
+    }
     const raw = rawOrdersMap.get(lo.primaryOrderId)
     if (raw) ws.openOrCreate(raw)
+  }
+
+  // ── BW account assignment save ────────────────────────────────────────────────
+  async function handleBWAssignSave(assignments: Record<string, string | null>) {
+    const results = await Promise.all(
+      Object.entries(assignments).map(([orderId, accountId]) =>
+        supabase.from('orders').update({ roblox_account_id: accountId }).eq('id', orderId),
+      ),
+    )
+    const failed = results.filter(r => r.error)
+    if (failed.length > 0) {
+      toast.error(`Could not save account assignments: ${failed[0].error!.message}`)
+    } else {
+      toast.success('Account assignments saved.')
+    }
+    setBwAssignOrder(null)
+    fetchData()
   }
 
   // ── Game activity map ────────────────────────────────────────────────────────
@@ -740,16 +762,15 @@ function OrdersPageContent() {
                       >
                         <Zap style={{ width: 11, height: 11 }} /> Fulfill
                       </button>
-                      {lo.source !== 'budgetwise' && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openEditWorkspace(lo) }}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
-                        >
-                          <Edit2 style={{ width: 12, height: 12 }} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditWorkspace(lo) }}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.40)' }}
+                        title={lo.source === 'budgetwise' ? 'Assign Account' : 'Edit Order'}
+                      >
+                        <Edit2 style={{ width: 12, height: 12 }} />
+                      </button>
                       {action && nextStatus && (
                         <button
                           type="button"
@@ -772,6 +793,17 @@ function OrdersPageContent() {
                           <MoreHorizontal style={{ width: 14, height: 14 }} />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-popover border-border">
+                          {lo.source === 'budgetwise' && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => openEditWorkspace(lo)}
+                                className="gap-2 text-xs cursor-pointer"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" /> Assign Account
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-border/50" />
+                            </>
+                          )}
                           {lo.status !== 'refunded' && (
                             <DropdownMenuItem onClick={() => handleStatusChange(lo, 'refunded')} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
                               <X className="w-3.5 h-3.5" /> Mark Refunded
@@ -870,6 +902,18 @@ function OrdersPageContent() {
         onClose={() => setInspectOrder(null)}
         onEdit={(lo) => { setInspectOrder(null); openEditWorkspace(lo) }}
       />
+
+      <AnimatePresence>
+        {bwAssignOrder && (
+          <BWAccountAssignDialog
+            key={bwAssignOrder.logicalKey}
+            order={bwAssignOrder}
+            accounts={accounts}
+            onClose={() => setBwAssignOrder(null)}
+            onSave={handleBWAssignSave}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {fulfillOrder && (

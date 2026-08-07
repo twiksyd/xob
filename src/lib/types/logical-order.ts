@@ -15,6 +15,10 @@ export interface LogicalOrderItem {
   sellingPrice: number
   cost: number
   profit: number
+  // For BudgetWise source: per-item account from each underlying orders row.
+  // For XOB source: always null (account lives on the header row only).
+  robloxAccountId: string | null
+  account: RobloxAccount | null
 }
 
 // A logical order: one checkout from the buyer's perspective.
