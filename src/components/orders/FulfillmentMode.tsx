@@ -6,6 +6,9 @@ import type { LogicalOrder } from '@/lib/types/logical-order'
 import { getGameAccentColor } from '@/lib/utils/games'
 import { formatPHP } from '@/lib/utils/pricing'
 import { Check, X, ZoomIn, Trash2, Download, Archive, ChevronDown, Clock, Camera, RotateCcw, CloudCheck, AlertTriangle } from 'lucide-react'
+import RobloxAvatar from '@/components/shared/RobloxAvatar'
+import { getAvailableRobux } from '@/lib/utils/accounts'
+import { formatRobux } from '@/lib/utils/pricing'
 
 // Minimal item shape FulfillmentMode needs — mapped from LogicalOrderItem.
 interface FulfillmentItem {
@@ -16,6 +19,8 @@ interface FulfillmentItem {
   selling_price: number
   profit: number
   account_username: string | null
+  account_roblox_user_id: string | null
+  account_available_robux: number | null
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -195,13 +200,15 @@ interface FulfillmentModeProps {
 export default function FulfillmentMode({ order, onClose, onComplete }: FulfillmentModeProps) {
   const items = useMemo((): FulfillmentItem[] =>
     order.items.map(i => ({
-      id:               i.id,
-      gamepass_name:    i.gamepassName,
-      game_name:        i.gameName,
-      robux_amount:     i.robuxAmount,
-      selling_price:    i.sellingPrice,
-      profit:           i.profit,
-      account_username: i.account?.username ?? null,
+      id:                      i.id,
+      gamepass_name:           i.gamepassName,
+      game_name:               i.gameName,
+      robux_amount:            i.robuxAmount,
+      selling_price:           i.sellingPrice,
+      profit:                  i.profit,
+      account_username:        i.account?.username ?? null,
+      account_roblox_user_id:  i.account?.roblox_user_id ?? null,
+      account_available_robux: i.account ? getAvailableRobux(i.account) : null,
     })),
   [order.items])
 
@@ -521,19 +528,40 @@ export default function FulfillmentMode({ order, onClose, onComplete }: Fulfillm
                     {/* Account assignment (BW orders) */}
                     {order.source === 'budgetwise' && (
                       currentItem.account_username ? (
-                        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl"
-                          style={{ background: 'rgba(34,211,238,0.05)', border: '1px solid rgba(34,211,238,0.14)' }}>
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#34d399' }} />
-                          <p className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.60)' }}>
-                            Send via
-                          </p>
-                          <p className="text-[13px] font-black" style={{ color: '#22d3ee' }}>
-                            {currentItem.account_username}
-                          </p>
+                        <div
+                          className="flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl"
+                          style={{ background: 'rgba(34,211,238,0.05)', border: '1px solid rgba(34,211,238,0.14)' }}
+                        >
+                          <RobloxAvatar
+                            username={currentItem.account_username}
+                            userId={currentItem.account_roblox_user_id}
+                            size={28}
+                            glow="none"
+                          />
+                          <div className="text-left">
+                            <p className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                              Send via
+                            </p>
+                            <p className="text-[13px] font-black leading-tight" style={{ color: '#22d3ee' }}>
+                              {currentItem.account_username}
+                            </p>
+                          </div>
+                          {currentItem.account_available_robux !== null && (
+                            <div className="ml-auto text-right">
+                              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                                Available
+                              </p>
+                              <p className="text-[12px] font-black tabular-nums" style={{ color: '#34d399' }}>
+                                {formatRobux(currentItem.account_available_robux)} R$
+                              </p>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl"
-                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)' }}>
+                        <div
+                          className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl"
+                          style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)' }}
+                        >
                           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
                           <p className="text-[12px] font-bold" style={{ color: '#f59e0b' }}>
                             No account assigned — go back and assign one first

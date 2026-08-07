@@ -410,6 +410,9 @@ function OrdersPageContent() {
 
   // ── BW account assignment save ────────────────────────────────────────────────
   async function handleBWAssignSave(assignments: Record<string, string | null>) {
+    const order = bwAssignOrder
+    if (!order) return
+
     const results = await Promise.all(
       Object.entries(assignments).map(([orderId, accountId]) =>
         supabase.from('orders').update({ roblox_account_id: accountId }).eq('id', orderId),
@@ -418,9 +421,27 @@ function OrdersPageContent() {
     const failed = results.filter(r => r.error)
     if (failed.length > 0) {
       toast.error(`Could not save account assignments: ${failed[0].error!.message}`)
-    } else {
-      toast.success('Account assignments saved.')
+      setBwAssignOrder(null)
+      fetchData()
+      return
     }
+
+    if (isActiveLogicalOrder(order)) {
+      await Promise.all(
+        order.items
+          .filter(item => assignments[item.id])
+          .map(item =>
+            supabase.rpc('reserve_order_robux', {
+              p_order_id:       item.id,
+              p_account_id:     assignments[item.id]!,
+              p_robux_amount:   item.robuxAmount,
+              p_gamepass_names: item.gamepassName,
+            }),
+          ),
+      )
+    }
+
+    toast.success('Account assignments saved.')
     setBwAssignOrder(null)
     fetchData()
   }
@@ -909,6 +930,7 @@ function OrdersPageContent() {
             key={bwAssignOrder.logicalKey}
             order={bwAssignOrder}
             accounts={accounts}
+            rawOrders={rawOrders}
             onClose={() => setBwAssignOrder(null)}
             onSave={handleBWAssignSave}
           />
