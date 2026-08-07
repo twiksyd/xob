@@ -491,11 +491,28 @@ function OrdersPageContent() {
           return { ...base, assignOk: !res.error, reserveOk: !res.error, error: res.error?.message ?? null }
         }
 
-        // Initial assignment null → account:
-        // No atomic RPC exists for this case — reserve first, then update the order row.
-        // If the update fails after a successful reserve, the reservation is orphaned
-        // until the next reassignment. A dedicated assign_order_account RPC or migration
-        // would close this gap.
+        // Initial assignment (null → account):
+        // Primary path: assign_order_account (migration 047) — validates, reserves, and
+        // updates the order row in a single PostgreSQL transaction.
+        // Fallback: if the function is not yet deployed, fall back to reserve_order_robux
+        // + orders.update with compensating cleanup — if the row update fails the
+        // reservation is explicitly released so no orphan is left behind.
+        const assignRes = await supabase.rpc('assign_order_account', {
+          p_order_id:   item.id,
+          p_account_id: newId,
+        })
+        if (!assignRes.error) {
+          return { ...base, assignOk: true, reserveOk: true, error: null }
+        }
+        // Propagate validation errors (status, balance, access) directly.
+        // Only fall through to two-step if the function itself is unavailable.
+        const isFnMissing = assignRes.error.message.toLowerCase().includes('function')
+          || assignRes.error.message.toLowerCase().includes('does not exist')
+        if (!isFnMissing) {
+          return { ...base, assignOk: false, reserveOk: false, error: assignRes.error.message }
+        }
+
+        // Two-step fallback with compensating cleanup (pre-migration environments)
         const reserveRes = await supabase.rpc('reserve_order_robux', {
           p_order_id:       item.id,
           p_account_id:     newId,
@@ -506,12 +523,12 @@ function OrdersPageContent() {
           return { ...base, assignOk: false, reserveOk: false, error: reserveRes.error.message }
         }
         const updateRes = await supabase.from('orders').update({ roblox_account_id: newId }).eq('id', item.id)
-        return {
-          ...base,
-          assignOk: !updateRes.error,
-          reserveOk: true,
-          error: updateRes.error?.message ?? null,
+        if (updateRes.error) {
+          // Compensating cleanup: release the reservation to prevent it from being orphaned.
+          await supabase.rpc('release_order_reservation', { p_order_id: item.id })
+          return { ...base, assignOk: false, reserveOk: false, error: updateRes.error.message }
         }
+        return { ...base, assignOk: true, reserveOk: true, error: null }
       }),
     )
 
