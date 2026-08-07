@@ -171,6 +171,9 @@ export type Database = {
           status: 'Good' | 'Okay' | 'Bad'
           suggested_lower_price: number
           is_active: boolean
+          icon_url: string | null
+          product_type: 'gamepass' | 'exp_boost' | 'permanent_fruit' | null
+          section_order: number
           created_at: string
           updated_at: string
         }
@@ -188,6 +191,9 @@ export type Database = {
           status?: 'Good' | 'Okay' | 'Bad'
           suggested_lower_price?: number
           is_active?: boolean
+          icon_url?: string | null
+          product_type?: 'gamepass' | 'exp_boost' | 'permanent_fruit' | null
+          section_order?: number
         }
         Update: {
           game_id?: string | null
@@ -201,6 +207,9 @@ export type Database = {
           status?: 'Good' | 'Okay' | 'Bad'
           suggested_lower_price?: number
           is_active?: boolean
+          icon_url?: string | null
+          product_type?: 'gamepass' | 'exp_boost' | 'permanent_fruit' | null
+          section_order?: number
           updated_at?: string
         }
       }
