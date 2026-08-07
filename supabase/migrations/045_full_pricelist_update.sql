@@ -117,7 +117,7 @@ BEGIN
   END IF;
   DELETE FROM public.gamepasses WHERE user_id = v_user_id AND game_id = v_game_id;
   INSERT INTO public.gamepasses (user_id, game_id, name, robux_amount, your_price, robux_rate, your_cost) VALUES
-    (v_user_id, v_game_id, '150 Rerolls', 150, 60, 290, 43.50);
+    (v_user_id, v_game_id, '50 Rerolls',   50, 60, 290, 43.50);
 
   -- ─── Grow A Garden 2 ─────────────────────────────────────────────────────────
   SELECT id INTO v_game_id FROM public.games WHERE user_id = v_user_id AND name ILIKE 'grow%garden%2%' LIMIT 1;
