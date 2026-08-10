@@ -69,7 +69,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               <p className="text-[15px] font-bold mb-2" style={{ color: 'rgba(255,255,255,0.92)' }}>
                 {options.title}
               </p>
-              <p className="text-[12.5px] leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.50)' }}>
+              <p className="text-[12.5px] leading-relaxed mb-6 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.50)' }}>
                 {options.description}
               </p>
 

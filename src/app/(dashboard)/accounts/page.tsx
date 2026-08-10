@@ -28,13 +28,13 @@ import PriceTierManager, { DefaultPriceTier } from '@/components/accounts/PriceT
 import {
   Coins, Wallet, Users, Lock, ChevronDown, X,
   CheckSquare, RefreshCw, Archive, Zap, ArrowUpDown, Sparkles, BadgeCheck, Layers,
-  MousePointer2, Tag, Palette, Eraser, MoreHorizontal, AlertTriangle, Timer,
+  MousePointer2, Tag, Palette, Eraser, MoreHorizontal, AlertTriangle, Timer, Search,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
-import { springToggle, fadeUpVariants, staggerContainer, staggerItem, cardStagger, cardStaggerItem } from '@/lib/motion'
+import { springToggle, fadeUpVariants, cardStagger, cardStaggerItem } from '@/lib/motion'
 import { useToast } from '@/components/shared/Toast'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { SkeletonChart, SkeletonCard } from '@/components/shared/Skeleton'
@@ -177,6 +177,7 @@ function AccountsPageContent() {
   const [discountSort, setDiscountSort] = useState<DiscountSort>('none')
   const [plusFilter, setPlusFilter] = useState<PlusFilter>('all')
   const [chromeProfileFilter, setChromeProfileFilter] = useState<string>('all')
+  const [accountSearch, setAccountSearch] = useState('')
   const [reserveDialogAccount, setReserveDialogAccount] = useState<RobloxAccount | null>(null)
   const [logDialogAccount, setLogDialogAccount] = useState<RobloxAccount | null>(null)
   const [editingTransferLog, setEditingTransferLog] = useState<TransferLog | null>(null)
@@ -1006,8 +1007,12 @@ function AccountsPageContent() {
         return discountSort === 'first' ? db - da : da - db
       })
     }
+    if (accountSearch.trim()) {
+      const q = accountSearch.toLowerCase()
+      list = list.filter(a => a.username.toLowerCase().includes(q))
+    }
     return list
-  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort, plusFilter, chromeProfileFilter])
+  }, [activeInventoryAccounts, getAllowance, transferFilter, transferSort, discountFilter, discountSort, plusFilter, chromeProfileFilter, accountSearch])
 
   // Group filtered active accounts by batch for the folder-style layout.
   // `batches` is already sorted by sort_order, created_at from the DB query.
@@ -1461,6 +1466,35 @@ function AccountsPageContent() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Username search */}
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+                style={{ color: 'rgba(255,255,255,0.28)' }}
+              />
+              <input
+                type="text"
+                value={accountSearch}
+                onChange={e => setAccountSearch(e.target.value)}
+                placeholder="Search accounts…"
+                className="w-full pl-8 pr-8 py-2 rounded-xl text-[12px] font-medium outline-none transition-colors"
+                style={{
+                  background: accountSearch ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)',
+                  border: accountSearch ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(255,255,255,0.07)',
+                  color: 'rgba(255,255,255,0.82)',
+                }}
+              />
+              {accountSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAccountSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-3 h-3" style={{ color: 'rgba(255,255,255,0.36)' }} />
+                </button>
+              )}
+            </div>
 
             {/* Grouped control bar — selection / sort / filters */}
             <div
@@ -1926,7 +1960,10 @@ function AccountsPageContent() {
                     style={{ overflow: 'hidden' }}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7 pt-4">
-                      {depletedInventoryAccounts.map(account => (
+                      {(accountSearch.trim()
+                        ? depletedInventoryAccounts.filter(a => a.username.toLowerCase().includes(accountSearch.toLowerCase()))
+                        : depletedInventoryAccounts
+                      ).map(account => (
                         <div
                           key={account.id}
                           ref={registerAccountCard(account.id)}

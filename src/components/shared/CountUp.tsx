@@ -12,7 +12,7 @@ interface CountUpProps {
   style?: CSSProperties
 }
 
-export default function CountUp({ value, format, duration = 1.8, className, style }: CountUpProps) {
+export default function CountUp({ value, format, duration = 0.3, className, style }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null)
   const isInView = useInView(ref, { once: true, margin: '-50px' })
   const [display, setDisplay] = useState(0)

@@ -11,15 +11,15 @@ import {
 } from 'lucide-react'
 
 const navItems = [
-  { href: '/',                  label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/accounts',          label: 'Accounts',     icon: Users           },
-  { href: '/inventory',         label: 'Inventory',    icon: Package         },
   { href: '/orders',            label: 'Orders',       icon: ShoppingCart    },
+  { href: '/accounts',          label: 'Accounts',     icon: Users           },
   { href: '/transactions',      label: 'Transactions', icon: Receipt         },
   { href: '/wallet',            label: 'Wallet',       icon: Wallet          },
+  { href: '/',                  label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/inventory',         label: 'Inventory',    icon: Package         },
   { href: '/integrity',         label: 'Integrity',    icon: ShieldCheck     },
-  { href: '/overall-sales',     label: 'Overall Sales',icon: TrendingUp      },
   { href: '/seller-inventory',  label: 'Seller Accts', icon: Archive         },
+  { href: '/overall-sales',     label: 'Overall Sales',icon: TrendingUp      },
 ]
 
 export default function FloatingNav() {

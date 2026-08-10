@@ -207,7 +207,7 @@ function TransactionsPageContent() {
                 className={cn('profit-counter-value', metrics.profit > 0 && 'featured-value')}
                 style={metrics.profit > 0 ? { fontSize: '24px' } : { color: 'rgba(255,255,255,0.80)', fontSize: '24px' }}
               >
-                <CountUp value={metrics.profit} format={formatPHP} duration={1.4} />
+                <CountUp value={metrics.profit} format={formatPHP} />
               </motion.p>
             </AnimatePresence>
             <AnimatePresence mode="wait">
@@ -243,7 +243,7 @@ function TransactionsPageContent() {
                 className="stat-value"
                 style={{ color: 'rgba(255,255,255,0.88)', fontSize: '22px' }}
               >
-                <CountUp value={metrics.revenue} format={formatPHP} duration={1.4} />
+                <CountUp value={metrics.revenue} format={formatPHP} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -269,7 +269,7 @@ function TransactionsPageContent() {
                 className="stat-value"
                 style={{ color: 'rgba(255,255,255,0.88)', fontSize: '22px' }}
               >
-                <CountUp value={metrics.orders} format={(v) => `${Math.round(v)}`} duration={1.4} />
+                <CountUp value={metrics.orders} format={(v) => `${Math.round(v)}`} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -295,7 +295,7 @@ function TransactionsPageContent() {
                 className="stat-value"
                 style={{ color: '#f59e0b', fontSize: '22px' }}
               >
-                <CountUp value={metrics.robux} format={(v) => Math.round(v).toLocaleString()} duration={1.4} />
+                <CountUp value={metrics.robux} format={(v) => Math.round(v).toLocaleString()} />
               </motion.p>
             </AnimatePresence>
             <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.48)' }}>

@@ -1,10 +1,13 @@
 'use client'
 
 import { format, formatDistanceToNow } from 'date-fns'
-import { Edit2, X } from 'lucide-react'
+import { Edit2, MoreHorizontal, Trash2, X } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/shared/StatusBadge'
 import type { LogicalOrder } from '@/lib/types/logical-order'
@@ -17,9 +20,10 @@ interface OrderInspectDialogProps {
   order: LogicalOrder | null
   onClose: () => void
   onEdit: (order: LogicalOrder) => void
+  onDelete: (order: LogicalOrder) => void
 }
 
-export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInspectDialogProps) {
+export default function OrderInspectDialog({ order, onClose, onEdit, onDelete }: OrderInspectDialogProps) {
   const items   = order ? groupLogicalItems(order.items) : []
   const account = order?.account ?? null
   const profit  = order?.totalProfit ?? 0
@@ -172,6 +176,25 @@ export default function OrderInspectDialog({ order, onClose, onEdit }: OrderInsp
               <Edit2 className="w-3.5 h-3.5" />
               {order.source === 'budgetwise' ? 'Assign Account' : 'Edit Order'}
             </Button>
+          )}
+          {order && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-9 w-9 rounded-md inline-flex items-center justify-center border border-slate-300 bg-white text-slate-500 hover:bg-slate-100"
+                aria-label="More order actions"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => onDelete(order)}
+                  className="gap-2 text-xs cursor-pointer text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Order
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </DialogFooter>
       </DialogContent>

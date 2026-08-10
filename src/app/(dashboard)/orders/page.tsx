@@ -9,6 +9,9 @@ import WorkspaceEditor from '@/components/orders/WorkspaceEditor'
 import OrderActivityPanel from '@/components/orders/OrderActivityPanel'
 import OrderInspectDialog from '@/components/orders/OrderInspectDialog'
 import BWAccountAssignDialog, { type AssignmentItemResult } from '@/components/orders/BWAccountAssignDialog'
+import FinalizeOrdersDialog, {
+  type FinalizeCandidate, type FinalizeProgressRow,
+} from '@/components/orders/FinalizeOrdersDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
 import type { LogicalOrder, LogicalOrderItem } from '@/lib/types/logical-order'
@@ -123,6 +126,31 @@ function getCompletionBlocker(lo: LogicalOrder): string {
   return 'This order is not ready to complete.'
 }
 
+// classify_for_finalize walks the same status/account rules as isLogicalOrderReady
+// but also covers orders sitting in 'pending' (not just 'paid'), since Finalize
+// Selected is allowed to catch up pending → paid → completed in one operation.
+function classifyForFinalize(lo: LogicalOrder): FinalizeCandidate {
+  if (lo.hasMixedStatus) {
+    return { lo, kind: 'other_blocker', reason: 'Mixed item statuses — resolve individually.', steps: [] }
+  }
+  if (lo.status === 'completed') {
+    return { lo, kind: 'already_completed', reason: 'Already completed.', steps: [] }
+  }
+  if (lo.status === 'cancelled' || lo.status === 'refunded') {
+    return { lo, kind: 'invalid_status', reason: `Order is ${lo.status} — cannot finalize.`, steps: [] }
+  }
+  if (lo.status !== 'pending' && lo.status !== 'paid') {
+    return { lo, kind: 'other_blocker', reason: `Order is ${lo.status} — finalize this one individually.`, steps: [] }
+  }
+  const missingAccount = lo.source === 'budgetwise'
+    ? lo.items.some(item => item.robloxAccountId === null)
+    : lo.robloxAccountId === null
+  if (missingAccount) {
+    return { lo, kind: 'needs_account', reason: 'Missing required account assignment.', steps: [] }
+  }
+  return { lo, kind: 'ready', reason: null, steps: lo.status === 'pending' ? ['paid', 'completed'] : ['completed'] }
+}
+
 function getQueuePriority(lo: LogicalOrder, nowMs: number): number {
   const isShop = lo.source === 'budgetwise'
   if (isShop && isLogicalOrderUnassigned(lo)) return 0
@@ -153,6 +181,23 @@ type StatusChangeResult = {
   message?: string
 }
 
+type DeleteLogicalResult = {
+  logicalKey: string
+  orderNumber: string | null
+  buyerName: string | null
+  ok: boolean
+  deletedRows: number
+  totalRows: number
+  error: string | null
+}
+
+function getDeleteOrderSummary(lo: LogicalOrder): string {
+  const orderLabel = lo.orderNumber ?? lo.logicalKey
+  const buyerLabel = lo.buyerName ?? lo.buyerRobloxUsername ?? 'Unknown customer'
+  const itemLabel = `${lo.items.length} item${lo.items.length !== 1 ? 's' : ''}`
+  return `${orderLabel}\n${buyerLabel}\n${itemLabel}`
+}
+
 function OrdersPageContent() {
   const [rawOrders, setRawOrders]             = useState<OrderWithDetails[]>([])
   const [isRawCapped, setIsRawCapped]         = useState(false)
@@ -170,6 +215,13 @@ function OrdersPageContent() {
   const [centerMode, setCenterMode]           = useState<'shop' | 'manual'>('shop')
   const [batchAssigning, setBatchAssigning]   = useState(false)
   const [batchResults, setBatchResults]       = useState<AssignmentItemResult[] | null>(null)
+  const [finalizeOpen, setFinalizeOpen]       = useState(false)
+  const [finalizePhase, setFinalizePhase]     = useState<'preview' | 'processing' | 'done'>('preview')
+  const [finalizeCandidates, setFinalizeCandidates] = useState<FinalizeCandidate[]>([])
+  const [finalizeProgress, setFinalizeProgress]     = useState<FinalizeProgressRow[]>([])
+  const [finalizing, setFinalizing]           = useState(false)
+  const [deletingOrderKeys, setDeletingOrderKeys] = useState<Set<string>>(() => new Set())
+  const [deleteResults, setDeleteResults]     = useState<DeleteLogicalResult[] | null>(null)
   const [accountDockOpen, setAccountDockOpen] = useState(false)
   const [orderFeedback, setOrderFeedback]     = useState<Record<string, 'success' | 'error'>>({})
   const [nowMs] = useState<number>(Date.now)
@@ -523,35 +575,164 @@ function OrdersPageContent() {
     setCenterMode('shop')
   }
 
+  function setLogicalOrderDeleting(logicalKey: string, deleting: boolean) {
+    setDeletingOrderKeys(prev => {
+      const next = new Set(prev)
+      if (deleting) next.add(logicalKey)
+      else next.delete(logicalKey)
+      return next
+    })
+  }
+
+  async function isOrderRowMissing(orderId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('id', orderId)
+      .maybeSingle()
+    return !error && data === null
+  }
+
+  async function deleteLogicalOrder(lo: LogicalOrder): Promise<DeleteLogicalResult> {
+    let deletedRows = 0
+    let error: string | null = null
+
+    for (const id of lo.underlyingOrderIds) {
+      const { error: rpcError } = await supabase.rpc('delete_order', { p_order_id: id })
+      if (rpcError) {
+        const alreadyGone = await isOrderRowMissing(id)
+        if (alreadyGone) {
+          deletedRows += 1
+          continue
+        }
+        error = rpcError.message
+        break
+      }
+      deletedRows += 1
+    }
+
+    const ok = error === null && deletedRows === lo.underlyingOrderIds.length
+    return {
+      logicalKey: lo.logicalKey,
+      orderNumber: lo.orderNumber,
+      buyerName: lo.buyerName,
+      ok,
+      deletedRows,
+      totalRows: lo.underlyingOrderIds.length,
+      error: ok ? null : error ?? `Only ${deletedRows}/${lo.underlyingOrderIds.length} order rows were deleted.`,
+    }
+  }
+
+  function removeDeletedRowsFromLocalState(results: DeleteLogicalResult[], orders: LogicalOrder[]) {
+    const deletedIds = new Set(
+      orders
+        .filter(order => results.some(result => result.ok && result.logicalKey === order.logicalKey))
+        .flatMap(order => order.underlyingOrderIds),
+    )
+    if (deletedIds.size === 0) return
+    setRawOrders(prev => prev.filter(row => !deletedIds.has(row.id)))
+  }
+
+  function clearDeletedSelections(results: DeleteLogicalResult[]) {
+    const deletedKeys = new Set(results.filter(result => result.ok).map(result => result.logicalKey))
+    if (deletedKeys.size === 0) return
+    setSelectedOrderKeys(prev => {
+      const next = new Set(prev)
+      deletedKeys.forEach(key => next.delete(key))
+      return next
+    })
+  }
+
+  async function refreshAfterDelete(results: DeleteLogicalResult[], orders: LogicalOrder[]) {
+    const deletedKeys = new Set(results.filter(result => result.ok).map(result => result.logicalKey))
+    const wasFocusedDeleted = focusedOrder ? deletedKeys.has(focusedOrder.logicalKey) : false
+    const wasInspectDeleted = inspectOrder ? deletedKeys.has(inspectOrder.logicalKey) : false
+
+    removeDeletedRowsFromLocalState(results, orders)
+    clearDeletedSelections(results)
+    if (wasInspectDeleted) setInspectOrder(null)
+
+    const refreshedOrders = await fetchData()
+    if (wasFocusedDeleted) {
+      const nextOrder = sortActiveOrdersForQueue(refreshedOrders, nowMs).find(order => !deletedKeys.has(order.logicalKey))
+      setFocusedOrderKey(nextOrder?.logicalKey ?? null)
+      setCenterMode('shop')
+    }
+  }
+
   async function handleDelete(lo: LogicalOrder) {
+    if (deletingOrderKeys.has(lo.logicalKey)) return
     const ok = await confirm({
-      title: `Delete order ${lo.orderNumber ?? ''}?`,
-      description: 'This permanently removes the order. Any reserved Robux tied to it will be released.',
+      title: 'Delete this order?',
+      description: `${getDeleteOrderSummary(lo)}\n\nThis permanently removes this order from XOB.`,
       confirmLabel: 'Delete Order',
       danger: true,
     })
     if (!ok) return
 
-    // delete_order cleans wallet_transactions, savings allocations, and
-    // reservations for each row — a direct .delete() would leave those as orphans
-    // for any BW rows that were previously marked completed.
-    const results = await Promise.all(
-      lo.underlyingOrderIds.map(id =>
-        supabase.rpc('delete_order', { p_order_id: id }),
-      ),
-    )
-    const failed = results.filter(r => r.error)
-    if (failed.length > 0) {
-      const succeeded = results.length - failed.length
-      toast.error(
-        succeeded === 0
-          ? `Could not delete order: ${failed[0].error!.message}`
-          : `Expected ${results.length} order rows, but only ${succeeded} matching rows were removed. Check order history for remaining rows.`,
-      )
-    } else {
-      toast.success('Order deleted.')
+    setDeleteResults(null)
+    setLogicalOrderDeleting(lo.logicalKey, true)
+    try {
+      const result = await deleteLogicalOrder(lo)
+      setDeleteResults([result])
+      await refreshAfterDelete([result], [lo])
+      if (result.ok) {
+        flashOrderFeedback({ [lo.logicalKey]: 'success' })
+        toast.success('Order deleted.')
+      } else {
+        flashOrderFeedback({ [lo.logicalKey]: 'error' })
+        toast.error(`Could not delete ${lo.orderNumber ?? 'order'}: ${result.error}`)
+      }
+    } catch (err) {
+      flashOrderFeedback({ [lo.logicalKey]: 'error' })
+      toast.error(err instanceof Error ? err.message : 'Could not delete order.')
+      await fetchData()
+    } finally {
+      setLogicalOrderDeleting(lo.logicalKey, false)
     }
-    fetchData()
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedOrders.length === 0 || deletingOrderKeys.size > 0) return
+    const count = selectedOrders.length
+    const ok = await confirm({
+      title: `Delete ${count} selected order${count !== 1 ? 's' : ''}?`,
+      description: 'These orders will be permanently removed from XOB.\nThis is NOT the same as completing them.',
+      confirmLabel: `Delete ${count} Order${count !== 1 ? 's' : ''}`,
+      danger: true,
+    })
+    if (!ok) return
+
+    setBatchResults(null)
+    setDeleteResults([])
+    selectedOrders.forEach(order => setLogicalOrderDeleting(order.logicalKey, true))
+
+    const results: DeleteLogicalResult[] = []
+    const feedback: Record<string, 'success' | 'error'> = {}
+    try {
+      for (const order of selectedOrders) {
+        const result = await deleteLogicalOrder(order)
+        results.push(result)
+        feedback[order.logicalKey] = result.ok ? 'success' : 'error'
+        setDeleteResults([...results])
+      }
+
+      await refreshAfterDelete(results, selectedOrders)
+      flashOrderFeedback(feedback)
+
+      const succeeded = results.filter(result => result.ok).length
+      const failed = results.length - succeeded
+      if (failed > 0) {
+        toast.error(`${succeeded} deleted, ${failed} failed. Failed orders remain visible.`)
+      } else {
+        toast.success(`${succeeded} order${succeeded !== 1 ? 's' : ''} deleted.`)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete selected orders.')
+      await fetchData()
+    } finally {
+      selectedOrders.forEach(order => setLogicalOrderDeleting(order.logicalKey, false))
+    }
   }
 
   // ── Edit helper — routes BW orders to account assignment, XOB to workspace ───
@@ -771,29 +952,28 @@ function OrdersPageContent() {
     [accounts, activeAccountId],
   )
 
-  const focusedOrder = useMemo(() => {
+  const focusedOrder = (() => {
     if (focusedOrderKey) {
       const existing = activeOrdersSorted.find(lo => lo.logicalKey === focusedOrderKey)
       if (existing) return existing
     }
     return filteredActiveOrders[0] ?? null
-  }, [focusedOrderKey, activeOrdersSorted, filteredActiveOrders])
+  })()
 
   const getAssignableItems = useCallback((lo: LogicalOrder): LogicalOrderItem[] => {
     if (lo.source !== 'budgetwise' || !isActiveLogicalOrder(lo)) return []
     return lo.items.filter(item => item.robloxAccountId === null)
   }, [])
 
-  const selectedOrders = useMemo(
-    () => activeOrdersSorted.filter(lo => selectedOrderKeys.has(lo.logicalKey)),
-    [activeOrdersSorted, selectedOrderKeys],
-  )
-  const selectedAssignableItems = useMemo(
-    () => selectedOrders.flatMap(lo => getAssignableItems(lo)),
-    [selectedOrders, getAssignableItems],
-  )
+  const selectedOrders = activeOrdersSorted.filter(lo => selectedOrderKeys.has(lo.logicalKey))
+  const selectedAssignableItems = selectedOrders.flatMap(lo => getAssignableItems(lo))
   const selectedRequiredRobux = selectedAssignableItems.reduce((sum, item) => sum + item.robuxAmount, 0)
   const selectedIncompatibleCount = selectedOrders.filter(lo => getAssignableItems(lo).length === 0).length
+  const selectedPendingCount = selectedOrders.filter(lo => !lo.hasMixedStatus && lo.status === 'pending').length
+  const selectedPaidCount = selectedOrders.filter(lo => !lo.hasMixedStatus && lo.status === 'paid').length
+  const selectedFinalizeRequiredRobux = selectedOrders
+    .filter(lo => !lo.hasMixedStatus && (lo.status === 'pending' || lo.status === 'paid'))
+    .reduce((sum, lo) => sum + lo.totalRobux, 0)
   const activeAvailableRobux = activeAccount ? getAvailableRobux(activeAccount) : 0
   const selectedRemainingRobux = activeAvailableRobux - selectedRequiredRobux
   const selectedOrderSequence = Array.from(selectedOrderKeys)
@@ -934,6 +1114,94 @@ function OrdersPageContent() {
     }
   }
 
+  // ── Bulk Finalize ────────────────────────────────────────────────────────────
+  //
+  // Catches up orders the seller already finished in Roblox but hasn't updated
+  // in XOB yet. Every underlying transition still goes through handleStatusChange
+  // → transition_order, exactly like a manual Mark Paid / Complete Order click —
+  // this is a sequencing convenience, not a new completion path. LogicalOrders
+  // are processed one at a time (never Promise.all across orders) because two
+  // selected orders can share the same Roblox account; Postgres row locks would
+  // serialize concurrent RPCs anyway, but sequential keeps the operation legible
+  // and its progress UI meaningful.
+
+  function openFinalizeDialog() {
+    const candidates = selectedOrders.map(classifyForFinalize)
+    setFinalizeCandidates(candidates)
+    setFinalizeProgress(
+      candidates
+        .filter(c => c.kind === 'ready')
+        .map(c => ({ logicalKey: c.lo.logicalKey, orderNumber: c.lo.orderNumber, buyerName: c.lo.buyerName, state: 'waiting', error: null })),
+    )
+    setFinalizePhase('preview')
+    setFinalizeOpen(true)
+  }
+
+  function closeFinalizeDialog() {
+    if (finalizing) return
+    setFinalizeOpen(false)
+    setFinalizeCandidates([])
+    setFinalizeProgress([])
+    setFinalizePhase('preview')
+  }
+
+  async function runFinalize() {
+    const ready = finalizeCandidates.filter(c => c.kind === 'ready')
+    if (ready.length === 0) return
+
+    setFinalizing(true)
+    setFinalizePhase('processing')
+
+    const wasFocusedKey = focusedOrder?.logicalKey ?? null
+    const completedKeys: string[] = []
+
+    for (const candidate of ready) {
+      const { lo, steps } = candidate
+      setFinalizeProgress(prev => prev.map(p => p.logicalKey === lo.logicalKey ? { ...p, state: 'processing' } : p))
+
+      let failMessage: string | null = null
+      for (const step of steps) {
+        const result = await handleStatusChange(lo, step, { showToast: false, refresh: false })
+        if (!result.ok) {
+          failMessage = result.message ?? `Could not mark order ${step}.`
+          break
+        }
+      }
+
+      if (failMessage) {
+        setFinalizeProgress(prev => prev.map(p => p.logicalKey === lo.logicalKey ? { ...p, state: 'failed', error: failMessage } : p))
+        flashOrderFeedback({ [lo.logicalKey]: 'error' })
+      } else {
+        setFinalizeProgress(prev => prev.map(p => p.logicalKey === lo.logicalKey ? { ...p, state: 'done' } : p))
+        flashOrderFeedback({ [lo.logicalKey]: 'success' })
+        completedKeys.push(lo.logicalKey)
+      }
+    }
+
+    setSelectedOrderKeys(prev => {
+      const next = new Set(prev)
+      completedKeys.forEach(key => next.delete(key))
+      return next
+    })
+
+    const refreshedOrders = await fetchData()
+    if (wasFocusedKey && completedKeys.includes(wasFocusedKey)) {
+      const nextOrder = sortActiveOrdersForQueue(refreshedOrders, nowMs).find(order => order.logicalKey !== wasFocusedKey)
+      setFocusedOrderKey(nextOrder?.logicalKey ?? null)
+      setCenterMode('shop')
+    }
+
+    const failedCount = ready.length - completedKeys.length
+    if (failedCount > 0) {
+      toast.error(`${completedKeys.length} order${completedKeys.length !== 1 ? 's' : ''} completed, ${failedCount} need attention.`)
+    } else {
+      toast.success(`${completedKeys.length} order${completedKeys.length !== 1 ? 's' : ''} finalized.`)
+    }
+
+    setFinalizing(false)
+    setFinalizePhase('done')
+  }
+
   // Button label — reflects whether there are saved workspaces to return to
   const wsButtonLabel = ws.workspaces.length > 0
     ? `Resume Workspace${ws.workspaces.length > 1 ? ` (${ws.workspaces.length})` : ''}`
@@ -946,6 +1214,9 @@ function OrdersPageContent() {
     ? focusedOrder.items.length - focusedOrder.items.filter(item => item.robloxAccountId === null).length
     : 0
   const focusedReadyToComplete = focusedOrder ? isLogicalOrderReady(focusedOrder) : false
+  const focusedCompletionBlocker = focusedOrder && !focusedOrder.hasMixedStatus && focusedOrder.status === 'paid' && !focusedReadyToComplete
+    ? getCompletionBlocker(focusedOrder)
+    : null
   const focusedAgeHours = focusedOrder
     ? (nowMs - new Date(focusedOrder.createdAt).getTime()) / 3_600_000
     : 0
@@ -1053,6 +1324,82 @@ function OrdersPageContent() {
                   )
                 })}
               </div>
+              {selectedOrderKeys.size > 0 && (
+                <div className="px-3 pt-3">
+                  <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'rgba(52,211,153,0.045)', border: '1px solid rgba(52,211,153,0.18)' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-black" style={{ color: 'rgba(255,255,255,0.80)' }}>{selectedOrderKeys.size} selected</p>
+                      <button type="button" onClick={() => setSelectedOrderKeys(new Set())} className="text-[10px] font-bold cursor-pointer" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                        Clear
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="rounded-lg px-2 py-1.5" style={{ background: 'rgba(0,0,0,0.16)' }}>
+                        <p className="text-[8px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.32)' }}>Pending</p>
+                        <p className="text-[13px] font-black tabular-nums" style={{ color: '#94a3b8' }}>{selectedPendingCount}</p>
+                      </div>
+                      <div className="rounded-lg px-2 py-1.5" style={{ background: 'rgba(0,0,0,0.16)' }}>
+                        <p className="text-[8px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.32)' }}>Paid</p>
+                        <p className="text-[13px] font-black tabular-nums" style={{ color: '#38bdf8' }}>{selectedPaidCount}</p>
+                      </div>
+                      <div className="rounded-lg px-2 py-1.5" style={{ background: 'rgba(0,0,0,0.16)' }}>
+                        <p className="text-[8px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.32)' }}>Required</p>
+                        <p className="text-[13px] font-black tabular-nums" style={{ color: '#f59e0b' }}>{formatRobux(selectedFinalizeRequiredRobux)}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={finalizing}
+                      onClick={openFinalizeDialog}
+                      className="w-full h-9 rounded-lg flex items-center justify-center gap-1.5 text-[11px] font-black disabled:opacity-45 transition-opacity cursor-pointer"
+                      style={{ background: 'rgba(52,211,153,0.14)', border: '1px solid rgba(52,211,153,0.34)', color: '#34d399' }}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Finalize {selectedOrderKeys.size} Order{selectedOrderKeys.size !== 1 ? 's' : ''}
+                    </button>
+                    <div className="pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                      <button
+                        type="button"
+                        disabled={deletingOrderKeys.size > 0}
+                        onClick={() => { void handleDeleteSelected() }}
+                        className="w-full h-9 rounded-lg flex items-center justify-center gap-1.5 text-[11px] font-black disabled:opacity-45 transition-opacity cursor-pointer"
+                        style={{ background: 'rgba(244,63,94,0.11)', border: '1px solid rgba(244,63,94,0.30)', color: '#f43f5e' }}
+                      >
+                        {deletingOrderKeys.size > 0 ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        Delete {selectedOrders.length} Selected
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {deleteResults && deleteResults.length > 0 && (
+                <div className="px-3 pt-3">
+                  <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(244,63,94,0.045)', border: '1px solid rgba(244,63,94,0.18)' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-black" style={{ color: 'rgba(255,255,255,0.78)' }}>Delete Results</p>
+                      <button type="button" onClick={() => setDeleteResults(null)} className="text-[10px] font-bold cursor-pointer" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                        Clear
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {deleteResults.map(result => (
+                        <div key={result.logicalKey} className="rounded-lg px-2.5 py-2 flex items-start gap-2" style={{ background: result.ok ? 'rgba(52,211,153,0.045)' : 'rgba(244,63,94,0.07)', border: `1px solid ${result.ok ? 'rgba(52,211,153,0.14)' : 'rgba(244,63,94,0.18)'}` }}>
+                          {result.ok ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#34d399' }} /> : <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#f43f5e' }} />}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10.5px] font-mono font-black truncate" style={{ color: 'rgba(255,255,255,0.78)' }}>{result.orderNumber ?? result.logicalKey}</p>
+                            <p className="text-[10px] truncate" style={{ color: result.ok ? '#34d399' : '#f43f5e' }}>
+                              {result.ok ? 'Deleted' : `Could not delete - ${result.error}`}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold tabular-nums flex-shrink-0" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                            {result.deletedRows}/{result.totalRows}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="p-3 space-y-2">
                 {loading ? (
                   <div className="rounded-xl px-3 py-8 text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.025)' }}>Loading orders...</div>
@@ -1098,9 +1445,10 @@ function OrdersPageContent() {
                     selected ? 'inset -3px 0 0 rgba(245,158,11,0.85)' : null,
                   ].filter(Boolean).join(', ')
                   return (
-                    <motion.button
+                    <motion.div
                       key={lo.logicalKey}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       layout={!prefersReducedMotion}
                       initial={prefersReducedMotion ? false : { opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1108,6 +1456,12 @@ function OrdersPageContent() {
                       transition={quickMotion}
                       whileHover={prefersReducedMotion ? undefined : { backgroundColor: focused ? 'rgba(34,211,238,0.070)' : 'rgba(255,255,255,0.042)' }}
                       onClick={() => { setFocusedOrderKey(lo.logicalKey); setCenterMode('shop') }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return
+                        e.preventDefault()
+                        setFocusedOrderKey(lo.logicalKey)
+                        setCenterMode('shop')
+                      }}
                       className="w-full rounded-xl p-3 text-left transition-colors cursor-pointer min-w-0"
                       style={{ background: queueBg, border: `1px solid ${queueBorder}`, boxShadow: queueShadow || 'none' }}
                     >
@@ -1129,6 +1483,31 @@ function OrdersPageContent() {
                             {feedback === 'error' && <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ color: '#f43f5e', background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.18)' }}>FAILED</span>}
                             <StatusBadge status={lo.hasMixedStatus ? 'mixed' : lo.status} />
                             {ageHours > 48 && <AlertCircle className="w-3 h-3" style={{ color: '#f43f5e' }} />}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                disabled={deletingOrderKeys.has(lo.logicalKey)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="ml-auto w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-45 flex-shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.44)' }}
+                                aria-label={`More actions for ${lo.orderNumber ?? 'order'}`}
+                              >
+                                {deletingOrderKeys.has(lo.logicalKey)
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <MoreHorizontal className="w-3.5 h-3.5" />}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-popover border-border">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    void handleDelete(lo)
+                                  }}
+                                  className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete Order
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </span>
                           <span className="block text-[13px] font-black truncate" style={{ color: 'rgba(255,255,255,0.88)' }}>{lo.buyerName ?? lo.buyerRobloxUsername ?? 'Unknown buyer'}</span>
                           <span className="block text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.42)' }}>
@@ -1147,7 +1526,7 @@ function OrdersPageContent() {
                           )}
                         </span>
                       </span>
-                    </motion.button>
+                    </motion.div>
                   )
                     })}
                   </AnimatePresence>
@@ -1225,12 +1604,31 @@ function OrdersPageContent() {
                         <Edit2 className="w-3.5 h-3.5" />
                         {focusedOrder.source === 'budgetwise' ? 'Edit Item Accounts' : 'Edit'}
                       </button>
-                      {focusedReadyToComplete && (
-                        <button type="button" disabled={statusChanging === focusedOrder.logicalKey} onClick={() => { void handleCompleteOrder(focusedOrder) }} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-45" style={{ background: 'rgba(52,211,153,0.09)', border: '1px solid rgba(52,211,153,0.22)', color: '#34d399' }}>
+                      {focusedOrder.status === 'paid' && !focusedOrder.hasMixedStatus && (
+                        <button type="button" disabled={!focusedReadyToComplete || statusChanging === focusedOrder.logicalKey} onClick={() => { void handleCompleteOrder(focusedOrder) }} className="h-9 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-45" style={{ background: 'rgba(52,211,153,0.09)', border: '1px solid rgba(52,211,153,0.22)', color: '#34d399' }} title={focusedCompletionBlocker ?? undefined}>
                           {statusChanging === focusedOrder.logicalKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                           {statusChanging === focusedOrder.logicalKey ? 'Completing...' : 'Complete Order'}
                         </button>
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          disabled={deletingOrderKeys.has(focusedOrder.logicalKey)}
+                          className="h-9 w-9 rounded-lg flex items-center justify-center cursor-pointer disabled:opacity-45"
+                          style={{ background: 'rgba(255,255,255,0.050)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.56)' }}
+                          aria-label="More order actions"
+                        >
+                          {deletingOrderKeys.has(focusedOrder.logicalKey) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MoreHorizontal className="w-3.5 h-3.5" />}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover border-border">
+                          <DropdownMenuItem
+                            onClick={() => { void handleDelete(focusedOrder) }}
+                            className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete Order
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
@@ -1246,7 +1644,18 @@ function OrdersPageContent() {
                       </div>
                     ))}
                   </div>
-                  {focusedAssignmentIssue && (
+                  {focusedCompletionBlocker && (
+                    <div className="rounded-xl px-3 py-2 mb-4 flex items-center justify-between gap-3" style={{ background: 'rgba(245,158,11,0.065)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                      <p className="text-[11px] font-bold flex items-center gap-1.5 min-w-0" style={{ color: '#f59e0b' }}>
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="min-w-0">{focusedCompletionBlocker}</span>
+                      </p>
+                      <button type="button" onClick={() => openEditWorkspace(focusedOrder)} className="h-7 px-2.5 rounded-lg text-[10px] font-black flex-shrink-0 cursor-pointer" style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.11)', color: 'rgba(255,255,255,0.72)' }}>
+                        {focusedOrder.source === 'budgetwise' ? 'Assign Account' : 'Edit Order'}
+                      </button>
+                    </div>
+                  )}
+                  {focusedAssignmentIssue && !focusedCompletionBlocker && (
                     <div className="rounded-xl px-3 py-2 mb-4 text-[11px] font-bold" style={{ background: focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? 'rgba(244,63,94,0.075)' : 'rgba(245,158,11,0.065)', border: `1px solid ${focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? 'rgba(244,63,94,0.20)' : 'rgba(245,158,11,0.18)'}`, color: focusedRemainingRobux !== null && focusedRemainingRobux < 0 ? '#f43f5e' : '#f59e0b' }}>
                       {focusedAssignmentIssue}
                     </div>
@@ -1678,7 +2087,7 @@ function OrdersPageContent() {
                 const isStale    = ageHours > 48
                 const action     = lo.hasMixedStatus ? null : STATUS_ACTION[lo.status]
                 const nextStatus = lo.hasMixedStatus ? null : STATUS_NEXT[lo.status]
-                const isBusy     = statusChanging === lo.logicalKey
+                const isBusy     = statusChanging === lo.logicalKey || deletingOrderKeys.has(lo.logicalKey)
                 const firstItem  = lo.items[0]
                 const readyToComplete = isLogicalOrderReady(lo)
 
@@ -1788,20 +2197,20 @@ function OrdersPageContent() {
                               <DropdownMenuSeparator className="bg-border/50" />
                             </>
                           )}
-                          {lo.status !== 'refunded' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(lo, 'refunded')} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
+                           {lo.status !== 'refunded' && (
+                             <DropdownMenuItem onClick={() => { void handleStatusChange(lo, 'refunded') }} className="gap-2 text-xs cursor-pointer text-amber-400 focus:text-amber-400">
                               <X className="w-3.5 h-3.5" /> Mark Refunded
                             </DropdownMenuItem>
                           )}
-                          {lo.status !== 'cancelled' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(lo, 'cancelled')} className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400">
+                           {lo.status !== 'cancelled' && (
+                             <DropdownMenuItem onClick={() => { void handleStatusChange(lo, 'cancelled') }} className="gap-2 text-xs cursor-pointer text-slate-400 focus:text-slate-400">
                               <X className="w-3.5 h-3.5" /> Cancel
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator className="bg-border/50" />
-                          <DropdownMenuItem onClick={() => handleDelete(lo)} className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </DropdownMenuItem>
+                           <DropdownMenuItem onClick={() => { void handleDelete(lo) }} className="gap-2 text-xs cursor-pointer text-red-400 focus:text-red-400">
+                             <Trash2 className="w-3.5 h-3.5" /> Delete Order
+                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -1885,6 +2294,7 @@ function OrdersPageContent() {
         order={inspectOrder}
         onClose={() => setInspectOrder(null)}
         onEdit={(lo) => { setInspectOrder(null); openEditWorkspace(lo) }}
+        onDelete={(lo) => { void handleDelete(lo) }}
       />
 
       <AnimatePresence>
@@ -1896,6 +2306,19 @@ function OrdersPageContent() {
             rawOrders={rawOrders}
             onClose={() => setBwAssignOrder(null)}
             onSave={handleBWAssignSave}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {finalizeOpen && (
+          <FinalizeOrdersDialog
+            candidates={finalizeCandidates}
+            phase={finalizePhase}
+            progress={finalizeProgress}
+            finalizing={finalizing}
+            onConfirm={() => { void runFinalize() }}
+            onClose={closeFinalizeDialog}
           />
         )}
       </AnimatePresence>
