@@ -41,6 +41,13 @@ export function formatPHP(amount: number): string {
   return '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// Whole-peso amounts render without a trailing ".00" — most historical order
+// totals are whole numbers. Genuine decimal totals (rare legacy data) still show.
+export function formatPHPCompact(amount: number): string {
+  const decimals = Number.isInteger(amount) ? 0 : 2
+  return '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+}
+
 export function getStatusColor(status: 'Good' | 'Okay' | 'Bad'): string {
   switch (status) {
     case 'Good': return 'text-emerald-400'

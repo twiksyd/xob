@@ -16,7 +16,7 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { RobloxAccount, OrderWithDetails, LineItem } from '@/lib/types/database'
 import type { LogicalOrder, LogicalOrderItem } from '@/lib/types/logical-order'
 import { createClient } from '@/lib/supabase/client'
-import { calculateOrderTotals, formatPHP, formatRobux } from '@/lib/utils/pricing'
+import { calculateOrderTotals, formatPHP, formatPHPCompact, formatRobux } from '@/lib/utils/pricing'
 import { isActiveLogicalOrder } from '@/lib/utils/orders'
 import { getAvailableRobux } from '@/lib/utils/accounts'
 import { normalizeOrders, RAW_FETCH_CAP } from '@/lib/utils/normalize-orders'
@@ -1515,7 +1515,12 @@ function OrdersPageContent() {
                           </span>
                         </span>
                         <span className="text-right flex-shrink-0">
-                          <span className="block text-[16px] font-black tabular-nums leading-none" style={{ color: assignableItems.length > 0 ? '#f59e0b' : 'rgba(255,255,255,0.84)' }}>{formatRobux(lo.totalRobux)}</span>
+                          <span className="flex items-baseline justify-end gap-1.5">
+                            <span className="text-[16px] font-black tabular-nums leading-none" style={{ color: assignableItems.length > 0 ? '#f59e0b' : 'rgba(255,255,255,0.84)' }}>{formatRobux(lo.totalRobux)}</span>
+                            <span className="text-[13px] font-black tabular-nums leading-none" style={{ color: 'rgba(196,181,253,0.92)' }}>
+                              {lo.totalSellingPrice ? formatPHPCompact(lo.totalSellingPrice) : '—'}
+                            </span>
+                          </span>
                           <span className="block text-[10px] font-bold mt-1" style={{ color: assignableItems.length > 0 ? '#f59e0b' : '#34d399' }}>
                             {assignableItems.length > 0 ? `${assignableItems.length} unassigned` : `${assignedItems}/${lo.items.length} assigned`}
                           </span>
@@ -1631,8 +1636,9 @@ function OrdersPageContent() {
                       </DropdownMenu>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
                     {([
+                      ['Total', focusedOrder.totalSellingPrice ? formatPHPCompact(focusedOrder.totalSellingPrice) : '—', 'rgba(196,181,253,0.92)'],
                       ['Items', `${focusedAssignedItems}/${focusedOrder.items.length} assigned`, 'rgba(255,255,255,0.70)'],
                       ['Required', formatRobux(focusedOrder.totalRobux), '#f59e0b'],
                       ['Unassigned', focusedAssignableItems.length.toLocaleString(), focusedAssignableItems.length > 0 ? '#f59e0b' : '#34d399'],

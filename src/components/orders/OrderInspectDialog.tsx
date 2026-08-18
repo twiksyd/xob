@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/shared/StatusBadge'
 import type { LogicalOrder } from '@/lib/types/logical-order'
-import { formatPHP, formatRobux } from '@/lib/utils/pricing'
+import { formatPHP, formatPHPCompact, formatRobux } from '@/lib/utils/pricing'
 import { groupLogicalItems } from '@/lib/utils/normalize-orders'
 import { getAvailableRobux, isDepleted } from '@/lib/utils/accounts'
 import { isActiveLogicalOrder } from '@/lib/utils/orders'
@@ -156,8 +156,8 @@ export default function OrderInspectDialog({ order, onClose, onEdit, onDelete }:
             </div>
             <div>
               <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.44)' }}>Total PHP</p>
-              <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
-                {formatPHP(order?.totalSellingPrice ?? 0)}
+              <p className="text-[14px] font-bold" style={{ color: '#a78bfa' }}>
+                {order?.totalSellingPrice ? formatPHPCompact(order.totalSellingPrice) : '—'}
               </p>
             </div>
             <div>
