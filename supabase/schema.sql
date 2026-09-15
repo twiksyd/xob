@@ -39,13 +39,32 @@ create table if not exists public.roblox_accounts (
 -- ============================================================
 -- GAMES
 -- ============================================================
+-- Reconciled with the live database on 2026-09-15: column names, types,
+-- nullability, and defaults were read from the live PostgREST schema.
+-- Constraints and policies below follow the migration history.
+-- Columns added after this file was first written:
+--   is_discounted        XOB migration 037
+--   icon_url             XOB migration 038 (also filled by the BudgetWise
+--                        Store deterministic Roblox icon resolver)
+--   sort_order, aliases  XOB migration 038
+--   availability_status  BudgetWise Store migration 0004_store_operations
+--                        (storefront visibility, managed from Store admin)
+-- games.id is a stable identity referenced elsewhere (gamepasses, BudgetWise
+-- Store presentation tables, and Roblox identity from migration 063, not yet
+-- applied at the time of this snapshot). Never delete and re-insert a game.
 create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
   name text not null,
   category text,
   color text default '#22c55e', -- for UI display
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  is_discounted boolean not null default false,
+  icon_url text,
+  sort_order integer not null default 0,
+  aliases text[] not null default '{}'::text[],
+  availability_status text not null default 'available'
+    check (availability_status in ('available', 'temporarily_unavailable', 'coming_soon', 'hidden'))
 );
 
 -- ============================================================
@@ -250,6 +269,13 @@ create policy "Users can CRUD own accounts" on public.roblox_accounts
 -- Games
 create policy "Users can CRUD own games" on public.games
   for all using (auth.uid() = user_id);
+-- The live database also has this policy from migration 058. It depends on
+-- public.can_access_business(), which this file does not define, so it is
+-- documented here rather than re-created:
+--   create policy "Business members can view games" on public.games
+--     for select using (public.can_access_business(user_id));
+-- BudgetWise Store migration 0001 revokes all privileges on public.games from
+-- anon; the storefront reads the public.store_games view instead.
 
 -- Gamepasses
 create policy "Users can CRUD own gamepasses" on public.gamepasses
