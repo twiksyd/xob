@@ -8,7 +8,7 @@ import PageHero from '@/components/shared/PageHero'
 import StatCard from '@/components/shared/StatCard'
 import RobloxAvatar from '@/components/shared/RobloxAvatar'
 import AccountCard from '@/components/accounts/AccountCard'
-import AccountModal, { parseRobloxUserId } from '@/components/accounts/AccountModal'
+import AccountModal from '@/components/accounts/AccountModal'
 import LiquidationForecast from '@/components/accounts/LiquidationForecast'
 import CapitalReadinessTracker from '@/components/accounts/CapitalReadinessTracker'
 import RestockAdvisor from '@/components/accounts/RestockAdvisor'
@@ -18,7 +18,7 @@ import {
 } from '@/lib/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAvailableRobux, isDepleted, isPlusReminderActive, MIN_SELECTABLE_ROBUX, getAgingState, getAgingRemainingMs, INVENTORY_DEADLINE_DAYS } from '@/lib/utils/accounts'
-import { calculateBusinessValue, classifyPurchase } from '@/lib/utils/capital'
+import { saveAccount } from '@/lib/ops/save-account'
 import { formatRobux } from '@/lib/utils/pricing'
 import { getStartOfTodayISO, DAILY_TRANSFER_LIMIT } from '@/lib/utils/transfers'
 import ReserveTransferDialog from '@/components/accounts/ReserveTransferDialog'
@@ -297,68 +297,16 @@ function AccountsPageContent() {
     chrome_profile?: string
   }) {
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
-
-    // Manual profile link wins; otherwise auto-resolve the avatar from the username
-    let robloxUserId = parseRobloxUserId(data.roblox_profile)
-    if (!robloxUserId && data.username) {
-      try {
-        const res = await fetch(`/api/roblox-lookup?username=${encodeURIComponent(data.username)}`)
-        if (res.ok) robloxUserId = (await res.json()).userId ?? null
-      } catch {}
-    }
-
-    // A purchase cost on a new account derives its cost basis directly —
-    // Purchase Cost ÷ Robux Acquired × 1,000 — instead of asking for the rate twice.
-    const purchaseCost = data.purchase_cost ?? 0
-    const robuxCostRate = !editAccount && purchaseCost > 0 && data.current_robux > 0
-      ? (purchaseCost / data.current_robux) * 1000
-      : data.robux_cost_rate ?? 0
-
-    if (editAccount) {
-      // Inventory fields (current_robux, reserved_robux, robux_cost_rate) are read-only
-      // once an account exists — they can only change via the order financial engine or
-      // adjust_account_field (handleAdjust below), both of which leave an audit trail.
-      const wasPlus   = editAccount.is_plus_account
-      const isNowPlus = data.is_plus_account ?? false
-      const plusTimestamps: Record<string, string | null> = {}
-      if (!wasPlus && isNowPlus) {
-        plusTimestamps.plus_enabled_at = new Date().toISOString()
-        plusTimestamps.plus_reminder_dismissed_at = null
-      } else if (wasPlus && !isNowPlus) {
-        plusTimestamps.plus_enabled_at = null
-        plusTimestamps.plus_reminder_dismissed_at = null
-      }
-      const payload = { username: data.username, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: isNowPlus, chrome_profile: data.chrome_profile?.trim() || null, ...plusTimestamps }
-      await supabase.from('roblox_accounts').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editAccount.id)
-    } else {
-      const isNowPlus = data.is_plus_account ?? false
-      const plusTimestamps = isNowPlus
-        ? { plus_enabled_at: new Date().toISOString(), plus_reminder_dismissed_at: null as string | null }
-        : {}
-      const payload = { username: data.username, current_robux: data.current_robux, reserved_robux: data.reserved_robux, robux_cost_rate: robuxCostRate, status: data.status, notes: data.notes ?? null, roblox_user_id: robloxUserId, has_active_discount: data.has_active_discount ?? false, has_super_discount: data.has_super_discount ?? false, is_plus_account: isNowPlus, chrome_profile: data.chrome_profile?.trim() || null, ...plusTimestamps }
-      const { data: inserted } = await supabase.from('roblox_accounts').insert({ ...payload, user_id: user.id }).select('id').single()
-
-      // Phase 2: every new stock purchase automatically logs a Capital Event
-      if (inserted && purchaseCost > 0) {
-        const businessValueBefore = calculateBusinessValue(accounts, walletBalance)
-        await supabase.from('capital_events').insert({
-          user_id: user.id,
-          accounts_purchased: 1,
-          robux_acquired: data.current_robux,
-          cost: purchaseCost,
-          business_value_before: businessValueBefore,
-          supplier: data.supplier?.trim() || null,
-          roblox_account_id: inserted.id,
-          created_at: data.purchase_date ? new Date(data.purchase_date).toISOString() : undefined,
-          ...classifyPurchase(businessValueBefore, purchaseCost),
-        })
-      }
+    const wasEdit = !!editAccount
+    try {
+      await saveAccount({ supabase, data, editAccount, accounts, walletBalance })
+    } catch (err) {
+      setSaving(false)
+      toast.error(err instanceof Error ? err.message : 'Could not save the account.')
+      return
     }
     setSaving(false)
     setModalOpen(false)
-    const wasEdit = !!editAccount
     setEditAccount(null)
     fetchData()
     toast.success(wasEdit ? 'Account updated.' : 'Account added.')
