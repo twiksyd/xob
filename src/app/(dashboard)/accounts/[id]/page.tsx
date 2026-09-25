@@ -138,7 +138,7 @@ export default function AccountLedgerPage() {
             <p className="text-[14px] font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.40)' }}>
               Account not found
             </p>
-            <Link href="/legacy/accounts" className="text-[12px] font-semibold" style={{ color: '#22d3ee' }}>
+            <Link href="/accounts" className="text-[12px] font-semibold" style={{ color: '#22d3ee' }}>
               ← Back to Accounts
             </Link>
           </div>

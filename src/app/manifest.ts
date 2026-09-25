@@ -2,15 +2,15 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'XOB Operations',
+    name: 'XOB — Roblox Seller Dashboard',
     short_name: 'XOB',
-    description: 'Order, account and wallet console for the XOB desk',
+    description: 'Professional Roblox gamepass seller management platform',
     start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait-primary',
-    background_color: '#0a0a0f',
-    theme_color: '#0a0a0f',
+    background_color: '#0d0b1e',
+    theme_color: '#0d0b1e',
     icons: [
       {
         src: '/icon',

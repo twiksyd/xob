@@ -223,6 +223,7 @@ function OrdersPageContent() {
   const [deletingOrderKeys, setDeletingOrderKeys] = useState<Set<string>>(() => new Set())
   const [deleteResults, setDeleteResults]     = useState<DeleteLogicalResult[] | null>(null)
   const [accountDockOpen, setAccountDockOpen] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<'queue' | 'order' | 'accounts'>('queue')
   const [orderFeedback, setOrderFeedback]     = useState<Record<string, 'success' | 'error'>>({})
   const [nowMs] = useState<number>(Date.now)
   const lastQueueIndexRef = useRef<number | null>(null)
@@ -244,6 +245,8 @@ function OrdersPageContent() {
   const workspacesRef  = useRef(ws.workspaces)
   const rawOrdersRef   = useRef(rawOrders)
   const accountsRef    = useRef(accounts)
+  const fetchSeqRef    = useRef(0)
+  const statusChangingRef = useRef<Set<string>>(new Set())
   useEffect(() => { workspacesRef.current = ws.workspaces }, [ws.workspaces])
   useEffect(() => { rawOrdersRef.current = rawOrders }, [rawOrders])
   useEffect(() => { accountsRef.current = accounts }, [accounts])
@@ -285,6 +288,7 @@ function OrdersPageContent() {
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const fetchData = useCallback(async (): Promise<LogicalOrder[]> => {
+    const requestId = ++fetchSeqRef.current
     setLoading(true)
     let nextLogicalOrders: LogicalOrder[] = []
     try {
@@ -300,7 +304,7 @@ function OrdersPageContent() {
 
       if (ordRes.error) {
         if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load orders:', ordRes.error)
-        toast.error(`Could not load orders: ${ordRes.error.message}`)
+        if (requestId === fetchSeqRef.current) toast.error(`Could not load orders: ${ordRes.error.message}`)
       } else if (ordRes.data) {
         let rows = ordRes.data as OrderWithDetails[]
         const isCapped = rows.length >= RAW_FETCH_CAP
@@ -328,6 +332,7 @@ function OrdersPageContent() {
           }
         }
 
+        if (requestId !== fetchSeqRef.current) return normalizeOrders(rawOrdersRef.current)
         setRawOrders(rows)
         setIsRawCapped(isCapped)
         nextLogicalOrders = normalizeOrders(rows)
@@ -335,24 +340,24 @@ function OrdersPageContent() {
 
       if (gpRes.error) {
         if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load gamepasses:', gpRes.error)
-        toast.error(`Could not load gamepasses: ${gpRes.error.message}`)
+        if (requestId === fetchSeqRef.current) toast.error(`Could not load gamepasses: ${gpRes.error.message}`)
       } else if (gpRes.data) {
-        setGamepasses(gpRes.data as GamepassWithGame[])
+        if (requestId === fetchSeqRef.current) setGamepasses(gpRes.data as GamepassWithGame[])
       }
 
       if (accRes.error) {
         if (process.env.NODE_ENV === 'development') console.error('[orders] failed to load accounts:', accRes.error)
-        toast.error(`Could not load accounts: ${accRes.error.message}`)
+        if (requestId === fetchSeqRef.current) toast.error(`Could not load accounts: ${accRes.error.message}`)
       } else if (accRes.data) {
-        setAccounts(accRes.data)
+        if (requestId === fetchSeqRef.current) setAccounts(accRes.data)
       }
     } catch (err) {
       if (process.env.NODE_ENV === 'development') console.error('[orders] unexpected error loading page data:', err)
-      toast.error('Could not load orders — check your connection and try again.')
+      if (requestId === fetchSeqRef.current) toast.error('Could not load orders — check your connection and try again.')
     } finally {
-      setLoading(false)
+      if (requestId === fetchSeqRef.current) setLoading(false)
     }
-    return nextLogicalOrders
+    return requestId === fetchSeqRef.current ? nextLogicalOrders : normalizeOrders(rawOrdersRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
 
@@ -360,6 +365,19 @@ function OrdersPageContent() {
     const timer = window.setTimeout(() => { void fetchData() }, 0)
     return () => window.clearTimeout(timer)
   }, [fetchData])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('xob-web-orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { void fetchData() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'roblox_accounts' }, () => { void fetchData() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'robux_reservations' }, () => { void fetchData() })
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [fetchData, supabase])
 
   // ── Multi-workspace submit — called by WorkspaceEditor on form submit ───────
   const handleWorkspaceSubmit = useCallback(async (
@@ -418,7 +436,12 @@ function OrdersPageContent() {
         })
       }
       if (newStatus !== prevStatus) {
-        const { error } = await supabase.rpc('transition_order', { p_order_id: workspace.editOrderId, p_new_status: newStatus })
+        if (newStatus === 'completed') {
+          await supabase.rpc('claim_logical_order', { p_order_id: workspace.editOrderId })
+        }
+        const { error } = newStatus === 'completed'
+          ? await supabase.rpc('complete_logical_order', { p_order_id: workspace.editOrderId })
+          : await supabase.rpc('transition_order', { p_order_id: workspace.editOrderId, p_new_status: newStatus })
         if (error) toast.error(`Could not update order status: ${error.message}`)
       }
 
@@ -451,7 +474,12 @@ function OrdersPageContent() {
         })
       }
       if (data.status !== 'pending') {
-        await supabase.rpc('transition_order', { p_order_id: newOrder.id, p_new_status: data.status })
+        if (data.status === 'completed') {
+          await supabase.rpc('claim_logical_order', { p_order_id: newOrder.id })
+          await supabase.rpc('complete_logical_order', { p_order_id: newOrder.id })
+        } else {
+          await supabase.rpc('transition_order', { p_order_id: newOrder.id, p_new_status: data.status })
+        }
       }
       toast.success('Order created.')
       // WorkspaceEditor handles form reset + justCreated — workspace stays open
@@ -502,7 +530,7 @@ function OrdersPageContent() {
     const showToast = options.showToast ?? true
     const refresh = options.refresh ?? true
     if (!lo.hasMixedStatus && lo.status === newStatus) return { ok: true, succeeded: 0, failed: [] }
-    if (statusChanging === lo.logicalKey) {
+    if (statusChanging === lo.logicalKey || statusChangingRef.current.has(lo.logicalKey)) {
       return {
         ok: false,
         succeeded: 0,
@@ -510,7 +538,61 @@ function OrdersPageContent() {
         message: 'Order is already updating.',
       }
     }
+    statusChangingRef.current.add(lo.logicalKey)
     setStatusChanging(lo.logicalKey)
+
+    if (newStatus === 'completed') {
+      const { error: claimError } = await supabase.rpc('claim_logical_order', { p_order_id: lo.primaryOrderId })
+      if (claimError) {
+        statusChangingRef.current.delete(lo.logicalKey)
+        setStatusChanging(null)
+        const message = `Could not claim order: ${claimError.message}`
+        if (showToast) toast.error(message)
+        return {
+          ok: false,
+          succeeded: 0,
+          failed: lo.underlyingOrderIds.map(id => ({ id, message })),
+          message,
+        }
+      }
+
+      const { error } = await supabase.rpc('complete_logical_order', { p_order_id: lo.primaryOrderId })
+      statusChangingRef.current.delete(lo.logicalKey)
+      setStatusChanging(null)
+      if (error) {
+        const message = `Could not complete order: ${error.message}`
+        if (showToast) toast.error(message)
+        if (refresh) await fetchData()
+        return {
+          ok: false,
+          succeeded: 0,
+          failed: lo.underlyingOrderIds.map(id => ({ id, message })),
+          message,
+        }
+      }
+      if (showToast) toast.success('Order marked completed.')
+      if (refresh) await fetchData()
+      return { ok: true, succeeded: lo.underlyingOrderIds.length, failed: [] }
+    }
+
+    const shouldClaimBeforeTransition =
+      lo.status !== 'completed' && newStatus !== 'cancelled' && newStatus !== 'refunded'
+
+    if (shouldClaimBeforeTransition) {
+      const { error: claimError } = await supabase.rpc('claim_logical_order', { p_order_id: lo.primaryOrderId })
+      if (claimError) {
+        statusChangingRef.current.delete(lo.logicalKey)
+        setStatusChanging(null)
+        const message = `Could not claim order: ${claimError.message}`
+        if (showToast) toast.error(message)
+        return {
+          ok: false,
+          succeeded: 0,
+          failed: lo.underlyingOrderIds.map(id => ({ id, message })),
+          message,
+        }
+      }
+    }
 
     const results = await Promise.all(
       lo.underlyingOrderIds.map(async id => {
@@ -538,6 +620,7 @@ function OrdersPageContent() {
     } else {
       if (showToast) toast.success(`Order marked ${newStatus}.`)
     }
+    statusChangingRef.current.delete(lo.logicalKey)
     setStatusChanging(null)
     if (refresh) await fetchData()
 
@@ -1261,8 +1344,8 @@ function OrdersPageContent() {
     })
 
   return (
-    <div className="relative overflow-x-hidden">
-      <section className="relative px-4 sm:px-6 xl:px-8 pt-20 pb-8">
+    <div className="xob-orders-workspace relative overflow-x-hidden">
+      <section className="relative px-4 sm:px-6 xl:px-8 pt-4 pb-8">
         <div className="max-w-[1800px] mx-auto">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 mb-4">
             <div>
@@ -1285,7 +1368,7 @@ function OrdersPageContent() {
                   <p className="text-[16px] font-black tabular-nums leading-none mt-1" style={{ color }}>{value}</p>
                 </div>
               ))}
-              <button type="button" onClick={() => setAccountDockOpen(true)} className="xl:hidden h-11 min-w-0 px-3 rounded-xl flex items-center gap-2 text-left cursor-pointer" style={{ background: 'rgba(52,211,153,0.060)', border: '1px solid rgba(52,211,153,0.18)', color: 'rgba(255,255,255,0.78)' }}>
+              <button type="button" onClick={() => { setMobilePanel('accounts'); setAccountDockOpen(true) }} className="xl:hidden h-11 min-w-0 px-3 rounded-xl flex items-center gap-2 text-left cursor-pointer" style={{ background: 'rgba(52,211,153,0.060)', border: '1px solid rgba(52,211,153,0.18)', color: 'rgba(255,255,255,0.78)' }}>
                 <span className="min-w-0">
                   <span className="block text-[10px] font-black uppercase" style={{ color: '#34d399' }}>Account</span>
                   <span className="block text-[11px] font-bold truncate max-w-[150px]" title={activeAccount?.username ?? 'No account selected'}>{activeAccount?.username ?? 'Choose account'}</span>
@@ -1299,8 +1382,29 @@ function OrdersPageContent() {
             </div>
           </div>
 
+          <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
+            {([
+              ['queue', 'Queue', filteredActiveOrders.length],
+              ['order', 'Order', focusedOrder ? focusedOrder.items.length : 0],
+              ['accounts', 'Accounts', accounts.length],
+            ] as const).map(([panel, label, count]) => (
+              <button
+                key={panel}
+                type="button"
+                onClick={() => {
+                  setMobilePanel(panel)
+                  if (panel === 'accounts') setAccountDockOpen(true)
+                }}
+                className={`min-h-11 rounded-lg border px-2 text-[12px] font-black ${mobilePanel === panel ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-border bg-card text-muted-foreground'}`}
+              >
+                {label}
+                <span className="ml-1 tabular-nums">{count}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(270px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(280px,315px)_minmax(0,1fr)_minmax(285px,320px)] 2xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)_minmax(300px,340px)] gap-2 xl:gap-3 items-start">
-            <aside className="rounded-xl overflow-hidden min-w-0" style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.070)' }}>
+            <aside className={`${mobilePanel === 'queue' ? 'block' : 'hidden'} lg:block rounded-xl overflow-hidden min-w-0`} style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.070)' }}>
               <div className="px-3.5 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div>
                   <h2 className="text-[13px] font-black" style={{ color: 'rgba(255,255,255,0.82)' }}>Order Queue</h2>
@@ -1455,12 +1559,13 @@ function OrdersPageContent() {
                       exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
                       transition={quickMotion}
                       whileHover={prefersReducedMotion ? undefined : { backgroundColor: focused ? 'rgba(34,211,238,0.070)' : 'rgba(255,255,255,0.042)' }}
-                      onClick={() => { setFocusedOrderKey(lo.logicalKey); setCenterMode('shop') }}
+                      onClick={() => { setFocusedOrderKey(lo.logicalKey); setCenterMode('shop'); setMobilePanel('order') }}
                       onKeyDown={(e) => {
                         if (e.key !== 'Enter' && e.key !== ' ') return
                         e.preventDefault()
                         setFocusedOrderKey(lo.logicalKey)
                         setCenterMode('shop')
+                        setMobilePanel('order')
                       }}
                       className="w-full rounded-xl p-3 text-left transition-colors cursor-pointer min-w-0"
                       style={{ background: queueBg, border: `1px solid ${queueBorder}`, boxShadow: queueShadow || 'none' }}
@@ -1539,7 +1644,7 @@ function OrdersPageContent() {
               </div>
             </aside>
 
-            <main className="rounded-2xl overflow-hidden min-w-0" style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.075)' }}>
+            <main className={`${mobilePanel === 'order' ? 'block' : 'hidden'} lg:block rounded-2xl overflow-hidden min-w-0`} style={{ background: 'rgba(255,255,255,0.024)', border: '1px solid rgba(255,255,255,0.075)' }}>
               <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
                   <h2 className="text-[14px] font-black" style={{ color: 'rgba(255,255,255,0.84)' }}>
@@ -1715,7 +1820,7 @@ function OrdersPageContent() {
                 style={{ background: 'rgba(0,0,0,0.32)' }}
               />
             )}
-            <aside className={`${accountDockOpen ? 'fixed right-3 top-20 bottom-4 z-40 w-[min(340px,calc(100vw-1.5rem))]' : 'hidden'} xl:block xl:static xl:sticky xl:top-20 rounded-2xl overflow-hidden min-w-0`} style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.075)' }}>
+            <aside className={`${accountDockOpen || mobilePanel === 'accounts' ? 'fixed right-3 top-20 bottom-4 z-40 w-[min(340px,calc(100vw-1.5rem))]' : 'hidden'} xl:block xl:static xl:sticky xl:top-20 rounded-2xl overflow-hidden min-w-0`} style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.075)' }}>
               <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: 'rgba(255,255,255,0.34)' }}>Account In Use</p>
                 <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>Selected for fulfillment. Status remains the account status.</p>

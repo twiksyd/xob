@@ -8,15 +8,15 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0f',
+  themeColor: '#0d0b1e',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
 }
 
 export const metadata: Metadata = {
-  title: 'XOB Operations',
-  description: 'Order, account and wallet console for the XOB desk',
+  title: 'XOB — Roblox Seller Dashboard',
+  description: 'Professional Roblox gamepass seller management platform',
   appleWebApp: {
     title: 'XOB',
     statusBarStyle: 'black-translucent',
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <PwaRegister />
         {/* Every Framer Motion animation app-wide (ambient blob drift, page
